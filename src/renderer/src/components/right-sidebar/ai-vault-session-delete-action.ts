@@ -22,11 +22,20 @@ export function useAiVaultSessionDeleteAction({
   const [sessionPendingDelete, setSessionPendingDelete] = useState<AiVaultSession | null>(null)
   const [deletingSession, setDeletingSession] = useState(false)
 
-  const handleDialogOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setSessionPendingDelete(null)
-    }
-  }, [])
+  const handleDialogOpenChange = useCallback(
+    (open: boolean) => {
+      // Radix still fires its Escape / outside-click / X close while the Cancel
+      // button is disabled mid-delete; ignore those so an in-flight delete can't
+      // be dismissed out from under itself.
+      if (deletingSession) {
+        return
+      }
+      if (!open) {
+        setSessionPendingDelete(null)
+      }
+    },
+    [deletingSession]
+  )
 
   const handleConfirmDelete = useCallback(async () => {
     if (!sessionPendingDelete) {
@@ -56,6 +65,18 @@ export function useAiVaultSessionDeleteAction({
           )
         )
       }
+    } catch {
+      // The main handler resolves with a 'failed'/'rejected' outcome rather
+      // than throwing, but the IPC invoke itself can still reject on a
+      // transport or serialization error. Surface the same generic failure
+      // toast instead of leaking an unhandled rejection (the caller fires this
+      // with `void handleConfirmDelete()`).
+      toast.error(
+        translate(
+          'auto.components.right.sidebar.AiVaultPanel.sessionDeleteFailed',
+          "Couldn't delete the session"
+        )
+      )
     } finally {
       setDeletingSession(false)
       setSessionPendingDelete(null)
