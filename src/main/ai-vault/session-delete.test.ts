@@ -153,22 +153,44 @@ describe('deleteAiVaultSessionFile', () => {
     expect(tryDeleteWslUncPathMock).not.toHaveBeenCalled()
   })
 
-  it('delegates a WSL UNC path to tryDeleteWslUncPath and never calls trashItem', async () => {
+  it('delegates a WSL UNC file to tryDeleteWslUncPath (non-recursive) and never calls trashItem', async () => {
     const filePath = join(GEMINI_ROOT, 'project-a', 'session-1.json')
     tryDeleteWslUncPathMock.mockResolvedValue(true)
 
     const result = await deleteAiVaultSessionFile(baseArgs(filePath))
 
     expect(result).toEqual({ outcome: 'deleted' })
-    expect(tryDeleteWslUncPathMock).toHaveBeenCalledWith(filePath)
+    expect(tryDeleteWslUncPathMock).toHaveBeenCalledWith(filePath, { recursive: false })
     expect(lstatMock).not.toHaveBeenCalled()
     expect(trashItemMock).not.toHaveBeenCalled()
   })
 
-  // D-7: a session whose delete unit is a path set. What matters here is the
+  it('deletes a WSL UNC directory-shaped session recursively, never via trashItem', async () => {
+    // The bug this guards: a directory removal (rovo/grok/claude dir) on a WSL
+    // UNC path used to skip the WSL branch and hit shell.trashItem, which
+    // cannot trash a WSL volume item — so it failed on Windows or was silently
+    // stranded by the 9P filesystem's unreliable lstat.
+    tryDeleteWslUncPathMock.mockResolvedValue(true)
+
+    const result = await deleteAiVaultSessionFile({
+      agent: 'rovo',
+      filePath: join(ROVO_ROOT, 'sess-1', 'metadata.json'),
+      executionHostId: 'local',
+      rootOptions: { rovoSessionsDir: ROVO_ROOT }
+    })
+
+    expect(result).toEqual({ outcome: 'deleted' })
+    expect(tryDeleteWslUncPathMock).toHaveBeenCalledWith(join(ROVO_ROOT, 'sess-1'), {
+      recursive: true
+    })
+    expect(lstatMock).not.toHaveBeenCalled()
+    expect(trashItemMock).not.toHaveBeenCalled()
+  })
+
+  // A session whose delete unit is a path set. What matters here is the
   // order — the transcript is what puts the row on screen, so it must be the
   // last thing removed.
-  describe('directory-shaped agents (D-7)', () => {
+  describe('directory-shaped agents', () => {
     const claudeArgs = {
       agent: 'claude' as const,
       filePath: join(CLAUDE_ROOT, '-proj', 'sess-1.jsonl'),
