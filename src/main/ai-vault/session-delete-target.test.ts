@@ -304,9 +304,9 @@ describe('openclaw scanner/deletion shared path rules', () => {
     expect(isOpenClawSessionFilePath(join('agent-1', 'session-1.jsonl'))).toBe(false)
   })
 
-  // D-7: the directory-shaped agents. Their delete unit is a path set derived
+  // The directory-shaped agents. Their delete unit is a path set derived
   // from the one file discovery surfaced, not that file alone.
-  describe('directory-shaped agents (D-7)', () => {
+  describe('directory-shaped agents', () => {
     it('plans claude companions before the transcript, so a failure keeps the row', () => {
       const filePath = join(CLAUDE_ROOT, '-proj', 'sess-1.jsonl')
       const result = validateAiVaultSessionDeleteTarget({

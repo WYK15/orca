@@ -5,7 +5,7 @@ import type { AiVaultSessionNotDeletableResult } from './ai-vault-session-deleta
 
 /**
  * Maps a not-deletable judgement to the reason tooltip text shown on the
- * disabled Delete menu item (D-2). Says which sessions are affected, never why
+ * disabled Delete menu item. Says which sessions are affected, never why
  * — the provider's storage layout is Orca's problem, not the reader's. Not the
  * security boundary — see ai-vault-session-deletability.ts.
  */

@@ -38,7 +38,7 @@ import {
 import type { AiVaultScanOptions } from './session-scanner-types'
 
 // The session root dirs a single deletable agent's files must resolve inside
-// of (D-4). Reuses session-scanner-source-discovery.ts's own per-agent
+// of. Reuses session-scanner-source-discovery.ts's own per-agent
 // constants and its sessionRootDirs() WSL-expansion helper directly so a
 // deletion root can never drift from the scanner's own root.
 function deletableAgentSessionRootDirs(
@@ -151,7 +151,7 @@ const AI_VAULT_DELETE_TARGET_FILE_PREDICATES: Partial<
 }
 
 // Agents whose session is the directory holding the file the scanner
-// surfaced, not the file itself (D-7). Everything else in that directory
+// surfaced, not the file itself. Everything else in that directory
 // belongs to the same session — rovo's session_context.json, grok's
 // chat_history.jsonl — so the directory is the only complete delete unit.
 const AI_VAULT_DIRECTORY_SHAPED_DELETE_AGENTS = new Set<AiVaultDeletableAgent>(['rovo', 'grok'])
@@ -170,7 +170,7 @@ export type ValidateAiVaultSessionDeleteTargetArgs = {
 }
 
 // Pure, synchronous judgement of whether an AI Vault session may be deleted
-// (D-2/D-3/D-4). Never touches the filesystem and never throws on a rejected
+// Never touches the filesystem and never throws on a rejected
 // input — IPC payloads are untyped at runtime, so a malformed or hostile
 // filePath resolves to a rejection like every other invalid input.
 // A returned `allowed: true` is NOT sufficient to delete: see the caller
@@ -188,7 +188,7 @@ export function validateAiVaultSessionDeleteTarget(
     return rejected(agent, 'unsupported-agent')
   }
   // Why: Electron shell/fs APIs only act on this computer; ssh/runtime
-  // sessions' paths exist on the remote host instead (D-3), same scope limit
+  // sessions' paths exist on the remote host instead, same scope limit
   // as canUseLocalAiVaultSessionPathActions for Open/Reveal Log.
   if (normalizeExecutionHostId(args.executionHostId) !== LOCAL_EXECUTION_HOST_ID) {
     return rejected(agent, 'non-local-host')
@@ -229,7 +229,7 @@ export function validateAiVaultSessionDeleteTarget(
   return { allowed: true, agent, resolvedPath, removals }
 }
 
-// The ordered path set that removing this session means (D-7). Companions
+// The ordered path set that removing this session means. Companions
 // first, the scanner-surfaced path last — see the ordering note on
 // AiVaultSessionDeleteAllowedResult. Returns null when the path names no
 // session directory of its own, which would make the removal reach the root

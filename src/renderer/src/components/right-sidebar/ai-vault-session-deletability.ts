@@ -24,7 +24,7 @@ export type AiVaultSessionDeletabilityResult =
 /**
  * Renderer-side judgement of whether AI Vault's UI should offer Delete for a
  * session: enabled, or disabled with a reason a tooltip can render. This is
- * NOT the security boundary — the main-process validator (D-4) re-checks the
+ * NOT the security boundary — the main-process validator re-checks the
  * path on disk regardless of what this returns.
  *
  * The two layers agree only on deletable-or-not, NOT on the reason code: the

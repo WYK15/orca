@@ -1406,7 +1406,7 @@ function createAiVaultApi(): NonNullable<Partial<PreloadApi>['aiVault']> {
       callRuntimeResult<AiVaultPrepareSessionResumeResult>('aiVault.prepareSessionResume', args),
     // Why: no server-side RPC for subagent transcript listing yet, so report an empty (not erroring) result.
     listSubagentSessions: () => Promise.resolve({ sessions: [], issues: [] }),
-    // Why: session deletion is local-only (D-3) and has no runtime RPC; a web
+    // Why: session deletion is local-only and has no runtime RPC; a web
     // client's sessions are runtime-hosted, so report the same non-local
     // rejection the UI already gates on rather than pretend to delete.
     deleteSession: (args: AiVaultDeleteSessionArgs) =>

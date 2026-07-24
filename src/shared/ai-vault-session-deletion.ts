@@ -1,6 +1,6 @@
 import type { AiVaultAgent } from './ai-vault-types'
 
-// Agents whose sessions Orca can remove completely (D-2/D-7): everything the
+// Agents whose sessions Orca can remove completely: everything the
 // session wrote lives at paths derived from the one path the scanner surfaced,
 // and nothing there is shared with another session. For most agents that is a
 // single file; for claude, rovo, and grok it is a directory (see
@@ -41,8 +41,7 @@ export function isAiVaultDeletableAgent(agent: AiVaultAgent): agent is AiVaultDe
 // A '#' marker means an OpenCode 1.17.x SQLite row's synthetic
 // `<dbPath>#<sessionId>` identity, not a real file. Mirrors
 // isSyntheticAiVaultSessionPath in the renderer (ai-vault-session-path-actions.ts);
-// duplicated here rather than imported because main can't reach into
-// renderer/src, and this slice doesn't touch renderer files.
+// duplicated here rather than imported because main can't reach into renderer/src.
 export function isAiVaultSyntheticSessionPath(filePath: string): boolean {
   return filePath.includes('#')
 }
@@ -59,27 +58,27 @@ export type AiVaultSessionDeleteRejectionCode =
   // names no session directory of its own — removing it would trash every
   // session at once.
   | 'no-session-directory'
-  // D-4 fs-side guard (S-2): a removal's lstat() disagrees with its declared
-  // kind — a symlink (lstat never dereferences), or a file where the plan
-  // expects a directory and vice versa.
+  // fs-side guard: a removal's lstat() disagrees with its declared kind — a
+  // symlink (lstat never dereferences), or a file where the plan expects a
+  // directory and vice versa.
   | 'unexpected-target-kind'
 
 // One path the executor removes. `kind` is what the path must be on disk; a
 // mismatch is a rejection, never a coerced delete. `roots` are the directories
 // the path's realpath must still resolve inside — a symlinked parent escapes
-// the validator's textual root check, which only the fs side can catch (D-4b).
+// the validator's textual root check, which only the fs side can catch.
 export type AiVaultSessionDeleteRemoval = {
   path: string
   kind: 'file' | 'directory'
   roots: readonly string[]
 }
 
-// CALLER CONTRACT (D-4): `allowed: true` is a pure, path-only judgement — the
+// CALLER CONTRACT: `allowed: true` is a pure, path-only judgement — the
 // validator never touches the filesystem, so it cannot tell a real session
 // file from a same-named directory or from a symlink planted inside a root
 // that points outside it. Before removing anything, the caller MUST re-check
 // each removal on disk against its `kind` and re-resolve it against its
-// `roots`. That fs-side guard lives in the delete executor (S-2), not here.
+// `roots`. That fs-side guard lives in the delete executor, not here.
 export type AiVaultSessionDeleteAllowedResult = {
   allowed: true
   agent: AiVaultDeletableAgent

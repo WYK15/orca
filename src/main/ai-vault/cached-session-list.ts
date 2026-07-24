@@ -107,7 +107,7 @@ export async function getAiVaultWslHomeDirs(): Promise<string[]> {
   return homes.filter((homeDir): homeDir is string => Boolean(homeDir))
 }
 
-// Drops the scan-result cache after a session is deleted (D-4) so a non-force
+// Drops the scan-result cache after a session is deleted so a non-force
 // list call within the TTL can't still serve the trashed session. Bumping the
 // generation also disarms any scan already in flight, so a scan that started
 // before this call cannot write its pre-delete result back into the cache.

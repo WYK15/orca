@@ -26,7 +26,7 @@ export function registerAiVaultDeleteHandler(deps: AiVaultDeleteDeps): void {
   )
 }
 
-// D-1/D-3/D-4: delegates the trash + re-validation to the S-2 executor; this
+// Delegates the trash + re-validation to the executor; this
 // only adapts the untyped IPC payload and, on a real delete, invalidates the
 // caches that could otherwise still serve the deleted session for up to the
 // scan cache TTL.

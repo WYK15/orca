@@ -35,7 +35,7 @@ export function getSessionParseCacheEntry(path: string): SessionParseCacheEntry 
   return cache.get(path)?.entry
 }
 
-// Drops one entry after its file is deleted (D-4): cleanliness, not
+// Drops one entry after its file is deleted: cleanliness, not
 // correctness — the entry would never be read again since scan discovery walks
 // disk first and a trashed file is simply never rediscovered.
 export function invalidateSessionParseCacheEntry(path: string): void {

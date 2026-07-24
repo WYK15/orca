@@ -4,7 +4,7 @@ import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import { translate } from '@/i18n/i18n'
 
 /**
- * Owns the AI Vault delete-confirmation flow (S-5): which session is pending
+ * Owns the AI Vault delete-confirmation flow: which session is pending
  * deletion, the in-flight state, and the IPC call + toast + force-refresh on
  * settle. Extracted from AiVaultPanel to keep it under the file's line budget.
  */

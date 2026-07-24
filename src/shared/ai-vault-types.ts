@@ -178,12 +178,12 @@ export type AiVaultListResult = {
 export type AiVaultDeleteSessionArgs = {
   agent: AiVaultAgent
   filePath: string
-  // The session's host; only a local session may be deleted (D-3).
+  // The session's host; only a local session may be deleted.
   executionHostId?: ExecutionHostId
 }
 
 // Canonical home for the delete executor's result shape (moved here from
-// session-delete.ts, S-3): both main (IPC handler/executor) and the renderer
+// session-delete.ts): both main (IPC handler/executor) and the renderer
 // import this same type, so it must live where the renderer can reach it.
 export type AiVaultDeleteSessionResult =
   | { outcome: 'deleted' }
