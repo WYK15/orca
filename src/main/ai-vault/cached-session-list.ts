@@ -3,7 +3,6 @@ import { scanAiVaultSessions } from './session-scanner'
 import { getWslHomeAsync, listWslDistrosAsync } from '../wsl'
 import type { AiVaultListArgs, AiVaultListResult } from '../../shared/ai-vault-types'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
-import { aiVaultSessionListCacheKey, boundAiVaultListResult } from './session-list-retention'
 
 // Why: ONE module owns the scan cache so the desktop IPC handler AND the runtime
 // RPC method share a single cache instance — opening the desktop panel and the
@@ -40,23 +39,10 @@ export function configureAiVaultSessionSources(next: AiVaultSessionSources): voi
 
 export async function listAiVaultSessions(args?: AiVaultListArgs): Promise<AiVaultListResult> {
   // Scope paths change the result set, so they must be part of the cache key.
-  const key = aiVaultSessionListCacheKey({
+  const key = JSON.stringify({
     limit: args?.limit ?? 'default',
     scopePaths: args?.scopePaths ?? []
   })
-  const scan = async (): Promise<AiVaultListResult> =>
-    scanAiVaultSessions({
-      limit: args?.limit,
-      scopePaths: args?.scopePaths,
-      additionalCodexSessionsDirs:
-        sources.getAdditionalCodexHomePaths?.().map((homePath) => join(homePath, 'sessions')) ?? [],
-      wslHomeDirs: await getAiVaultWslHomeDirs(),
-      // The shared result is restamped at the RPC edge for runtime callers.
-      executionHostId: LOCAL_EXECUTION_HOST_ID
-    })
-  if (key === null) {
-    return boundAiVaultListResult(await scan())
-  }
   const now = Date.now()
   // Why: opening this panel repeatedly should not re-parse hundreds of JSONL
   // transcripts; explicit refreshes bypass the cache but not an active scan.
@@ -69,20 +55,30 @@ export async function listAiVaultSessions(args?: AiVaultListArgs): Promise<AiVau
 
   inflightKey = key
   const startGeneration = cacheGeneration
-  inflightList = scan()
+  const additionalCodexSessionsDirs =
+    sources.getAdditionalCodexHomePaths?.().map((homePath) => join(homePath, 'sessions')) ?? []
+  inflightList = (async () =>
+    scanAiVaultSessions({
+      limit: args?.limit,
+      scopePaths: args?.scopePaths,
+      additionalCodexSessionsDirs,
+      wslHomeDirs: await getAiVaultWslHomeDirs(),
+      // Why: this scan is always host-local; callers addressing this host by a
+      // runtime id get the result restamped at the RPC edge, never rescanned.
+      executionHostId: LOCAL_EXECUTION_HOST_ID
+    }))()
     .then((result) => {
-      const bounded = boundAiVaultListResult(result)
       // A delete (or other invalidation) landed while this scan was running:
       // its result predates the delete, so caching it would resurrect the
       // deleted session for the TTL. Return it to this caller but don't cache.
       if (startGeneration === cacheGeneration) {
         cachedList = {
           key,
-          result: bounded,
+          result,
           expiresAt: Date.now() + AI_VAULT_CACHE_TTL_MS
         }
       }
-      return bounded
+      return result
     })
     .finally(() => {
       // Only clear tracking if it still refers to this request: a concurrent
