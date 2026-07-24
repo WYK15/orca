@@ -69,6 +69,7 @@ import {
   addAdditionalValidWorkspaceKeys,
   type WorkspaceSessionHydrationOptions
 } from '@/lib/workspace-session-hydration-keys'
+import { buildValidWorktreeIdsForSessionHydration } from './degraded-repo-worktree-validity'
 import { createUntitledMarkdownFileWithTemplateSelection } from '@/lib/create-untitled-markdown'
 import { extractIpcErrorMessage } from '@/lib/ipc-error'
 import { translate } from '@/i18n/i18n'
@@ -4407,11 +4408,9 @@ export const createEditorSlice: StateCreator<AppState, [], [], EditorSlice> = (s
       const persistedActiveTabTypeByWorktree = session.activeTabTypeByWorktree ?? {}
       const persistedMarkdownFrontmatterVisible = session.markdownFrontmatterVisible ?? {}
 
-      // Why: worktrees may have been deleted between sessions; drop files for worktrees that no longer exist.
-      const validWorktreeIds = new Set(
-        Object.values(s.worktreesByRepo)
-          .flat()
-          .map((w) => w.id)
+      const validWorktreeIds = buildValidWorktreeIdsForSessionHydration(
+        s,
+        Object.keys(openFilesByWorktree)
       )
       validWorktreeIds.add(FLOATING_TERMINAL_WORKTREE_ID)
       for (const workspace of s.folderWorkspaces) {

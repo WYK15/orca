@@ -86,6 +86,10 @@ import {
 import { MOBILE_AI_VAULT_CAPABILITY } from '../../../../src/agent-history/agent-history-capability'
 import type { ConnectionState, RpcFailure, RpcSuccess } from '../../../../src/transport/types'
 import { headlessActivationNeedsHostRenderer } from '../../../../src/worktree/worktree-activation-result'
+import {
+  LAST_VISITED_WORKTREE_STORAGE_KEY,
+  serializeLastVisitedWorktreeRecord
+} from '../../../../src/worktree/last-visited-worktree-repo'
 import { useMobileDictation } from '../../../../src/hooks/use-mobile-dictation'
 import {
   triggerMediumImpact,
@@ -175,7 +179,7 @@ import {
 } from '../../../../src/session/mobile-terminal-tab-agent'
 import type { MobileNewTabAgentOption } from '../../../../src/session/mobile-new-tab-agent-options'
 import { loadMobileNewTabAgentOptions } from '../../../../src/session/mobile-new-tab-agent-loader'
-import { useMobileImageAttachment } from '../../../../src/session/use-mobile-image-attachment'
+import { useMobileSessionImageAttachments } from '../../../../src/session/use-mobile-session-image-attachments'
 import { useMobileAttachmentInputLeaseGate } from '../../../../src/session/use-mobile-attachment-input-lease-gate'
 import { useMobileTerminalPaste } from '../../../../src/session/use-mobile-terminal-paste'
 import { useTerminalLiveInputModePreference } from '../../../../src/session/use-terminal-live-input-mode-preference'
@@ -209,6 +213,7 @@ import { useMobileNativeChatReadability } from '../../../../src/session/use-mobi
 import { useMobileNativeChatInputLease } from '../../../../src/session/use-mobile-native-chat-input-lease'
 import { getMobileTerminalActionSheetActions } from '../../../../src/session/mobile-terminal-action-sheet-actions'
 import * as nativeChatTerminalStream from '../../../../src/session/mobile-native-chat-terminal-stream'
+import { mobileNativeChatScopeKey } from '../../../../src/session/mobile-native-chat-scope-key'
 import { useMobileNativeChatTerminalStream } from '../../../../src/session/use-mobile-native-chat-terminal-stream'
 import { subscribeMobileTerminalSafely } from '../../../../src/session/mobile-terminal-stream-subscribe'
 import { activateMobileSessionTab } from '../../../../src/session/mobile-session-tab-activation'
@@ -226,6 +231,8 @@ import {
   TERMINAL_GESTURE_INPUT_REFILL_PER_SECOND,
   updateTerminalCwdFromStreamEvent
 } from '../../../../src/session/mobile-session-route-helpers'
+import { MobileSessionFileDocLifecycle } from '../../../../src/session/mobile-session-file-doc-lifecycle'
+import { MobileSessionMarkdownDocLifecycle } from '../../../../src/session/mobile-session-markdown-doc-lifecycle'
 import { resolveMarkdownFloatingActionsBottom } from '../../../../src/session/markdown-floating-actions-layout'
 import { resolveTabStripScrollOffset } from '../../../../src/session/tab-strip-scroll'
 import { activateOpenedSourceControlDiffTab } from '../../../../src/session/opened-mobile-session-tab'
@@ -896,7 +903,9 @@ export default function SessionScreen() {
   const tabLayoutsRef = useRef<Map<string, { x: number; width: number }>>(new Map())
   const [markdownDocs, setMarkdownDocs] = useState<Map<string, MarkdownDocState>>(new Map())
   const markdownDocsRef = useRef<Map<string, MarkdownDocState>>(new Map())
+  const markdownDocLifecycleRef = useRef(new MobileSessionMarkdownDocLifecycle())
   const [fileDocs, setFileDocs] = useState<Map<string, FileDocState>>(new Map())
+  const fileDocLifecycleRef = useRef(new MobileSessionFileDocLifecycle())
   const [diffComments, setDiffComments] = useState<DiffComment[]>([])
   const diffCommentsRef = useRef<DiffComment[]>([])
   const [diffCommentBusy, setDiffCommentBusy] = useState(false)
@@ -1720,6 +1729,8 @@ export default function SessionScreen() {
       if (orphanedDraftTabs.length > 0) {
         nextTabs = [...orphanedDraftTabs, ...nextTabs]
       }
+      markdownDocLifecycleRef.current.reconcile(nextTabs, setMarkdownDocs)
+      fileDocLifecycleRef.current.reconcile(nextTabs, setFileDocs)
       sessionTabsRef.current = nextTabs
       // Why: subscribe snapshots often repeat identical payloads; skip re-set to avoid a subscription teardown/replay loop.
       setSessionTabs((prev) => (mobileSessionTabsEqual(prev, nextTabs) ? prev : nextTabs))
@@ -1837,8 +1848,7 @@ export default function SessionScreen() {
       if (!client) {
         return
       }
-      setMarkdownDocs((prev) => new Map(prev).set(tab.id, { status: 'loading' }))
-      try {
+      await markdownDocLifecycleRef.current.load(tab, setMarkdownDocs, async () => {
         const response = await client.sendRequest('markdown.readTab', {
           worktree: `id:${worktreeId}`,
           tabId: tab.id
@@ -1851,19 +1861,16 @@ export default function SessionScreen() {
             editable?: boolean
             readOnlyReason?: string
           }
-          setMarkdownDocs((prev) =>
-            new Map(prev).set(tab.id, {
-              status: 'ready',
-              content: result.content,
-              localContent: result.content,
-              baseVersion: result.version,
-              isDirty: false,
-              editable: result.editable === true,
-              stale: result.isDirty,
-              readOnlyReason: result.readOnlyReason
-            })
-          )
-          return
+          return {
+            status: 'ready',
+            content: result.content,
+            localContent: result.content,
+            baseVersion: result.version,
+            isDirty: false,
+            editable: result.editable === true,
+            stale: result.isDirty,
+            readOnlyReason: result.readOnlyReason
+          }
         }
         if (!shouldReadMarkdownFromDiskAfterReadTabFailure(response as RpcFailure)) {
           throw new Error((response as RpcFailure).error.message)
@@ -1881,24 +1888,12 @@ export default function SessionScreen() {
           truncated: boolean
           byteLength: number
         }
-        setMarkdownDocs((prev) =>
-          new Map(prev).set(
-            tab.id,
-            buildMarkdownDiskFallbackDoc({
-              content: fileResult.content,
-              truncated: fileResult.truncated,
-              tabIsDirty: tab.isDirty
-            })
-          )
-        )
-      } catch {
-        setMarkdownDocs((prev) =>
-          new Map(prev).set(tab.id, {
-            status: 'error',
-            message: "Couldn't load markdown"
-          })
-        )
-      }
+        return buildMarkdownDiskFallbackDoc({
+          content: fileResult.content,
+          truncated: fileResult.truncated,
+          tabIsDirty: tab.isDirty
+        })
+      })
     },
     [client, worktreeId]
   )
@@ -1908,31 +1903,13 @@ export default function SessionScreen() {
       if (!client) {
         return
       }
-      setFileDocs((prev) => new Map(prev).set(tab.id, { status: 'loading' }))
-      try {
-        const doc = await resolveMobileFileTabDoc(client, {
+      await fileDocLifecycleRef.current.load(tab, setFileDocs, () =>
+        resolveMobileFileTabDoc(client, {
           worktreeId,
           relativePath: tab.relativePath,
           diffSource: tab.diffSource
         })
-        setFileDocs((prev) => new Map(prev).set(tab.id, doc))
-      } catch (err) {
-        const message = err instanceof Error ? err.message : ''
-        const previewMessage =
-          message === 'binary_file'
-            ? 'Binary preview unavailable'
-            : message === 'file_too_large'
-              ? 'File too large for mobile preview'
-              : tab.diffSource === 'staged' || tab.diffSource === 'unstaged'
-                ? "Couldn't load diff preview"
-                : "Couldn't load file preview"
-        setFileDocs((prev) =>
-          new Map(prev).set(tab.id, {
-            status: 'error',
-            message: previewMessage
-          })
-        )
-      }
+      )
     },
     [client, worktreeId]
   )
@@ -2247,6 +2224,9 @@ export default function SessionScreen() {
         })
       } finally {
         markdownSaveInFlightRef.current.delete(tab.id)
+        if (markdownSaveSeqRef.current.get(tab.id) === saveSeq) {
+          markdownSaveSeqRef.current.delete(tab.id)
+        }
       }
     },
     [client, markdownDocs, showToast, worktreeId]
@@ -2519,10 +2499,10 @@ export default function SessionScreen() {
 
   useEffect(() => {
     if (hostId && worktreeId) {
-      void AsyncStorage.setItem(
-        'orca:last-visited-worktree',
-        JSON.stringify({ hostId, worktreeId })
-      )
+      const serialized = serializeLastVisitedWorktreeRecord({ hostId, worktreeId })
+      if (serialized) {
+        void AsyncStorage.setItem(LAST_VISITED_WORKTREE_STORAGE_KEY, serialized)
+      }
     }
   }, [hostId, worktreeId])
 
@@ -2556,6 +2536,10 @@ export default function SessionScreen() {
     terminalDiagnosticsRef.current.resetRoute()
     appliedSnapshotMarkerRef.current = { epoch: null, version: -1 }
     closedTabTombstonesRef.current.clear()
+    markdownDocLifecycleRef.current.reset()
+    fileDocLifecycleRef.current.reset()
+    markdownSaveSeqRef.current.clear()
+    markdownSaveInFlightRef.current.clear()
     for (const queued of terminalGestureInputQueuesRef.current.values()) {
       if (queued.timer) {
         clearTimeout(queued.timer)
@@ -2575,6 +2559,10 @@ export default function SessionScreen() {
     return () => {
       sessionTabActionSheetRequestSeqRef.current += 1
       sessionTabActionSheetKeyboardHideSubRef.current?.remove()
+      markdownDocLifecycleRef.current.reset()
+      fileDocLifecycleRef.current.reset()
+      markdownSaveSeqRef.current.clear()
+      markdownSaveInFlightRef.current.clear()
       clearPendingLiveInputCommit()
       clearDelayedActionTimers()
     }
@@ -3640,14 +3628,20 @@ export default function SessionScreen() {
     showToast
   })
 
-  const { attachImage, isAttaching } = useMobileImageAttachment({
+  // Terminal input pastes an attached image straight into the visible terminal;
+  // native chat instead holds it as a composer chip and rides it along on submit.
+  const { attachImage, isAttaching, nativeChatImages } = useMobileSessionImageAttachments({
     client,
     activeHandle,
+    activeHandleRef,
     canSend,
     connState,
     deviceTokenRef,
-    beforeTerminalSend: flushPendingLiveInputBeforeAttachmentSend,
+    nativeChatScopeKey: mobileNativeChatScopeKey(hostId, worktreeId, activeSessionTabId),
+    nativeChatInputLeaseReady,
     getActiveWorktreeConnectionId,
+    beforeTerminalSend: flushPendingLiveInputBeforeAttachmentSend,
+    nativeChatBaseSend: nativeChatController.handleNativeChatSend,
     showToast,
     onSuccess: triggerSelection,
     onError: triggerError
@@ -4102,7 +4096,23 @@ export default function SessionScreen() {
           initializedHandlesRef.current.delete(terminalHandle)
           clearTerminalLiveInputDefault(terminalHandle)
         }
-        setSessionTabs((prev) => prev.filter((candidate) => candidate.id !== tab.id))
+        if (tab.type === 'file') {
+          fileDocLifecycleRef.current.close(tab.id, setFileDocs)
+        }
+        if (tab.type === 'markdown') {
+          markdownDocLifecycleRef.current.close(tab.id, (update) => {
+            setMarkdownDocs((current) => {
+              const next = update(current)
+              markdownDocsRef.current = next
+              return next
+            })
+          })
+          markdownSaveSeqRef.current.delete(tab.id)
+          markdownSaveInFlightRef.current.delete(tab.id)
+        }
+        const remainingTabs = sessionTabsRef.current.filter((candidate) => candidate.id !== tab.id)
+        sessionTabsRef.current = remainingTabs
+        setSessionTabs(remainingTabs)
         // Why: tombstone the closed tab and rely on the snapshot, not a blind refetch that often re-added the not-yet-closed tab.
         closedTabTombstonesRef.current.set(tab.id, Date.now() + 10_000)
         if (activeSessionTabId === tab.id) {
@@ -4381,6 +4391,7 @@ export default function SessionScreen() {
     hostedChecksSupported: prIsGithubRepo
   })
   const showHeaderMoreButton = showAgentSessionHistoryAction || showChecksAction
+  const createTabBusy = creating || creatingBrowser || creatingMarkdown
 
   return (
     <View ref={setMobileSessionRootRef} style={styles.container}>
@@ -4583,24 +4594,16 @@ export default function SessionScreen() {
                   <Pressable
                     style={[
                       styles.createButton,
-                      (creating ||
-                        creatingBrowser ||
-                        creatingMarkdown ||
-                        connState !== 'connected') &&
-                        styles.createButtonDisabled
+                      (createTabBusy || connState !== 'connected') && styles.createButtonDisabled
                     ]}
-                    disabled={
-                      creating || creatingBrowser || creatingMarkdown || connState !== 'connected'
-                    }
+                    disabled={createTabBusy || connState !== 'connected'}
                     onPress={() => {
                       setCreateError('')
                       setShowCreateTabDrawer(true)
                     }}
                   >
                     <Text style={styles.createButtonText}>
-                      {creating || creatingBrowser || creatingMarkdown
-                        ? 'Creating...'
-                        : 'Create Tab'}
+                      {createTabBusy ? 'Creating...' : 'Create Tab'}
                     </Text>
                   </Pressable>
                 </View>
@@ -4717,8 +4720,7 @@ export default function SessionScreen() {
                 ))}
                 <MobileNativeChatOverlay
                   controller={nativeChatController}
-                  onAttachImage={() => void attachImage('library')}
-                  isAttaching={isAttaching}
+                  images={nativeChatImages}
                   onMicPress={handleDictationToggle}
                   micActive={dictation.isRecording}
                   dictationMode={dictationMode}

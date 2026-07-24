@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-20",
+  "updatedAt": "2026-07-22",
   "policy": {
     "maturityLevels": [
       "experimental",
@@ -2553,10 +2553,106 @@
       "demotionRule": "Cannot promote while Windows E2E is flaky, silently skipped, or screenshot-only."
     },
     {
+      "id": "terminal-performance.cold-restore-replay-budget",
+      "title": "Daemon cold restore keeps replay work and retained payloads bounded",
+      "maturity": "experimental",
+      "protection": "partial",
+      "owner": "terminal-runtime",
+      "layer": "main-daemon-unit",
+      "surfaces": [
+        "startup restore",
+        "daemon history replay",
+        "sleep and hibernation restore",
+        "main-process memory"
+      ],
+      "platforms": ["macos", "linux", "windows"],
+      "providers": ["daemon", "wsl"],
+      "coveredPlatforms": ["macos"],
+      "coveredProviders": ["daemon"],
+      "coverageNotes": "Deterministic main-process tests cover byte-bounded cache eviction and ACK release, one-at-a-time replay admission, a fixed per-turn replay budget within one large output record, UTF-16 boundary preservation, and checkpoint-only restore bypass while another replay is paused. The same HistoryReader path carries WSL context, but live WSL and cross-platform startup-scale runs remain gaps.",
+      "motivatingLinks": [
+        "https://github.com/stablyai/orca/issues/9971",
+        "https://github.com/stablyai/orca/pull/9990",
+        "https://github.com/stablyai/orca/issues/9441"
+      ],
+      "invariant": "Cold restore must reproduce persisted terminal output while admitting at most one scratch-emulator replay, yielding after at most 64 Ki UTF-16 code units or 1,024 replay operations, keeping sticky restore payloads within 16 MiB, and allowing header-only checkpoint restores to bypass the replay queue.",
+      "oracle": "Pause setImmediate during two single-batch restores larger than one replay slice and require exactly one admitted yield at a time, preserved text across a surrogate-pair slice boundary, and a concurrent header-only checkpoint restore to finish without consuming a replay slot. Cache tests require least-recently-used eviction, rejection of one oversized payload, and zero retained cache bytes after renderer ACK.",
+      "commands": [
+        "pnpm exec vitest run --config config/vitest.config.ts src/main/daemon/cold-restore-payload-cache.test.ts src/main/daemon/history-reader.test.ts src/main/daemon/terminal-history-incremental-restore.test.ts src/main/daemon/hibernation-cold-restore-repro.test.ts src/main/daemon/daemon-pty-adapter.test.ts"
+      ],
+      "testFiles": [
+        "src/main/daemon/cold-restore-payload-cache.test.ts",
+        "src/main/daemon/history-reader.test.ts",
+        "src/main/daemon/terminal-history-incremental-restore.test.ts",
+        "src/main/daemon/hibernation-cold-restore-repro.test.ts",
+        "src/main/daemon/daemon-pty-adapter.test.ts"
+      ],
+      "assertionRefs": [
+        {
+          "file": "src/main/daemon/terminal-history-incremental-restore.test.ts",
+          "assertions": [
+            "large single-batch replays yield within the record, preserve a surrogate pair at the slice boundary, and admit only one scratch replay at a time",
+            "a header-only checkpoint restore completes while an unrelated incremental replay is paused"
+          ]
+        },
+        {
+          "file": "src/main/daemon/cold-restore-payload-cache.test.ts",
+          "assertions": [
+            "least-recently-used payloads are evicted to the aggregate byte budget",
+            "one payload larger than the entire budget is not retained"
+          ]
+        },
+        {
+          "file": "src/main/daemon/daemon-pty-adapter.test.ts",
+          "assertions": [
+            "StrictMode remount receives sticky cold-restore data until renderer ACK clears its retained bytes"
+          ]
+        }
+      ],
+      "evidenceRuns": [
+        {
+          "date": "2026-07-22",
+          "runner": "local",
+          "platform": "macos",
+          "command": "pnpm exec vitest run --config config/vitest.config.ts src/main/daemon/cold-restore-payload-cache.test.ts src/main/daemon/history-reader.test.ts src/main/daemon/terminal-history-incremental-restore.test.ts src/main/daemon/hibernation-cold-restore-repro.test.ts src/main/daemon/daemon-pty-adapter.test.ts",
+          "result": "passed",
+          "durationSeconds": 5.68,
+          "summary": "Five focused files passed 150 tests, including deterministic single-record replay slicing, one-at-a-time admission, UTF-16 boundary preservation, header-only queue bypass, byte-bounded LRU eviction, and ACK cleanup."
+        }
+      ],
+      "runtimeBudget": {
+        "p95Seconds": 15,
+        "scope": "focused main-process cold-restore unit contract"
+      },
+      "flakeHistory": {
+        "status": "unknown",
+        "evidence": "The focused deterministic slice is new and has no CI or soak history yet."
+      },
+      "redGreenEvidence": {
+        "status": "partial",
+        "evidence": "The prior implementation had no yield inside one large batch and queued header-only restores behind the shared semaphore by inspection; an intentional pre-fix test run was not recorded."
+      },
+      "performanceBudget": {
+        "required": true,
+        "evidence": "Production admits one emulator replay globally, yields after a deterministic 64 Ki character or 1,024-operation budget even within one record, bypasses the semaphore for the common header-only final-checkpoint path, and caps sticky payloads at 16 MiB. No polling, subprocess, session inventory, or renderer wake loop is added."
+      },
+      "promotionCriteria": [
+        "Record an intentional-break red run for both the within-record yield and header-only bypass assertions.",
+        "Collect startup event-loop-delay evidence with dozens of near-cap histories on representative macOS, Windows, and Linux hardware.",
+        "Add live WSL restore evidence before claiming WSL coverage."
+      ],
+      "knownGaps": [
+        "The log decoder and final headless snapshot serialization remain synchronous inside the one-at-a-time replay slot; the gate bounds replay writes, not every CPU phase.",
+        "No live Electron startup-scale run currently proves first-pane paint order or end-to-end restore latency with dozens of histories.",
+        "SSH, remote-runtime, relay, and mobile do not use this local daemon history reader and are unaffected."
+      ],
+      "demotionRule": "Keep experimental or demote to protection none if output differs across replay slices, header-only restores consume a replay slot, retained payload bytes exceed the cap, or the focused gate flakes."
+    },
+    {
       "id": "terminal-performance.no-hot-list-sessions",
       "title": "Hot terminal interactions do not call global PTY session listing",
       "maturity": "experimental",
-      "protection": "none",
+      "protection": "partial",
       "owner": "terminal-performance",
       "layer": "ipc-count-contract",
       "surfaces": [
@@ -2580,19 +2676,74 @@
         "wsl",
         "remote-runtime"
       ],
-      "coveredPlatforms": [],
+      "coveredPlatforms": [
+        "macos"
+      ],
       "coveredProviders": [],
-      "coverageNotes": "Registered gap on main. The targeted-hasPty product hardening and no-hot count assertions exist only on the pending reliability stack. It registers here with its owning split PR.",
+      "coverageNotes": "Platform-neutral unit coverage proves the Resource Manager closed badge performs one readiness seed, coalesces unknown spawn signals, skips known-session reattach signals, and installs no interval. Broader terminal interaction coverage remains on the pending reliability stack.",
       "motivatingLinks": [
         "https://github.com/stablyai/orca/pull/7002",
-        "https://github.com/stablyai/orca/pull/6858"
+        "https://github.com/stablyai/orca/pull/6858",
+        "https://github.com/stablyai/orca/issues/9386",
+        "https://github.com/stablyai/orca/pull/9387"
       ],
       "invariant": "Typing, focus, terminal switch, workspace switch, visibility resume, resize, render, and per-pane liveness paths must not call global pty:listSessions; they must use targeted per-PTY APIs or cached provider-owned state.",
-      "oracle": "The current executable slice asserts targeted visibility/first-input liveness, resize re-assertion after visibility resume, light tab/active-state resume, SSH/remote skip behavior, and closed Resource Manager status badges avoid pty:listSessions; targeted hasPty/getSize calls are allowed for liveness/resize slices and forbidden for light tab/active-state resume. The full hot-path oracle still needs instrumentation around raw focus, split focus, workspace switch, render ticks, and high-session local/daemon/SSH fixtures.",
-      "commands": [],
-      "testFiles": [],
-      "assertionRefs": [],
-      "evidenceRuns": [],
+      "oracle": "The current executable slice asserts targeted visibility/first-input liveness, resize re-assertion after visibility resume, light tab/active-state resume, SSH/remote skip behavior, and a closed Resource Manager budget of one readiness seed plus one coalesced inventory read only for unknown spawn IDs; known-session reattach signals and steady closed time perform zero reads. Targeted hasPty/getSize calls are allowed for liveness/resize slices and forbidden for light tab/active-state resume. The full hot-path oracle still needs instrumentation around raw focus, split focus, workspace switch, render ticks, and high-session local/daemon/SSH fixtures.",
+      "commands": [
+        "pnpm exec vitest run --config config/vitest.config.ts src/main/ipc/pty.test.ts src/renderer/src/components/status-bar/use-resource-session-inventory.test.tsx src/renderer/src/components/status-bar/resource-session-inventory.test.ts src/renderer/src/components/status-bar/ResourceUsageStatusSegment.session-polling.test.ts"
+      ],
+      "testFiles": [
+        "src/main/ipc/pty.test.ts",
+        "src/renderer/src/components/status-bar/use-resource-session-inventory.test.tsx",
+        "src/renderer/src/components/status-bar/resource-session-inventory.test.ts",
+        "src/renderer/src/components/status-bar/ResourceUsageStatusSegment.session-polling.test.ts"
+      ],
+      "assertionRefs": [
+        {
+          "file": "src/renderer/src/components/status-bar/use-resource-session-inventory.test.tsx",
+          "assertions": [
+            "the false-to-true workspace readiness transition performs one daemon inventory seed",
+            "a failed readiness seed surfaces an error and a later inventory refresh recovers",
+            "known-session reattach signals perform zero additional inventory reads",
+            "multiple unknown background spawn signals coalesce to one inventory read",
+            "spawn signals during a slow inventory read never overlap provider-wide scans and cause at most one required follow-up",
+            "unknown sessions that exit before reconciliation cancel their queued inventory read",
+            "unmount during a slow inventory read cannot schedule follow-up work",
+            "exit and out-of-order refresh races cannot resurrect stale sessions"
+          ]
+        },
+        {
+          "file": "src/main/ipc/pty.test.ts",
+          "assertions": [
+            "global inventory starts local and SSH provider listings concurrently"
+          ]
+        },
+        {
+          "file": "src/renderer/src/components/status-bar/resource-session-inventory.test.ts",
+          "assertions": [
+            "daemon inventory construction copies its source and preserves count parity",
+            "single and batch removals preserve unrelated sessions and no-op references"
+          ]
+        },
+        {
+          "file": "src/renderer/src/components/status-bar/ResourceUsageStatusSegment.session-polling.test.ts",
+          "assertions": [
+            "the closed inventory hook installs no interval",
+            "the badge count comes from cached daemon inventory rather than wake-hint bindings"
+          ]
+        }
+      ],
+      "evidenceRuns": [
+        {
+          "date": "2026-07-22",
+          "runner": "local",
+          "platform": "macos",
+          "command": "pnpm exec vitest run --config config/vitest.config.ts src/main/ipc/pty.test.ts src/renderer/src/components/status-bar/use-resource-session-inventory.test.tsx src/renderer/src/components/status-bar/resource-session-inventory.test.ts src/renderer/src/components/status-bar/ResourceUsageStatusSegment.session-polling.test.ts",
+          "result": "passed",
+          "durationSeconds": 4.3,
+          "summary": "4 files and 358 tests passed, covering readiness seed/recovery, zero interval polling, bounded unknown-spawn reconciliation, concurrent provider starts, exit fencing, cleanup, and out-of-order refresh fencing."
+        }
+      ],
       "runtimeBudget": {
         "p95Seconds": 20,
         "scope": "unit or focused Electron count gate"
@@ -2603,7 +2754,7 @@
       },
       "redGreenEvidence": {
         "status": "partial",
-        "evidence": "Tests assert visibility resume prefers targeted hasPty over listSessions, first input after visibility resume calls targeted hasPty once, resize re-assertion after visibility resume uses getSize/resize without listSessions, light tab switches and visible active-state resume avoid listSessions/hasPty/getSize fanout while still allowing the active PTY scheduler hint, SSH/remote broad listing is skipped, Resource Manager broad session inventory polling is scoped to the open popover rather than its closed badge, and panes close only on authoritative false. Needs broader raw focus/workspace-switch/render/high-session count coverage before promotion."
+        "evidence": "Tests assert visibility resume prefers targeted hasPty over listSessions, first input after visibility resume calls targeted hasPty once, resize re-assertion after visibility resume uses getSize/resize without listSessions, light tab switches and visible active-state resume avoid listSessions/hasPty/getSize fanout while still allowing the active PTY scheduler hint, SSH/remote broad listing is skipped, and the closed Resource Manager performs one readiness seed while known reattach signals and steady time perform no additional reads. Needs broader raw focus/workspace-switch/render/high-session count coverage before promotion."
       },
       "performanceBudget": {
         "required": true,
@@ -2615,8 +2766,8 @@
         "Run with enough preserved sessions/providers to make a broad listing observable."
       ],
       "knownGaps": [
-        "No executable coverage on main yet; the slice lives on the pending fix-terminal-reliability stack.",
-        "Current command covers targeted visibility/first-input liveness, resize re-assertion on visibility resume, light tab/active-state resume, SSH/remote skip behavior, and closed Resource Manager session-poll avoidance, but not every hot interaction listed in the invariant.",
+        "Current commands cover Resource Manager readiness/lifecycle inventory counts; the broader targeted-liveness slice still lives on the pending fix-terminal-reliability stack.",
+        "Current coverage includes the closed Resource Manager's no-interval and known-reattach budgets, but not every hot interaction listed in the invariant.",
         "No Electron or IPC-level high-session counter gate yet proves raw focus, workspace switch, render, or high-session typing stay at zero global listSessions calls."
       ],
       "demotionRule": "Cannot promote if the test allows broad listing in any hot interaction path."

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { toAppSshPtyId } from '../../../../shared/ssh-pty-id'
+import {
+  SSH_CONNECTION_ERROR_MAX_UTF8_BYTES,
+  SSH_DETECTED_PORTS_MAX_ENTRIES
+} from '../../../../shared/ssh-retained-payload-admission'
 import { createTestStore, makeTab, makeWorktree, TEST_REPO } from './store-test-helpers'
+import { REMOTE_WORKSPACE_SYNC_MESSAGE_MAX_UTF8_BYTES } from './remote-workspace-sync-status-admission'
 
 describe('createSshSlice', () => {
   it('clears renderer state and deferred reconnect metadata for a removed SSH target', () => {
@@ -106,6 +111,14 @@ describe('createSshSlice', () => {
         'tab-ssh': 'legacy-session-without-target-prefix',
         'tab-stale-encoded': toAppSshPtyId(targetId, 'pty-1'),
         'tab-other': toAppSshPtyId(otherTargetId, 'pty-2')
+      },
+      // Why: a hydrated-but-not-yet-reconnected session for the removed target;
+      // the orphan sweep reads this map as liveness, so removal must clear it or
+      // a dead tab is pinned alive forever (#9911).
+      pendingReconnectPtyIdByTabId: {
+        'tab-ssh': toAppSshPtyId(targetId, 'pty-1'),
+        'tab-stale-encoded': toAppSshPtyId(targetId, 'pty-9'),
+        'tab-other': toAppSshPtyId(otherTargetId, 'pty-2')
       }
     })
 
@@ -124,6 +137,11 @@ describe('createSshSlice', () => {
       [otherTargetId]: true
     })
     expect(state.deferredSshSessionIdsByTabId).toEqual({
+      'tab-other': toAppSshPtyId(otherTargetId, 'pty-2')
+    })
+    // Removed target's pending-reconnect sessions cleared (by tab membership and
+    // by target-scoped session id); the surviving target's entry is retained.
+    expect(state.pendingReconnectPtyIdByTabId).toEqual({
       'tab-other': toAppSshPtyId(otherTargetId, 'pty-2')
     })
     expect(state.tabsByWorktree[worktreeId][0]).toMatchObject({ id: 'tab-ssh', ptyId: null })
@@ -242,6 +260,43 @@ describe('createSshSlice', () => {
     expect(store.getState()).not.toBe(previousState)
     expect(store.getState().sshConnectionStates.get('ssh-1')?.supportsFolderDownload).toBe(true)
     expect(store.getState().sshConnectedGeneration).toBe(1)
+  })
+
+  it('admits bounded SSH state and detected-port payloads at the store boundary', () => {
+    const store = createTestStore()
+    store.getState().setSshConnectionState('ssh-1', {
+      targetId: 'ssh-1',
+      status: 'error',
+      error: 'x'.repeat(SSH_CONNECTION_ERROR_MAX_UTF8_BYTES + 100),
+      reconnectAttempt: 0
+    })
+    store.getState().setDetectedPorts(
+      'ssh-1',
+      Array.from({ length: SSH_DETECTED_PORTS_MAX_ENTRIES + 10 }, (_, index) => ({
+        port: 3000 + index,
+        host: '127.0.0.1'
+      }))
+    )
+
+    expect(store.getState().sshConnectionStates.get('ssh-1')?.error).toHaveLength(
+      SSH_CONNECTION_ERROR_MAX_UTF8_BYTES
+    )
+    expect(store.getState().detectedPortsByConnection['ssh-1']).toHaveLength(
+      SSH_DETECTED_PORTS_MAX_ENTRIES
+    )
+  })
+
+  it('caps remote workspace messages at their retained-state boundary', () => {
+    const store = createTestStore()
+
+    store.getState().setRemoteWorkspaceSyncStatus('ssh-1', {
+      phase: 'error',
+      message: 'x'.repeat(REMOTE_WORKSPACE_SYNC_MESSAGE_MAX_UTF8_BYTES + 100)
+    })
+
+    expect(store.getState().remoteWorkspaceSyncStatusByTargetId['ssh-1'].message).toHaveLength(
+      REMOTE_WORKSPACE_SYNC_MESSAGE_MAX_UTF8_BYTES
+    )
   })
 
   it('does not publish state when cleanup finds no removed SSH target state', () => {

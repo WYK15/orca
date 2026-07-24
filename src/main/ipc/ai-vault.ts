@@ -8,7 +8,8 @@ import {
 import { scanRemoteAiVaultSessions } from '../ai-vault/remote-session-scanner'
 import { deleteAiVaultSession, registerAiVaultDeleteHandler } from './ai-vault-delete'
 import { listAiVaultSubagentSessions } from './ai-vault-subagent-list'
-import { aiVaultScanIssueResult, mergeAiVaultListResults } from '../ai-vault/session-list-results'
+import { aiVaultScanIssueResult } from '../ai-vault/session-list-results'
+import * as aiVaultListRetention from '../ai-vault/session-list-retention'
 import type {
   AiVaultDeleteSessionArgs,
   AiVaultListArgs,
@@ -30,6 +31,9 @@ import {
   SSH_FILESYSTEM_PROVIDER_UNAVAILABLE_MESSAGE
 } from '../providers/ssh-filesystem-dispatch'
 import { getActiveSshAiVaultHostInfo, getActiveSshAiVaultHostInfos } from './ssh'
+import { scanAiVaultHostsInBatches } from './ai-vault-host-scan-batches'
+
+export { AI_VAULT_ALL_HOST_SCAN_CONCURRENCY } from './ai-vault-host-scan-batches'
 
 const AI_VAULT_CACHE_TTL_MS = 15_000
 const AI_VAULT_ALL_HOST_RUNTIME_TIMEOUT_MS = 3_000
@@ -44,9 +48,7 @@ type AiVaultHandlerOptions = AiVaultSessionSources &
     ) => Promise<AiVaultListResult>
   }
 
-type RuntimeAiVaultScanOptions = {
-  timeoutMs?: number
-}
+type RuntimeAiVaultScanOptions = { timeoutMs?: number }
 
 type CachedAiVaultList = {
   key: string
@@ -75,19 +77,21 @@ async function listAiVaultSessions(args?: AiVaultListArgs): Promise<AiVaultListR
   const executionHostScope = normalizeExecutionHostScope(
     args?.executionHostScope ?? LOCAL_EXECUTION_HOST_ID
   )
-  // Why: local-scope scans go straight to the shared cache module (also used by
-  // the runtime RPC method), so the desktop panel and a paired mobile client
-  // never double-scan the same transcripts; the cache below only has to dedupe
-  // the multi-host (ssh/runtime/all) merges that exist on the desktop side.
+  // Local scans share the runtime cache; this cache only deduplicates desktop multi-host merges.
   if (executionHostScope === LOCAL_EXECUTION_HOST_ID) {
     return scanLocalAiVaultSessions(args)
   }
   // Scope paths change the result set, so they must be part of the cache key.
-  const key = JSON.stringify({
+  const key = aiVaultListRetention.aiVaultSessionListCacheKey({
     limit: args?.limit ?? 'default',
     scopePaths: args?.scopePaths ?? [],
     executionHostScope
   })
+  if (key === null) {
+    return aiVaultListRetention.boundAiVaultListResult(
+      await scanAiVaultSessionsByHostScope(args, executionHostScope)
+    )
+  }
   const now = Date.now()
   // Why: opening this panel repeatedly should not re-parse hundreds of JSONL
   // transcripts; explicit refreshes bypass the cache but not an active scan.
@@ -102,16 +106,17 @@ async function listAiVaultSessions(args?: AiVaultListArgs): Promise<AiVaultListR
   const startGeneration = cacheGeneration
   inflightList = scanAiVaultSessionsByHostScope(args, executionHostScope)
     .then((result) => {
+      const bounded = aiVaultListRetention.boundAiVaultListResult(result)
       // A delete's invalidation landed while this scan was running; caching a
       // pre-delete result would resurrect the deleted session for the TTL.
       if (startGeneration === cacheGeneration) {
         cachedList = {
           key,
-          result,
+          result: bounded,
           expiresAt: Date.now() + AI_VAULT_CACHE_TTL_MS
         }
       }
-      return result
+      return bounded
     })
     .finally(() => {
       // Only clear tracking if it still refers to this request: a concurrent
@@ -131,21 +136,19 @@ async function scanAiVaultSessionsByHostScope(
   if (executionHostScope === 'all') {
     const runtimeHosts = getActiveRuntimeAiVaultHostInfosResult()
     const runtimeResults = runtimeHosts.issue ? [runtimeHosts.issue] : []
-    return mergeAiVaultListResults(
-      await Promise.all([
-        scanLocalAiVaultSessions(args),
-        ...getActiveSshAiVaultHostInfos().map((hostInfo) =>
-          scanSshAiVaultSessions(hostInfo.targetId, args)
-        ),
-        ...runtimeHosts.hostInfos.map((hostInfo) =>
+    const scans: (() => Promise<AiVaultListResult>)[] = [() => scanLocalAiVaultSessions(args)]
+    scans.push(
+      ...getActiveSshAiVaultHostInfos().map(
+        (hostInfo) => () => scanSshAiVaultSessions(hostInfo.targetId, args)
+      ),
+      ...runtimeHosts.hostInfos.map(
+        (hostInfo) => () =>
           scanRuntimeAiVaultSessions(hostInfo, args, {
             timeoutMs: AI_VAULT_ALL_HOST_RUNTIME_TIMEOUT_MS
           })
-        ),
-        ...runtimeResults
-      ]),
-      args?.limit
+      )
     )
+    return scanAiVaultHostsInBatches(scans, runtimeResults, args?.limit)
   }
 
   const parsed = parseExecutionHostId(executionHostScope)
