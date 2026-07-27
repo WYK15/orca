@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcResponse, RpcSuccess } from '../transport/types'
+import { resetMobileNativeChatStaleInputForTests } from './mobile-native-chat-stale-input'
 import { useMobileNativeChatImageAttachments } from './use-mobile-native-chat-image-attachments'
 
 // Fully stub the picker so the real expo/react-native chain never loads under
@@ -66,7 +67,8 @@ function baseArgs(overrides: Partial<HookArgs> & Pick<HookArgs, 'client'>): Hook
     scopeKey: SCOPE_A,
     enabled: true,
     showToast: vi.fn(),
-    baseSend: vi.fn().mockResolvedValue(true),
+    onSendError: vi.fn(),
+    baseSend: vi.fn().mockResolvedValue('accepted'),
     sleep: async () => {},
     ...overrides
   }
@@ -84,6 +86,9 @@ describe('useMobileNativeChatImageAttachments', () => {
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true
     pick.mockReset()
+    // Stale markers live at module scope now (they outlive the screen), so they
+    // also outlive a test.
+    resetMobileNativeChatStaleInputForTests()
   })
   afterEach(() => {
     act(() => renderer?.unmount())
@@ -149,7 +154,7 @@ describe('useMobileNativeChatImageAttachments', () => {
     })
     const baseSend = vi.fn(async (t: string) => {
       order.push(`text:${t}`)
-      return true
+      return 'accepted' as const
     })
     // Record each terminal write so the paste-before-settle order is asserted,
     // not just implied by the call counts.
@@ -191,9 +196,49 @@ describe('useMobileNativeChatImageAttachments', () => {
     // Clear, then paste, then settle, then the text send — in that order.
     expect(order).toEqual(['clear', 'paste', 'settle', 'text:look at this'])
     // The local preview URI rides along so the sent bubble shows the photo.
-    expect(baseSend).toHaveBeenCalledWith('look at this', ['file:///a.jpg'])
+    expect(baseSend).toHaveBeenCalledWith('look at this', ['file:///a.jpg'], expect.any(Number))
     // Chips clear once the send is accepted.
     expect(hook!.attachments).toEqual([])
+  })
+
+  it('spends one budget across the image paste and the text body that follows', async () => {
+    vi.useFakeTimers()
+    try {
+      pick.mockResolvedValue({ base64: 'AAAA', uri: 'file:///a.jpg' })
+      const client = makeClient([
+        methodNotFound('start'),
+        ok('save', '/tmp/a.png'),
+        sendResult(true), // Ctrl+U clear
+        sendResult(true) // image paste
+      ])
+      const slowClient: Pick<RpcClient, 'sendRequest'> = {
+        sendRequest: async (method, params) => {
+          if (method === 'terminal.send') {
+            // A slow relay: each write burns 5s of the action's budget.
+            vi.setSystemTime(Date.now() + 5_000)
+          }
+          return client.sendRequest(method, params)
+        }
+      }
+      const baseSend = vi.fn().mockResolvedValue('accepted')
+      mount(baseArgs({ client: slowClient as RpcClient, baseSend }))
+
+      await act(async () => {
+        await hook!.attachImage('library')
+      })
+      await act(async () => {
+        await hook!.sendNativeChat('look at this')
+      })
+
+      // The paste spent 10s of the 15s ceiling, so the text body inherits what is
+      // left (plus the credited settle). Opening a fresh budget here — which the
+      // caller used to do by omitting `deadline` — would hand it a full 15s and let
+      // one user action hold the composer `sending` for ~30s.
+      const deadline = baseSend.mock.calls[0]?.[2] as number
+      expect(deadline - Date.now()).toBeLessThanOrEqual(5_300)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('routes an attachments-only send through baseSend with empty text so the echo still shows the photo', async () => {
@@ -204,7 +249,7 @@ describe('useMobileNativeChatImageAttachments', () => {
       sendResult(true), // Ctrl+U clear
       sendResult(true) // image paste
     ])
-    const baseSend = vi.fn().mockResolvedValue(true)
+    const baseSend = vi.fn().mockResolvedValue('accepted')
     mount(baseArgs({ client: client as unknown as RpcClient, baseSend }))
 
     await act(async () => {
@@ -218,7 +263,7 @@ describe('useMobileNativeChatImageAttachments', () => {
     expect(accepted).toBe(true)
     // Empty text still goes through baseSend (which submits the bare Enter) so the
     // optimistic echo carries the preview URI.
-    expect(baseSend).toHaveBeenCalledWith('', ['file:///a.jpg'])
+    expect(baseSend).toHaveBeenCalledWith('', ['file:///a.jpg'], expect.any(Number))
     const sendCalls = client.calls.filter((c) => c.method === 'terminal.send')
     // Only the clear + image paste hit the wire here; baseSend owns the submit.
     expect(sendCalls).toHaveLength(2)
@@ -227,13 +272,13 @@ describe('useMobileNativeChatImageAttachments', () => {
 
   it('delegates straight to baseSend when there are no attachments', async () => {
     const client = makeClient([])
-    const baseSend = vi.fn().mockResolvedValue(true)
+    const baseSend = vi.fn().mockResolvedValue('accepted')
     mount(baseArgs({ client: client as unknown as RpcClient, baseSend }))
 
     await act(async () => {
       await hook!.sendNativeChat('just text')
     })
-    expect(baseSend).toHaveBeenCalledWith('just text')
+    expect(baseSend).toHaveBeenCalledWith('just text', undefined, expect.any(Number))
     expect(client.calls).toHaveLength(0)
   })
 
@@ -245,9 +290,9 @@ describe('useMobileNativeChatImageAttachments', () => {
       sendResult(true), // Ctrl+U clear
       sendResult(false) // image paste rejected
     ])
-    const baseSend = vi.fn().mockResolvedValue(true)
-    const showToast = vi.fn()
-    mount(baseArgs({ client: client as unknown as RpcClient, baseSend, showToast }))
+    const baseSend = vi.fn().mockResolvedValue('accepted')
+    const onSendError = vi.fn()
+    mount(baseArgs({ client: client as unknown as RpcClient, baseSend, onSendError }))
     await act(async () => {
       await hook!.attachImage('library')
     })
@@ -257,7 +302,7 @@ describe('useMobileNativeChatImageAttachments', () => {
     })
     expect(accepted).toBe(false)
     expect(baseSend).not.toHaveBeenCalled()
-    expect(showToast).toHaveBeenCalledWith('Message not sent', 1500)
+    expect(onSendError).toHaveBeenCalledWith('Message not sent')
     expect(hook!.attachments).toHaveLength(1)
   })
 
@@ -265,9 +310,9 @@ describe('useMobileNativeChatImageAttachments', () => {
     pick.mockResolvedValue({ base64: 'AAAA', uri: 'file:///a.jpg' })
     // No terminal.send responses queued: the clear write throws (dropped transport).
     const client = makeClient([methodNotFound('start'), ok('save', '/tmp/a.png')])
-    const baseSend = vi.fn().mockResolvedValue(true)
-    const showToast = vi.fn()
-    mount(baseArgs({ client: client as unknown as RpcClient, baseSend, showToast }))
+    const baseSend = vi.fn().mockResolvedValue('accepted')
+    const onSendError = vi.fn()
+    mount(baseArgs({ client: client as unknown as RpcClient, baseSend, onSendError }))
     await act(async () => {
       await hook!.attachImage('library')
     })
@@ -277,17 +322,19 @@ describe('useMobileNativeChatImageAttachments', () => {
     })
     expect(accepted).toBe(false)
     expect(baseSend).not.toHaveBeenCalled()
-    expect(showToast).toHaveBeenCalledWith('Message not sent', 1500)
+    expect(onSendError).toHaveBeenCalledWith('Message not sent')
     expect(hook!.attachments).toHaveLength(1)
   })
 
-  it('surfaces a toast instead of a silent no-op when the input lease gate is closed', async () => {
+  it('surfaces an error instead of a silent no-op when the input lease gate is closed', async () => {
     pick.mockResolvedValue({ base64: 'AAAA', uri: 'file:///a.jpg' })
     const client = makeClient([methodNotFound('start'), ok('save', '/tmp/a.png')])
-    const baseSend = vi.fn().mockResolvedValue(true)
-    const showToast = vi.fn()
+    const baseSend = vi.fn().mockResolvedValue('accepted')
+    const onSendError = vi.fn()
     // Attaching is allowed without the lease; only the send is gated on it.
-    mount(baseArgs({ client: client as unknown as RpcClient, enabled: false, baseSend, showToast }))
+    mount(
+      baseArgs({ client: client as unknown as RpcClient, enabled: false, baseSend, onSendError })
+    )
     await act(async () => {
       await hook!.attachImage('library')
     })
@@ -297,14 +344,14 @@ describe('useMobileNativeChatImageAttachments', () => {
     })
     expect(accepted).toBe(false)
     expect(baseSend).not.toHaveBeenCalled()
-    expect(showToast).toHaveBeenCalledWith('Message not sent (disconnected)', 1500)
+    expect(onSendError).toHaveBeenCalledWith('Message not sent (disconnected)')
     expect(hook!.attachments).toHaveLength(1)
   })
 
   it('scopes chips to the tab that attached them', async () => {
     pick.mockResolvedValue({ base64: 'AAAA', uri: 'file:///a.jpg' })
     const client = makeClient([methodNotFound('start'), ok('save', '/tmp/a.png')])
-    const baseSend = vi.fn().mockResolvedValue(true)
+    const baseSend = vi.fn().mockResolvedValue('accepted')
     const args = baseArgs({ client: client as unknown as RpcClient, baseSend })
     mount(args)
     await act(async () => {
@@ -318,7 +365,7 @@ describe('useMobileNativeChatImageAttachments', () => {
     await act(async () => {
       await hook!.sendNativeChat('hi')
     })
-    expect(baseSend).toHaveBeenCalledWith('hi')
+    expect(baseSend).toHaveBeenCalledWith('hi', undefined, expect.any(Number))
     expect(client.calls.some((c) => c.method === 'terminal.send')).toBe(false)
 
     // Back on the original tab the chip is still pending.
@@ -378,7 +425,7 @@ describe('useMobileNativeChatImageAttachments', () => {
       methodNotFound('start'),
       ok('save', '/tmp/b.png') // second attach, while the send is parked on settle
     ])
-    const baseSend = vi.fn().mockResolvedValue(true)
+    const baseSend = vi.fn().mockResolvedValue('accepted')
     let releaseSettle: (() => void) | null = null
     const args = baseArgs({
       client: client as unknown as RpcClient,
@@ -421,7 +468,7 @@ describe('useMobileNativeChatImageAttachments', () => {
     })
 
     // Only the first (sent) image rode along; the mid-send chip survives.
-    expect(baseSend).toHaveBeenCalledWith('hi', ['file:///a.jpg'])
+    expect(baseSend).toHaveBeenCalledWith('hi', ['file:///a.jpg'], expect.any(Number))
     expect(hook!.attachments.map((a) => a.previewUri)).toEqual(['file:///b.jpg'])
   })
 
@@ -433,15 +480,15 @@ describe('useMobileNativeChatImageAttachments', () => {
       sendResult(true), // Ctrl+U clear
       sendResult(true) // image paste — into term-1
     ])
-    const baseSend = vi.fn().mockResolvedValue(true)
-    const showToast = vi.fn()
+    const baseSend = vi.fn().mockResolvedValue('accepted')
+    const onSendError = vi.fn()
     const activeHandleRef = { current: 'term-1' }
     let releaseSettle: (() => void) | null = null
     const args = baseArgs({
       client: client as unknown as RpcClient,
       activeHandleRef,
       baseSend,
-      showToast,
+      onSendError,
       sleep: () =>
         new Promise<void>((resolve) => {
           releaseSettle = resolve
@@ -470,7 +517,7 @@ describe('useMobileNativeChatImageAttachments', () => {
     })
     expect(accepted).toBe(false)
     expect(baseSend).not.toHaveBeenCalled()
-    expect(showToast).toHaveBeenCalledWith('Message not sent', 1500)
+    expect(onSendError).toHaveBeenCalledWith('Message not sent')
     expect(hook!.attachments).toHaveLength(1)
   })
 
@@ -483,7 +530,7 @@ describe('useMobileNativeChatImageAttachments', () => {
       sendResult(false), // image paste rejected — stale input left in term-1
       sendResult(true) // healing Ctrl+U before the text-only send
     ])
-    const baseSend = vi.fn().mockResolvedValue(true)
+    const baseSend = vi.fn().mockResolvedValue('accepted')
     mount(baseArgs({ client: client as unknown as RpcClient, baseSend }))
     await act(async () => {
       await hook!.attachImage('library')
@@ -507,7 +554,99 @@ describe('useMobileNativeChatImageAttachments', () => {
     // Failed attempt's clear + rejected paste, then the healing clear.
     expect(sendCalls).toHaveLength(3)
     expect(sendCalls[2]?.params).toMatchObject({ text: '\x15', enter: false })
-    expect(baseSend).toHaveBeenCalledWith('hi again')
+    expect(baseSend).toHaveBeenCalledWith('hi again', undefined, expect.any(Number))
+  })
+
+  it('heals before the next text-only send when an image submit delivery is unknown (#10228)', async () => {
+    pick.mockResolvedValue({ base64: 'AAAA', uri: 'file:///a.jpg' })
+    const client = makeClient([
+      methodNotFound('start'),
+      ok('save', '/tmp/a.png'),
+      sendResult(true), // Ctrl+U clear
+      sendResult(true), // image paste accepted — path now sits on term-1's input
+      sendResult(true) // healing Ctrl+U before the follow-up text send
+    ])
+    const baseSend = vi.fn().mockResolvedValueOnce('unknown').mockResolvedValueOnce('accepted')
+    mount(baseArgs({ client: client as unknown as RpcClient, baseSend }))
+    await act(async () => {
+      await hook!.attachImage('library')
+    })
+
+    // Ambiguous delivery: the paste landed but the text+Enter may not have.
+    let accepted = false
+    await act(async () => {
+      accepted = await hook!.sendNativeChat('pic')
+    })
+    // Mirrors the text path: 'unknown' usually WAS delivered, so the send is not
+    // surfaced as a failure and the chip does not linger for a double-send retry.
+    expect(accepted).toBe(true)
+    expect(hook!.attachments).toEqual([])
+
+    // The next plain-text send must Ctrl+U first — if the Enter was lost, the
+    // orphaned image path would otherwise glue onto this later message.
+    await act(async () => {
+      accepted = await hook!.sendNativeChat('later message')
+    })
+    expect(accepted).toBe(true)
+    const sendCalls = client.calls.filter((c) => c.method === 'terminal.send')
+    expect(sendCalls).toHaveLength(3)
+    expect(sendCalls[2]?.params).toMatchObject({ text: '\x15', enter: false })
+    expect(baseSend).toHaveBeenNthCalledWith(1, 'pic', ['file:///a.jpg'], expect.any(Number))
+    expect(baseSend).toHaveBeenNthCalledWith(2, 'later message', undefined, expect.any(Number))
+  })
+
+  it('still heals after the session screen unmounts and remounts (#10228)', async () => {
+    pick.mockResolvedValue({ base64: 'AAAA', uri: 'file:///a.jpg' })
+    const client = makeClient([
+      methodNotFound('start'),
+      ok('save', '/tmp/a.png'),
+      sendResult(true), // Ctrl+U clear
+      sendResult(true), // image paste accepted — path now sits on term-1's input
+      sendResult(true) // healing Ctrl+U on the remounted screen
+    ])
+    const baseSend = vi.fn().mockResolvedValueOnce('unknown').mockResolvedValueOnce('accepted')
+    mount(baseArgs({ client: client as unknown as RpcClient, baseSend }))
+    await act(async () => {
+      await hook!.attachImage('library')
+    })
+    await act(async () => {
+      await hook!.sendNativeChat('pic')
+    })
+
+    // Back out of the session screen and return. The orphaned paste sits on the
+    // HOST's input line, so a fresh hook must still know to clear it.
+    act(() => renderer!.unmount())
+    renderer = null
+    mount(baseArgs({ client: client as unknown as RpcClient, baseSend }))
+    expect(hook!.attachments).toEqual([])
+
+    let accepted = false
+    await act(async () => {
+      accepted = await hook!.sendNativeChat('later message')
+    })
+    expect(accepted).toBe(true)
+    const sendCalls = client.calls.filter((c) => c.method === 'terminal.send')
+    expect(sendCalls).toHaveLength(3)
+    expect(sendCalls[2]?.params).toMatchObject({ terminal: 'term-1', text: '\x15', enter: false })
+    expect(baseSend).toHaveBeenNthCalledWith(2, 'later message', undefined, expect.any(Number))
+  })
+
+  it('does not heal after an unknown text-only send (nothing was pasted first)', async () => {
+    const client = makeClient([])
+    const baseSend = vi.fn().mockResolvedValueOnce('unknown').mockResolvedValueOnce('accepted')
+    mount(baseArgs({ client: client as unknown as RpcClient, baseSend }))
+
+    let accepted = false
+    await act(async () => {
+      accepted = await hook!.sendNativeChat('first')
+    })
+    expect(accepted).toBe(true)
+    await act(async () => {
+      accepted = await hook!.sendNativeChat('second')
+    })
+    expect(accepted).toBe(true)
+    // No paste preceded the ambiguous send, so no healing Ctrl+U hits the wire.
+    expect(client.calls).toHaveLength(0)
   })
 
   it('retains the stale marker when a rejected healing clear blocks text-only send', async () => {
@@ -520,7 +659,7 @@ describe('useMobileNativeChatImageAttachments', () => {
       sendResult(false), // first healing Ctrl+U rejected
       sendResult(true) // retry healing Ctrl+U accepted
     ])
-    const baseSend = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    const baseSend = vi.fn().mockResolvedValueOnce('rejected').mockResolvedValueOnce('accepted')
     mount(baseArgs({ client: client as unknown as RpcClient, baseSend }))
     await act(async () => {
       await hook!.attachImage('library')
@@ -548,8 +687,8 @@ describe('useMobileNativeChatImageAttachments', () => {
     expect(sendCalls).toHaveLength(4)
     expect(sendCalls[2]?.params).toMatchObject({ text: '\x15', enter: false })
     expect(sendCalls[3]?.params).toMatchObject({ text: '\x15', enter: false })
-    expect(baseSend).toHaveBeenNthCalledWith(1, 'hi', ['file:///a.jpg'])
-    expect(baseSend).toHaveBeenNthCalledWith(2, 'hi again')
+    expect(baseSend).toHaveBeenNthCalledWith(1, 'hi', ['file:///a.jpg'], expect.any(Number))
+    expect(baseSend).toHaveBeenNthCalledWith(2, 'hi again', undefined, expect.any(Number))
   })
 
   it('does not reroute text when the active terminal changes during a healing clear', async () => {
@@ -565,7 +704,7 @@ describe('useMobileNativeChatImageAttachments', () => {
       sendResult(true),
       deferredClear
     ])
-    const baseSend = vi.fn().mockResolvedValueOnce(false)
+    const baseSend = vi.fn().mockResolvedValueOnce('rejected')
     const activeHandleRef = { current: 'term-1' }
     mount(baseArgs({ client: client as unknown as RpcClient, activeHandleRef, baseSend }))
     await act(async () => {
@@ -596,6 +735,49 @@ describe('useMobileNativeChatImageAttachments', () => {
     expect(sendCalls[2]?.params).toMatchObject({ terminal: 'term-1', text: '\x15', enter: false })
   })
 
+  it('defers the heal instead of burning a rejected clear while the lease is closed', async () => {
+    pick.mockResolvedValue({ base64: 'AAAA', uri: 'file:///a.jpg' })
+    const client = makeClient([
+      methodNotFound('start'),
+      ok('save', '/tmp/a.png'),
+      sendResult(true), // Ctrl+U clear
+      sendResult(true), // image paste accepted
+      sendResult(true) // the heal, once the lease is back
+    ])
+    const baseSend = vi.fn().mockResolvedValueOnce('rejected').mockResolvedValueOnce('accepted')
+    const onSendError = vi.fn()
+    const args = baseArgs({ client: client as unknown as RpcClient, baseSend, onSendError })
+    mount(args)
+    await act(async () => {
+      await hook!.attachImage('library')
+    })
+    await act(async () => {
+      await hook!.sendNativeChat('hi')
+    })
+    await act(async () => {
+      hook!.removeAttachment('img-1')
+    })
+
+    // Lease lost: the heal is a terminal.send too, so it must not be attempted.
+    update({ ...args, enabled: false })
+    let accepted = true
+    await act(async () => {
+      accepted = await hook!.sendNativeChat('hi again')
+    })
+    expect(accepted).toBe(false)
+    expect(onSendError).toHaveBeenLastCalledWith('Message not sent (disconnected)')
+    expect(client.calls.filter((c) => c.method === 'terminal.send')).toHaveLength(2)
+
+    update({ ...args, enabled: true })
+    await act(async () => {
+      accepted = await hook!.sendNativeChat('hi again')
+    })
+    expect(accepted).toBe(true)
+    const sendCalls = client.calls.filter((c) => c.method === 'terminal.send')
+    expect(sendCalls).toHaveLength(3)
+    expect(sendCalls[2]?.params).toMatchObject({ text: '\x15', enter: false })
+  })
+
   it('heals rejected image submits independently across terminals', async () => {
     pick
       .mockResolvedValueOnce({ base64: 'AAAA', uri: 'file:///a.jpg' })
@@ -614,10 +796,10 @@ describe('useMobileNativeChatImageAttachments', () => {
     ])
     const baseSend = vi
       .fn()
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce('rejected')
+      .mockResolvedValueOnce('rejected')
+      .mockResolvedValueOnce('accepted')
+      .mockResolvedValueOnce('accepted')
     const activeHandleRef = { current: 'term-1' }
     const args = baseArgs({ client: client as unknown as RpcClient, activeHandleRef, baseSend })
     mount(args)

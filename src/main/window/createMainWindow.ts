@@ -49,6 +49,8 @@ import { rectHasVisibleAreaOnAnyDisplay } from './window-bounds-validation'
 import { closeDashboardPopout } from './dashboard-popout-window'
 import { installPrivilegedWindowNavigationPolicy } from './privileged-window-navigation'
 import { isMacosTahoeOrNewer } from './macos-tahoe-release'
+import { reflowRendererViewport } from './renderer-viewport-reflow'
+import { registerPluginPanelNavigationGuard } from '../plugins/plugin-panel-navigation-guard'
 
 // Why: show/restore/resume can overlap before the size nudge resets; never capture the temporary width as the next baseline.
 const activeRepaintJiggles = new WeakSet<BrowserWindow>()
@@ -60,11 +62,15 @@ function forceRepaint(window: BrowserWindow): void {
     return
   }
   window.webContents.invalidate()
-  if (window.isMaximized() || window.isFullScreen() || activeRepaintJiggles.has(window)) {
+  // Why: macOS 26 scene-backed windows deadlock the main thread on frame mutation, but invalidate
+  // alone never reflows the dvh root (STA-2383); emulation reflows without touching the frame.
+  // Runs before the maximized/fullscreen bail-out below, which only exists to protect setSize —
+  // emulation leaves those states intact, and a maximized window goes stale just the same.
+  if (isMacosTahoeOrNewer()) {
+    reflowRendererViewport(window)
     return
   }
-  // Why: macOS 26 scene-backed windows can deadlock the main thread on re-entrant frame updates; invalidate alone recovers the compositor there.
-  if (isMacosTahoeOrNewer()) {
+  if (window.isMaximized() || window.isFullScreen() || activeRepaintJiggles.has(window)) {
     return
   }
   activeRepaintJiggles.add(window)
@@ -75,12 +81,26 @@ function forceRepaint(window: BrowserWindow): void {
       return
     }
     const [width, height] = window.getSize()
-    window.setSize(width + 1, height)
-    setTimeout(() => {
-      if (!window.isDestroyed()) {
-        window.setSize(width, height)
-      }
+    // Why: if the nudge throws mid-flight the WeakSet entry must still clear, or this window
+    // never repaints again.
+    try {
+      window.setSize(width + 1, height)
+    } catch {
       activeRepaintJiggles.delete(window)
+      return
+    }
+    setTimeout(() => {
+      try {
+        if (!window.isDestroyed()) {
+          const [currentWidth, currentHeight] = window.getSize()
+          // Why: a real user resize during the jiggle owns the final bounds.
+          if (currentWidth === width + 1 && currentHeight === height) {
+            window.setSize(width, height)
+          }
+        }
+      } finally {
+        activeRepaintJiggles.delete(window)
+      }
     }, 32)
   }, 0)
 }
@@ -105,15 +125,33 @@ function installMacosVisibilityRepaint(window: BrowserWindow): void {
     }
   }
 
+  // Why (STA-2383): occlusion-uncover fires no restore/show, so the renderer relays its genuine
+  // hidden→visible reveal instead. Unlike a bare focus (every Cmd+Tab, window never hidden), this
+  // only fires when the window was actually occluded/throttled — exactly when the stale dvh layout
+  // stranded the bottom status bar off-screen — so the full repaint's size jiggle is warranted.
+  const onRendererRevealed = (event: Electron.IpcMainEvent): void => {
+    if (window.isDestroyed() || window.webContents.isDestroyed()) {
+      return
+    }
+    if (event.sender !== window.webContents) {
+      return
+    }
+    forceRepaint(window)
+  }
+  ipcMain.on('ui:window-revealed', onRendererRevealed)
+
   window.on('restore', repaintAfterVisibilityTransition)
   window.on('show', repaintAfterVisibilityTransition)
-  // Why: occlusion-uncover fires no restore/show, only focus; invalidate only — the setSize jiggle would SIGWINCH every terminal on Cmd+Tab.
+  // Why: occlusion-uncover fires no restore/show, only focus; invalidate only — the setSize jiggle would SIGWINCH every terminal on Cmd+Tab. The renderer-reveal relay above covers the stale-layout recovery that invalidate alone misses.
   window.on('focus', () => {
     if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
       window.webContents.invalidate()
     }
   })
-  window.on('closed', clearDelayedRepaint)
+  window.on('closed', () => {
+    clearDelayedRepaint()
+    ipcMain.removeListener('ui:window-revealed', onRendererRevealed)
+  })
 }
 
 function isMacAppPasteInput(input: Electron.Input): boolean {
@@ -216,14 +254,10 @@ export function createMainWindow(
     return false
   })
   const blur = settings?.windowBackgroundBlur ?? false
-  // Why: blur uses platform APIs (macOS vibrancy+transparent, Windows backgroundMaterial, Linux none) and only applies at creation, needs restart.
-  const platformBlurOptions = blur
-    ? process.platform === 'darwin'
-      ? { vibrancy: 'under-window' as const, transparent: true }
-      : process.platform === 'win32'
-        ? { backgroundMaterial: 'acrylic' as const }
-        : {}
-    : {}
+  // Why: only Windows acrylic is ever visible; macOS vibrancy+transparent sat behind our opaque background yet
+  // forced per-frame WindowServer alpha compositing (#8482). Applies at creation only, so it needs a restart.
+  const platformBlurOptions =
+    blur && process.platform === 'win32' ? { backgroundMaterial: 'acrylic' as const } : {}
 
   const mainWindow = new BrowserWindow({
     width: savedBounds?.width ?? defaultBounds.width,
@@ -408,6 +442,9 @@ export function createMainWindow(
   })
 
   installPrivilegedWindowNavigationPolicy(mainWindow.webContents)
+  // Why: containment must be listening before any plugin panel frame is created,
+  // so register it with the window's other navigation policy.
+  registerPluginPanelNavigationGuard(mainWindow.webContents)
 
   mainWindow.webContents.on('will-attach-webview', (event, webPreferences, params) => {
     const src = typeof params.src === 'string' ? params.src : ''

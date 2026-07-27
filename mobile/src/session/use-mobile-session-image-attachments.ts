@@ -1,6 +1,7 @@
 import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState } from '../transport/types'
 import type { MobileImageSource } from './mobile-image-source-picker'
+import type { MobileNativeChatSendOutcome } from './mobile-native-chat-send'
 import { useMobileImageAttachment } from './use-mobile-image-attachment'
 import {
   useMobileNativeChatImageAttachments,
@@ -22,8 +23,17 @@ type Args = {
   readonly nativeChatInputLeaseReady: boolean
   readonly getActiveWorktreeConnectionId: () => Promise<string | null>
   readonly beforeTerminalSend: (terminal: string) => Promise<boolean>
-  readonly nativeChatBaseSend: (text: string, images?: string[]) => Promise<boolean>
+  /** Outcome-preserving so an ambiguous ('unknown') delivery after an image
+   *  paste can mark the terminal input for healing (#10228). Takes the image
+   *  send's budget so the paste and this text body share one `sending` window. */
+  readonly nativeChatBaseSend: (
+    text: string,
+    images?: string[],
+    deadline?: number
+  ) => Promise<MobileNativeChatSendOutcome>
   readonly showToast: (message: string, durationMs?: number) => void
+  /** Native-chat send failures — rendered in the composer's inline banner. */
+  readonly onNativeChatSendError: (message: string) => void
   readonly onSuccess: () => void
   readonly onError: () => void
 }
@@ -45,6 +55,7 @@ export function useMobileSessionImageAttachments({
   beforeTerminalSend,
   nativeChatBaseSend,
   showToast,
+  onNativeChatSendError,
   onSuccess,
   onError
 }: Args): {
@@ -73,6 +84,7 @@ export function useMobileSessionImageAttachments({
     scopeKey: nativeChatScopeKey,
     enabled: nativeChatInputLeaseReady,
     showToast,
+    onSendError: onNativeChatSendError,
     baseSend: nativeChatBaseSend,
     onAttachSuccess: onSuccess,
     onError

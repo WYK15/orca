@@ -24,6 +24,8 @@ export const COPILOT_SESSIONS_DIR = join(
   process.env.COPILOT_HOME?.trim() || join(homedir(), '.copilot'),
   'session-state'
 )
+// Exported because session-delete-target.ts reuses these per-agent roots for
+// its path-membership checks, so a deletion root can't drift from the scanner's.
 export const CURSOR_PROJECTS_DIR = join(homedir(), '.cursor', 'projects')
 export const GROK_SESSIONS_DIR = resolveGrokSessionsDir()
 export const HERMES_SESSIONS_DIR = join(homedir(), '.hermes', 'sessions')
@@ -180,7 +182,9 @@ function grokDiscoveries(
   limit: number,
   issues: AiVaultScanIssue[]
 ): Promise<SessionFileDiscovery>[] {
-  return sessionRootDirs(options.grokSessionsDir ?? GROK_SESSIONS_DIR, wslHomeDirs, [
+  // Resolved lazily: a module-scope call binds across chunks at init time, which
+  // breaks whenever bundle ordering puts this module before its import.
+  return sessionRootDirs(options.grokSessionsDir ?? resolveGrokSessionsDir(), wslHomeDirs, [
     '.grok',
     'sessions'
   ]).map((rootDir) =>
