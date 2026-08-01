@@ -250,18 +250,59 @@ function mergeWindowsPathSegments(
   const pathDelimiter = getPathDelimiter(platform)
   const currentPath = env[pathKey] ?? sourceEnv.PATH ?? sourceEnv.Path ?? ''
   const currentSegments = splitPathSegments(currentPath, pathDelimiter)
-  const existing = new Set(currentSegments.map((segment) => segment.toLowerCase()))
-  const missing = persistedSegments.filter((segment) => {
-    const normalized = segment.toLowerCase()
-    if (existing.has(normalized)) {
-      return false
-    }
-    existing.add(normalized)
-    return true
-  })
+  const mergedSegments = [...currentSegments]
+  const existingSegmentKeys = new Set(currentSegments.map((segment) => segment.toLowerCase()))
+  const seenPersistedSegmentKeys = new Set<string>()
+  let cursor = 0
 
-  if (missing.length > 0) {
-    env[pathKey] = [...currentSegments, ...missing].join(pathDelimiter)
+  for (let index = 0; index < persistedSegments.length; index += 1) {
+    const segment = persistedSegments[index]
+    if (!segment) {
+      continue
+    }
+    const normalized = segment.toLowerCase()
+    if (seenPersistedSegmentKeys.has(normalized)) {
+      continue
+    }
+    seenPersistedSegmentKeys.add(normalized)
+
+    const existingIndex = mergedSegments.findIndex(
+      (candidate, candidateIndex) =>
+        candidateIndex >= cursor && candidate.toLowerCase() === normalized
+    )
+    if (existingSegmentKeys.has(normalized)) {
+      if (existingIndex >= 0) {
+        cursor = existingIndex + 1
+      }
+      continue
+    }
+
+    let insertionIndex = mergedSegments.length
+    for (let nextIndex = index + 1; nextIndex < persistedSegments.length; nextIndex += 1) {
+      const nextSegment = persistedSegments[nextIndex]
+      if (!nextSegment) {
+        continue
+      }
+      const nextNormalized = nextSegment.toLowerCase()
+      const anchorIndex = mergedSegments.findIndex(
+        (candidate, candidateIndex) =>
+          candidateIndex >= cursor && candidate.toLowerCase() === nextNormalized
+      )
+      if (anchorIndex >= 0) {
+        insertionIndex = anchorIndex
+        break
+      }
+    }
+
+    mergedSegments.splice(insertionIndex, 0, segment)
+    existingSegmentKeys.add(normalized)
+    cursor = insertionIndex + 1
+  }
+
+  const mergedPath = mergedSegments.join(pathDelimiter)
+
+  if (mergedPath !== currentPath) {
+    env[pathKey] = mergedPath
   }
 }
 
@@ -276,8 +317,8 @@ export function mergePersistedWindowsPath(
 
   const sourceEnv = options.env ?? process.env
   // Why: Windows broadcasts PATH changes to future processes, but a running
-  // Electron app keeps its old environment. Append the persisted additions so
-  // newly installed CLIs resolve without unexpectedly reordering existing PATH.
+  // Electron app keeps its old environment. Insert persisted additions by their
+  // current order so newly installed CLIs can precede stale aliases.
   mergeWindowsPathSegments(env, readPersistedWindowsPathSegments(options), platform, sourceEnv)
 }
 

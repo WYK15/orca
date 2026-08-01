@@ -242,14 +242,14 @@ describe('readPersistedWindowsPathSegments', () => {
 })
 
 describe('mergePersistedWindowsPath', () => {
-  it('appends missing persisted segments without reordering the inherited PATH', () => {
+  it('inserts persisted additions without moving inherited entries', () => {
     const execFileSync = vi
       .fn()
       .mockReturnValueOnce(
         [
           '',
           'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment',
-          '    Path    REG_EXPAND_SZ    C:\\Windows\\System32;C:\\Existing',
+          '    Path    REG_EXPAND_SZ    C:\\Windows\\System32;C:\\PowerShell',
           ''
         ].join('\r\n')
       )
@@ -257,16 +257,18 @@ describe('mergePersistedWindowsPath', () => {
         [
           '',
           'HKEY_CURRENT_USER\\Environment',
-          '    Path    REG_EXPAND_SZ    C:\\Users\\me\\AppData\\Local\\Orca\\bin;C:\\Existing',
+          '    Path    REG_EXPAND_SZ    C:\\Python314;C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps',
           ''
         ].join('\r\n')
       )
-    const env = { Path: 'C:\\Existing' }
+    const env = {
+      Path: 'C:\\PowerShell;C:\\Orca\\runtime;C:\\Windows\\System32;C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps'
+    }
 
     mergePersistedWindowsPath(env, { platform: 'win32', execFileSync })
 
     expect(env.Path).toBe(
-      'C:\\Existing;C:\\Windows\\System32;C:\\Users\\me\\AppData\\Local\\Orca\\bin'
+      'C:\\PowerShell;C:\\Orca\\runtime;C:\\Windows\\System32;C:\\Python314;C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps'
     )
   })
 
