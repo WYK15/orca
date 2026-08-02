@@ -240,6 +240,26 @@ export function __resetPersistedWindowsPathCacheForTests(): void {
   pendingPersistedWindowsPathRefresh = undefined
 }
 
+function normalizeSegmentKey(segment: string): string {
+  // Why: `C:\Python314\` and `C:\Python314` are the same directory, so they must not
+  // survive deduplication as two entries. A bare drive root keeps its separator
+  // because `C:\` and `C:` mean different things to Windows.
+  const trimmed = segment.replace(/[\\/]+$/, '')
+  return (trimmed.endsWith(':') ? segment : trimmed).toLowerCase()
+}
+
+function dedupeSegments(segments: string[]): string[] {
+  const seen = new Set<string>()
+  return segments.filter((segment) => {
+    const key = normalizeSegmentKey(segment)
+    if (seen.has(key)) {
+      return false
+    }
+    seen.add(key)
+    return true
+  })
+}
+
 function mergeWindowsPathSegments(
   env: NodeJS.ProcessEnv,
   persistedSegments: string[],
@@ -250,18 +270,25 @@ function mergeWindowsPathSegments(
   const pathDelimiter = getPathDelimiter(platform)
   const currentPath = env[pathKey] ?? sourceEnv.PATH ?? sourceEnv.Path ?? ''
   const currentSegments = splitPathSegments(currentPath, pathDelimiter)
-  const existing = new Set(currentSegments.map((segment) => segment.toLowerCase()))
-  const missing = persistedSegments.filter((segment) => {
-    const normalized = segment.toLowerCase()
-    if (existing.has(normalized)) {
-      return false
-    }
-    existing.add(normalized)
-    return true
-  })
 
-  if (missing.length > 0) {
-    env[pathKey] = [...currentSegments, ...missing].join(pathDelimiter)
+  if (persistedSegments.length === 0) {
+    // Why: a blocked, timed-out, or genuinely empty registry read must never be
+    // allowed to rewrite the inherited PATH.
+    return
+  }
+
+  const persisted = dedupeSegments(persistedSegments)
+  const persistedKeys = new Set(persisted.map(normalizeSegmentKey))
+  // Why: entries the registry does not know about were injected by Orca or by the
+  // launching shell, so persisted ordering cannot place them. Keep them in inherited
+  // order ahead of the persisted list so Orca's own tools still win.
+  const injected = dedupeSegments(
+    currentSegments.filter((segment) => !persistedKeys.has(normalizeSegmentKey(segment)))
+  )
+
+  const merged = [...injected, ...persisted].join(pathDelimiter)
+  if (merged !== currentPath) {
+    env[pathKey] = merged
   }
 }
 
@@ -276,8 +303,10 @@ export function mergePersistedWindowsPath(
 
   const sourceEnv = options.env ?? process.env
   // Why: Windows broadcasts PATH changes to future processes, but a running
-  // Electron app keeps its old environment. Append the persisted additions so
-  // newly installed CLIs resolve without unexpectedly reordering existing PATH.
+  // Electron app keeps its old environment. Rebuild from the persisted machine/user
+  // PATH so newly installed CLIs resolve in the order Windows itself would use.
+  // Appending alone leaves a stale entry shadowing a newer one, because Windows
+  // executable resolution is first-match-wins.
   mergeWindowsPathSegments(env, readPersistedWindowsPathSegments(options), platform, sourceEnv)
 }
 

@@ -242,7 +242,7 @@ describe('readPersistedWindowsPathSegments', () => {
 })
 
 describe('mergePersistedWindowsPath', () => {
-  it('appends missing persisted segments without reordering the inherited PATH', () => {
+  it('adopts persisted machine and user PATH ordering', () => {
     const execFileSync = vi
       .fn()
       .mockReturnValueOnce(
@@ -265,8 +265,10 @@ describe('mergePersistedWindowsPath', () => {
 
     mergePersistedWindowsPath(env, { platform: 'win32', execFileSync })
 
+    // Why: every inherited entry is also persisted here, so the persisted order wins
+    // outright and the duplicate `C:\Existing` collapses to its first position.
     expect(env.Path).toBe(
-      'C:\\Existing;C:\\Windows\\System32;C:\\Users\\me\\AppData\\Local\\Orca\\bin'
+      'C:\\Windows\\System32;C:\\Existing;C:\\Users\\me\\AppData\\Local\\Orca\\bin'
     )
   })
 
@@ -296,5 +298,68 @@ describe('mergePersistedWindowsPath', () => {
     })
 
     expect(env).toEqual({ Path: 'C:\\Inherited;C:\\Machine;C:\\User' })
+  })
+
+  it('stops an inherited WindowsApps alias from shadowing a newly installed Python', () => {
+    // Regression: Python installed while Orca was running. Orca's inherited PATH still
+    // lists the WindowsApps stub, and appending the new Python directories behind it
+    // left `python` resolving to the alias, which reports that Python is not installed.
+    const python = 'C:\\Users\\me\\AppData\\Local\\Programs\\Python\\Python314\\'
+    const pythonScripts = 'C:\\Users\\me\\AppData\\Local\\Programs\\Python\\Python314\\Scripts\\'
+    const windowsApps = 'C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps'
+    const execFileSync = vi
+      .fn()
+      .mockReturnValueOnce('    Path    REG_EXPAND_SZ    C:\\Windows\\system32;C:\\Windows\r\n')
+      .mockReturnValueOnce(
+        `    Path    REG_EXPAND_SZ    ${python};${pythonScripts};${windowsApps}\r\n`
+      )
+    const env = { Path: `C:\\Windows\\system32;C:\\Windows;${windowsApps}` }
+
+    mergePersistedWindowsPath(env, { platform: 'win32', execFileSync })
+
+    const segments = env.Path.split(';')
+    expect(segments.indexOf(python)).toBeGreaterThanOrEqual(0)
+    expect(segments.indexOf(python)).toBeLessThan(segments.indexOf(windowsApps))
+    expect(env.Path).toBe(
+      `C:\\Windows\\system32;C:\\Windows;${python};${pythonScripts};${windowsApps}`
+    )
+  })
+
+  it('keeps Orca-injected entries the registry does not know about ahead of persisted ones', () => {
+    const orcaBin = 'C:\\Users\\me\\AppData\\Local\\Orca\\resources\\bin'
+    const python = 'C:\\Users\\me\\AppData\\Local\\Programs\\Python\\Python314\\'
+    const windowsApps = 'C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps'
+    const execFileSync = vi
+      .fn()
+      .mockReturnValueOnce('    Path    REG_EXPAND_SZ    C:\\Windows\\system32\r\n')
+      .mockReturnValueOnce(`    Path    REG_EXPAND_SZ    ${python};${windowsApps}\r\n`)
+    const env = { Path: `${orcaBin};C:\\Windows\\system32;${windowsApps}` }
+
+    mergePersistedWindowsPath(env, { platform: 'win32', execFileSync })
+
+    expect(env.Path).toBe(`${orcaBin};C:\\Windows\\system32;${python};${windowsApps}`)
+  })
+
+  it('leaves the inherited PATH untouched when both registry reads are blocked', () => {
+    const execFileSync = vi.fn().mockImplementation(() => {
+      throw new Error('ERROR: Access is denied.')
+    })
+    const env = { Path: 'C:\\Windows\\system32;C:\\Existing' }
+
+    mergePersistedWindowsPath(env, { platform: 'win32', execFileSync })
+
+    expect(env.Path).toBe('C:\\Windows\\system32;C:\\Existing')
+  })
+
+  it('does not duplicate a segment that differs only by a trailing separator', () => {
+    const execFileSync = vi
+      .fn()
+      .mockReturnValueOnce('    Path    REG_SZ    C:\\Tools\r\n')
+      .mockReturnValueOnce('    Path    REG_SZ    \r\n')
+    const env = { Path: 'C:\\Tools\\' }
+
+    mergePersistedWindowsPath(env, { platform: 'win32', execFileSync })
+
+    expect(env.Path.split(';')).toEqual(['C:\\Tools'])
   })
 })
