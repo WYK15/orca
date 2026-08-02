@@ -597,6 +597,9 @@
 .rich-markdown-editor .tableWrapper::-webkit-scrollbar,
 .xterm .xterm-viewport::-webkit-scrollbar {
   width: 14px;
+}
+
+.rich-markdown-editor .tableWrapper::-webkit-scrollbar {
   height: 14px;
 }
 

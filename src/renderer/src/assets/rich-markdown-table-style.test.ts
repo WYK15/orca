@@ -27,12 +27,17 @@ describe('rich Markdown table resize styling', () => {
     expect(editorCss).not.toMatch(/\.column-resize-handle[^}]*#[0-9a-f]{3,8}/i)
   })
 
-  it('reuses the canonical editor scrollbar selectors', () => {
+  it('keeps horizontal scrollbar sizing scoped to rich Markdown tables', () => {
     expect(mainCss).toMatch(
       /\.scrollbar-editor,\s*\.rich-markdown-editor \.tableWrapper,\s*\.xterm \.xterm-viewport\s*{/s
     )
+    const sharedScrollbarRule = mainCss.match(
+      /\.scrollbar-editor::-webkit-scrollbar,\s*\.rich-markdown-editor \.tableWrapper::-webkit-scrollbar,\s*\.xterm \.xterm-viewport::-webkit-scrollbar\s*{([^}]*)}/s
+    )
+    expect(sharedScrollbarRule?.[1]).toContain('width: 14px')
+    expect(sharedScrollbarRule?.[1]).not.toContain('height:')
     expect(mainCss).toMatch(
-      /\.scrollbar-editor::-webkit-scrollbar,\s*\.rich-markdown-editor \.tableWrapper::-webkit-scrollbar,\s*\.xterm \.xterm-viewport::-webkit-scrollbar\s*{[^}]*height:\s*14px;/s
+      /\.rich-markdown-editor \.tableWrapper::-webkit-scrollbar\s*{[^}]*height:\s*14px;/s
     )
   })
 })
