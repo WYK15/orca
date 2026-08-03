@@ -4,7 +4,7 @@
 
 **Goal:** Add a manual, fork-safe GitHub Actions workflow that builds unsigned desktop installers for Windows, Linux x64/ARM64, and macOS x64/ARM64.
 
-**Architecture:** One matrix job builds five native platform/architecture combinations from a requested Git ref. The job reuses the repository's release build and Electron Builder configuration but always packages with `--publish never`, then uploads only local artifacts to the workflow run.
+**Architecture:** One matrix job builds four runner combinations from a requested Git ref. Windows and Linux build their native architecture, while the existing macOS target set cross-packages x64 and arm64 on one Intel runner; every target uses `--publish never` and uploads only local artifacts.
 
 **Tech Stack:** GitHub Actions, Node 24 from `package.json`, pnpm, Electron Builder 26, Vitest, YAML
 
@@ -30,7 +30,7 @@
 
 **Interfaces:**
 - Consumes: `.github/workflows/fork-desktop-packages.yml` as parsed YAML
-- Produces: a contract for `workflow_dispatch`, the five matrix entries, local-only publishing, and artifact uploads
+- Produces: a contract for `workflow_dispatch`, the four matrix entries, local-only publishing, and artifact uploads
 
 - [ ] **Step 1: Write the failing workflow test**
 
@@ -42,7 +42,7 @@ import { describe, expect, it } from 'vitest'
 const workflowPath = '.github/workflows/fork-desktop-packages.yml'
 
 describe('fork desktop package workflow', () => {
-  it('builds five platform architectures from a requested ref', () => {
+  it('builds every desktop platform architecture from a requested ref', () => {
     const workflow = parse(readFileSync(workflowPath, 'utf8'))
     const entries = workflow.jobs.package.strategy.matrix.include
 
@@ -52,15 +52,13 @@ describe('fork desktop package workflow', () => {
       'windows-x64',
       'linux-x64',
       'linux-arm64',
-      'macos-x64',
-      'macos-arm64'
+      'macos'
     ])
     expect(entries.map(({ os }) => os)).toEqual([
       'windows-2022',
       'ubuntu-24.04',
       'ubuntu-24.04-arm',
-      'macos-15-intel',
-      'macos-15'
+      'macos-15-intel'
     ])
   })
 
@@ -101,7 +99,7 @@ Expected: FAIL because `.github/workflows/fork-desktop-packages.yml` does not ex
 
 **Interfaces:**
 - Consumes: optional `inputs.ref`, `package.json`, `pnpm-lock.yaml`, and `config/electron-builder.config.cjs`
-- Produces: five workflow artifacts named `orca-<platform>-<run number>-<short SHA>`
+- Produces: four workflow artifacts named `orca-<platform>-<run number>-<short SHA>`
 
 - [ ] **Step 1: Add the workflow trigger, permissions, and matrix**
 
@@ -169,26 +167,15 @@ jobs:
               ~/.cache/electron
               ~/.cache/electron-builder
           - os: macos-15-intel
-            platform: macos-x64
+            platform: macos
             package_command: >-
               node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
-              pnpm exec electron-builder --config config/electron-builder.config.cjs
-              --mac --x64 --publish never
+              CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder
+              --config config/electron-builder.config.cjs
+              --mac --publish never
             artifact_paths: |-
-              dist/orca-macos-x64.dmg
-              dist/orca-macos-x64.zip
-            electron_cache: |-
-              ~/Library/Caches/electron
-              ~/Library/Caches/electron-builder
-          - os: macos-15
-            platform: macos-arm64
-            package_command: >-
-              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
-              pnpm exec electron-builder --config config/electron-builder.config.cjs
-              --mac --arm64 --publish never
-            artifact_paths: |-
-              dist/orca-macos-arm64.dmg
-              dist/orca-macos-arm64.zip
+              dist/orca-macos-*.dmg
+              dist/*-mac.zip
             electron_cache: |-
               ~/Library/Caches/electron
               ~/Library/Caches/electron-builder

@@ -61,28 +61,15 @@ jobs:
               ~/.cache/electron
               ~/.cache/electron-builder
           - os: macos-15-intel
-            platform: macos-x64
+            platform: macos
             package_command: >-
               node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
               CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder
               --config config/electron-builder.config.cjs
-              --mac --x64 --publish never
+              --mac --publish never
             artifact_paths: |-
-              dist/orca-macos-x64.dmg
-              dist/orca-macos-x64.zip
-            electron_cache: |-
-              ~/Library/Caches/electron
-              ~/Library/Caches/electron-builder
-          - os: macos-15
-            platform: macos-arm64
-            package_command: >-
-              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
-              CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder
-              --config config/electron-builder.config.cjs
-              --mac --arm64 --publish never
-            artifact_paths: |-
-              dist/orca-macos-arm64.dmg
-              dist/orca-macos-arm64.zip
+              dist/orca-macos-*.dmg
+              dist/*-mac.zip
             electron_cache: |-
               ~/Library/Caches/electron
               ~/Library/Caches/electron-builder

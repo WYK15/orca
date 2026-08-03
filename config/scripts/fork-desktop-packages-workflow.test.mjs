@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const workflowPath = '.github/workflows/fork-desktop-packages.yml'
 
 describe('fork desktop package workflow', () => {
-  it('builds five platform architectures from a requested ref', () => {
+  it('builds every desktop platform architecture from a requested ref', () => {
     const workflow = parse(readFileSync(workflowPath, 'utf8'))
     const entries = workflow.jobs.package.strategy.matrix.include
     const checkout = workflow.jobs.package.steps.find(
@@ -19,15 +19,13 @@ describe('fork desktop package workflow', () => {
       'windows-x64',
       'linux-x64',
       'linux-arm64',
-      'macos-x64',
-      'macos-arm64'
+      'macos'
     ])
     expect(entries.map(({ os }) => os)).toEqual([
       'windows-2022',
       'ubuntu-24.04',
       'ubuntu-24.04-arm',
-      'macos-15-intel',
-      'macos-15'
+      'macos-15-intel'
     ])
   })
 
@@ -45,6 +43,18 @@ describe('fork desktop package workflow', () => {
     expect(source).not.toContain('ORCA_POSTHOG_WRITE_KEY')
     expect(source).not.toContain('MAC_CERTS')
     expect(source).not.toContain('SIGNPATH')
+  })
+
+  it('builds both macOS architectures in the configured target set', () => {
+    const workflow = parse(readFileSync(workflowPath, 'utf8'))
+    const macos = workflow.jobs.package.strategy.matrix.include.find(
+      ({ platform }) => platform === 'macos'
+    )
+
+    expect(macos.package_command).toContain('--mac --publish never')
+    expect(macos.package_command).not.toMatch(/--(?:x64|arm64)/)
+    expect(macos.artifact_paths).toContain('dist/orca-macos-*.dmg')
+    expect(macos.artifact_paths).toContain('dist/*-mac.zip')
   })
 
   it('fails when a platform produces no uploadable package', () => {

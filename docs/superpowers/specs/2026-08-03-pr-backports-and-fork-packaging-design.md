@@ -46,14 +46,13 @@ from `src/renderer/src/assets/main.css`, and reuse existing shadcn primitives.
 ## Fork Packaging Workflow
 
 Add `.github/workflows/fork-desktop-packages.yml` with a manual
-`workflow_dispatch` input for the branch, tag, or SHA to build. Use a five-entry
+`workflow_dispatch` input for the branch, tag, or SHA to build. Use a four-entry
 matrix:
 
 - `windows-2022`, x64
 - `ubuntu-24.04`, x64
 - `ubuntu-24.04-arm`, arm64
-- `macos-15-intel`, x64
-- `macos-15`, arm64
+- `macos-15-intel`, x64 and arm64
 
 These labels are standard GitHub-hosted runners documented in the
 [GitHub-hosted runners reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
@@ -69,7 +68,7 @@ architecture:
 
 - Windows: NSIS installer
 - Linux: AppImage, deb, and rpm
-- macOS: dmg and zip
+- macOS: x64 and arm64 dmg and zip artifacts from one configured target set
 
 Every Electron Builder invocation includes `--publish never`. The workflow
 uploads its outputs with `actions/upload-artifact`; it never publishes through
