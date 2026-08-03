@@ -58,3 +58,14 @@ Source-control and review changes must consider GitLab and other supported git p
 ## GitHub CLI Usage
 
 Be mindful of the user's `gh` CLI API rate limit — batch requests where possible and avoid unnecessary calls. All code, commands, and scripts must be compatible with macOS, Linux, and Windows.
+
+# Fork Maintenance
+
+Treat this repository as a long-lived downstream Orca fork.
+
+- Keep changes small, focused, and easy to reconcile with upstream. Avoid unrelated refactors.
+- Keep generally useful fixes and personal customizations clearly separated in code and commits.
+- Add tests proportionate to each change, and consider regressions when later upstream updates are integrated.
+- Preserve upstream and user changes; do not rewrite, discard, or overwrite them without explicit instruction.
+- Retain a practical way to synchronize upstream changes, but do not assume specific remote names or branch layouts.
+- Record material, persistent differences from upstream in `FORK_NOTES.md`. Create or update it only when such differences exist; do not log routine fixes that remain easy to upstream or remove.
