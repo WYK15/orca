@@ -1,6 +1,9 @@
 name: Fork Desktop Packages
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       ref:
@@ -152,3 +155,78 @@ jobs:
           path: ${{ matrix.artifact_paths }}
           if-no-files-found: error
           retention-days: 14
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download desktop packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: orca-*-${{ github.run_number }}-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create or reuse draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          draft="$(gh release view "$TAG_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json isDraft \
+            --jq .isDraft 2>/dev/null || true)"
+
+          if [[ "$draft" == "false" ]]; then
+            echo "Release $TAG_NAME is already published" >&2
+            exit 1
+          fi
+
+          if [[ -z "$draft" ]]; then
+            args=(
+              release create "$TAG_NAME"
+              --repo "$GITHUB_REPOSITORY"
+              --title "$TAG_NAME"
+              --draft
+              --generate-notes
+            )
+            if [[ "$TAG_NAME" == *-* ]]; then
+              args+=(--prerelease --latest=false)
+            fi
+            gh "${args[@]}"
+          fi
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' packages < <(
+            find release-assets -type f -print0
+          )
+          if (( ${#packages[@]} == 0 )); then
+            echo "No release packages found" >&2
+            exit 1
+          fi
+          gh release upload "$TAG_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber \
+            "${packages[@]}"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: >-
+          gh release edit "$TAG_NAME"
+          --repo "$GITHUB_REPOSITORY"
+          --draft=false

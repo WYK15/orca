@@ -5,6 +5,13 @@ import { describe, expect, it } from 'vitest'
 const workflowPath = '.github/workflows/fork-desktop-packages.yml'
 
 describe('fork desktop package workflow', () => {
+  it('triggers release packaging for v-prefixed tags', () => {
+    const workflow = parse(readFileSync(workflowPath, 'utf8'))
+
+    expect(workflow.on.push.tags).toEqual(['v*'])
+    expect(workflow.on.workflow_dispatch).toBeTruthy()
+  })
+
   it('builds every desktop platform architecture from a requested ref', () => {
     const workflow = parse(readFileSync(workflowPath, 'utf8'))
     const entries = workflow.jobs.package.strategy.matrix.include
@@ -55,6 +62,33 @@ describe('fork desktop package workflow', () => {
     expect(macos.package_command).not.toMatch(/--(?:x64|arm64)/)
     expect(macos.artifact_paths).toContain('dist/orca-macos-*.dmg')
     expect(macos.artifact_paths).toContain('dist/*-mac.zip')
+  })
+
+  it('publishes complete tag builds through one least-privilege release job', () => {
+    const workflow = parse(readFileSync(workflowPath, 'utf8'))
+    const release = workflow.jobs.release
+    const download = release.steps.find((step) => step.name === 'Download desktop packages')
+    const create = release.steps.find((step) => step.name === 'Create or reuse draft release')
+    const upload = release.steps.find((step) => step.name === 'Upload release assets')
+    const publish = release.steps.find((step) => step.name === 'Publish release')
+
+    expect(workflow.permissions).toEqual({ contents: 'read' })
+    expect(release.needs).toBe('package')
+    expect(release.if).toContain("github.event_name == 'push'")
+    expect(release.if).toContain("startsWith(github.ref, 'refs/tags/v')")
+    expect(release.permissions).toEqual({ contents: 'write' })
+    expect(download.uses).toBe('actions/download-artifact@v8')
+    expect(download.with.pattern).toContain('${{ github.run_number }}')
+    expect(download.with['merge-multiple']).toBe(true)
+    expect(create.run).toContain('release create "$TAG_NAME"')
+    expect(create.run).toContain('--draft')
+    expect(create.run).toContain('--generate-notes')
+    expect(create.run).toContain('[[ "$TAG_NAME" == *-* ]]')
+    expect(create.run).toContain('--prerelease')
+    expect(upload.run).toContain('gh release upload "$TAG_NAME"')
+    expect(upload.run).toContain('--clobber')
+    expect(publish.run).toContain('gh release edit "$TAG_NAME"')
+    expect(publish.run).toContain('--draft=false')
   })
 
   it('fails when a platform produces no uploadable package', () => {
