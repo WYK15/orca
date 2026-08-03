@@ -11,14 +11,21 @@ head_sha=$2
 git rev-parse --verify "${base_sha}^{tree}" >/dev/null
 git rev-parse --verify "${head_sha}^{tree}" >/dev/null
 
-declare -A base_entries=()
+base_entries=()
 while IFS= read -r -d '' entry; do
-  base_entries["$entry"]=1
+  base_entries+=("$entry")
 done < <(git ls-tree -z --name-only "$base_sha")
 
 blocked_entries=()
 while IFS= read -r -d '' entry; do
-  if [[ -z "${base_entries[$entry]+present}" ]]; then
+  entry_existed=false
+  for base_entry in "${base_entries[@]}"; do
+    if [[ "$entry" == "$base_entry" ]]; then
+      entry_existed=true
+      break
+    fi
+  done
+  if [[ "$entry_existed" == false ]]; then
     blocked_entries+=("$entry")
   fi
 done < <(git ls-tree -z --name-only "$head_sha")
