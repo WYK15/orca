@@ -11,11 +11,13 @@ import { listAiVaultSubagentSessions } from './ai-vault-subagent-list'
 import { aiVaultScanIssueResult, mergeAiVaultListResults } from '../ai-vault/session-list-results'
 import type {
   AiVaultDeleteSessionArgs,
+  AiVaultFirstUserPromptArgs,
   AiVaultListArgs,
   AiVaultListResult,
   AiVaultSubagentListArgs,
   AiVaultSubagentListResult
 } from '../../shared/ai-vault-types'
+import { handleAiVaultGetFirstUserPrompt } from '../ai-vault/session-first-user-prompt-read'
 import { registerAiVaultResumeHandler, type AiVaultResumeHandlerOptions } from './ai-vault-resume'
 import {
   LOCAL_EXECUTION_HOST_ID,
@@ -297,6 +299,9 @@ export function registerAiVaultHandlers(options: AiVaultHandlerOptions = {}): vo
       listAiVaultSubagentSessions(args)
   )
   registerAiVaultDeleteHandler(aiVaultDeleteDeps)
+  ipcMain.handle('aiVault:getFirstUserPrompt', (_event, args?: AiVaultFirstUserPromptArgs) =>
+    handleAiVaultGetFirstUserPrompt(args)
+  )
   // DOM focus/visibility events don't fire in the renderer on macOS app
   // activation, so refresh-on-refocus needs this main-process signal.
   app.on('browser-window-focus', (_event, window) => {
