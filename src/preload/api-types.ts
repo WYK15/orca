@@ -482,7 +482,9 @@ import type {
 } from '../shared/opencode-usage-types'
 import type {
   AiVaultDeleteSessionArgs,
-  AiVaultDeleteSessionResult,
+  AiVaultDeleteSessionResult
+} from '../shared/ai-vault-session-deletion'
+import type {
   AiVaultFirstUserPromptArgs,
   AiVaultFirstUserPromptResult,
   AiVaultListArgs,

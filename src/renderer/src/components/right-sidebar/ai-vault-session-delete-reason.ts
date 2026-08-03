@@ -30,5 +30,10 @@ export function aiVaultSessionDeleteReasonText(
         "{{value0}} sessions can't be deleted from Orca.",
         { value0: agentLabel(agent) }
       )
+    case 'session-live':
+      return translate(
+        'auto.components.right.sidebar.AiVaultSessionRow.deleteReasonSessionLive',
+        "This session is still running — wait for it to finish before deleting."
+      )
   }
 }

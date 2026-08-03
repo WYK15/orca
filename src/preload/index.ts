@@ -231,8 +231,8 @@ import type {
   AutomationUpdateInput
 } from '../shared/automations-types'
 import type { KeybindingActionId, KeybindingFileSnapshot } from '../shared/keybindings'
+import type { AiVaultDeleteSessionArgs } from '../shared/ai-vault-session-deletion'
 import type {
-  AiVaultDeleteSessionArgs,
   AiVaultFirstUserPromptArgs,
   AiVaultListArgs,
   AiVaultSubagentListArgs

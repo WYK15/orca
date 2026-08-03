@@ -9,8 +9,8 @@ import { scanRemoteAiVaultSessions } from '../ai-vault/remote-session-scanner'
 import { deleteAiVaultSession, registerAiVaultDeleteHandler } from './ai-vault-delete'
 import { listAiVaultSubagentSessions } from './ai-vault-subagent-list'
 import { aiVaultScanIssueResult, mergeAiVaultListResults } from '../ai-vault/session-list-results'
+import type { AiVaultDeleteSessionArgs } from '../../shared/ai-vault-session-deletion'
 import type {
-  AiVaultDeleteSessionArgs,
   AiVaultFirstUserPromptArgs,
   AiVaultListArgs,
   AiVaultListResult,

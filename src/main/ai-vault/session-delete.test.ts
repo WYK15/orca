@@ -92,8 +92,10 @@ describe('deleteAiVaultSessionFile', () => {
 
   it('rejects a regular file whose realpath escapes the known roots', async () => {
     const filePath = join(GEMINI_ROOT, 'project-a', 'session-1.json')
+    const escaped = join(HOME, 'Documents', 'escaped.json')
     lstatMock.mockResolvedValue({ isFile: () => true })
-    realpathMock.mockResolvedValue(join(HOME, 'Documents', 'escaped.json'))
+    // The file's realpath escapes; the root realpaths to itself (not symlinked).
+    realpathMock.mockImplementation((p: string) => Promise.resolve(p === filePath ? escaped : p))
 
     const result = await deleteAiVaultSessionFile(baseArgs(filePath))
 
@@ -103,6 +105,25 @@ describe('deleteAiVaultSessionFile', () => {
       reason: 'path-outside-known-roots'
     })
     expect(trashItemMock).not.toHaveBeenCalled()
+  })
+
+  it('accepts a session under a symlinked root by realpath-resolving the roots too', async () => {
+    // GEMINI_ROOT is a symlink to a real target; the file's realpath lands under
+    // the real target, which the text-only root would not match. Realpath-ing
+    // the root as well keeps this legit delete from a false rejection.
+    const filePath = join(GEMINI_ROOT, 'project-a', 'session-1.json')
+    const realRoot = join('/real', '.gemini', 'tmp')
+    const realFile = join(realRoot, 'project-a', 'session-1.json')
+    lstatMock.mockResolvedValue({ isFile: () => true })
+    realpathMock.mockImplementation((p: string) =>
+      Promise.resolve(p === GEMINI_ROOT ? realRoot : p === filePath ? realFile : p)
+    )
+    trashItemMock.mockResolvedValue(undefined)
+
+    const result = await deleteAiVaultSessionFile(baseArgs(filePath))
+
+    expect(result).toEqual({ outcome: 'deleted' })
+    expect(trashItemMock).toHaveBeenCalledWith(filePath)
   })
 
   it('treats ENOENT from lstat as an idempotent success', async () => {

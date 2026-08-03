@@ -12,6 +12,41 @@ describe('resolveAiVaultSessionDeletability', () => {
     ).toEqual({ deletable: true })
   })
 
+  const localGeminiSession = {
+    agent: 'gemini' as const,
+    executionHostId: 'local' as const,
+    filePath: '/home/user/.gemini/sessions/log.jsonl'
+  }
+
+  it('blocks an otherwise-deletable session while its agent is still running', () => {
+    for (const live of ['working', 'blocked', 'waiting'] as const) {
+      expect(resolveAiVaultSessionDeletability(localGeminiSession, live)).toEqual({
+        deletable: false,
+        reason: 'session-live'
+      })
+    }
+  })
+
+  it('allows a finished session (done) and one with no live state', () => {
+    expect(resolveAiVaultSessionDeletability(localGeminiSession, 'done')).toEqual({
+      deletable: true
+    })
+    expect(resolveAiVaultSessionDeletability(localGeminiSession, null)).toEqual({
+      deletable: true
+    })
+  })
+
+  it('keeps the permanent reason over "running" for an unsupported live session', () => {
+    // A live but unsupported agent stays "unsupported" — it would never become
+    // deletable, so "wait for it to finish" would mislead.
+    expect(
+      resolveAiVaultSessionDeletability(
+        { agent: 'codex', executionHostId: 'local', filePath: '/home/user/.codex/x.jsonl' },
+        'working'
+      )
+    ).toEqual({ deletable: false, reason: 'unsupported-agent' })
+  })
+
   it('blocks an ssh-hosted session regardless of agent', () => {
     expect(
       resolveAiVaultSessionDeletability({

@@ -1,5 +1,6 @@
 import { isAiVaultDeletableAgent } from '../../../../shared/ai-vault-session-deletion'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
+import type { AgentStatusState } from '../../../../shared/agent-status-types'
 import {
   canUseLocalAiVaultSessionPathActions,
   isSyntheticAiVaultSessionPath
@@ -9,6 +10,13 @@ export type AiVaultSessionDeletabilityReasonCode =
   | 'non-local-host'
   | 'synthetic-path'
   | 'unsupported-agent'
+  | 'session-live'
+
+// A session is actively running while its live status is set and not yet
+// 'done' — matches the active-dot rule in ai-vault-session-row-display.
+function isSessionLive(liveState: AgentStatusState | null | undefined): boolean {
+  return liveState != null && liveState !== 'done'
+}
 
 export type AiVaultSessionDeletableResult = { deletable: true }
 
@@ -39,7 +47,8 @@ export type AiVaultSessionDeletabilityResult =
  * would reject (renderer-false is a subset of main-false).
  */
 export function resolveAiVaultSessionDeletability(
-  session: Pick<AiVaultSession, 'agent' | 'executionHostId' | 'filePath'>
+  session: Pick<AiVaultSession, 'agent' | 'executionHostId' | 'filePath'>,
+  liveState?: AgentStatusState | null
 ): AiVaultSessionDeletabilityResult {
   if (!canUseLocalAiVaultSessionPathActions(session.executionHostId)) {
     return { deletable: false, reason: 'non-local-host' }
@@ -49,6 +58,12 @@ export function resolveAiVaultSessionDeletability(
   }
   if (!isAiVaultDeletableAgent(session.agent)) {
     return { deletable: false, reason: 'unsupported-agent' }
+  }
+  // Last, so a session that is otherwise deletable but still running says "wait
+  // for it to finish" rather than a permanent reason. Trashing a live agent's
+  // transcript mid-run would drop the writes it's still appending.
+  if (isSessionLive(liveState)) {
+    return { deletable: false, reason: 'session-live' }
   }
   return { deletable: true }
 }

@@ -30,4 +30,10 @@ describe('aiVaultSessionDeleteReasonText', () => {
       )
     ).toBe("Antigravity sessions can't be deleted from Orca.")
   })
+
+  it('tells the user to wait when the session is still running', () => {
+    expect(
+      aiVaultSessionDeleteReasonText({ deletable: false, reason: 'session-live' }, 'gemini')
+    ).toBe('This session is still running — wait for it to finish before deleting.')
+  })
 })

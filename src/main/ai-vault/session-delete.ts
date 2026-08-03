@@ -1,7 +1,9 @@
 import { lstat, realpath } from 'node:fs/promises'
 import { shell } from 'electron'
-import type { AiVaultDeleteSessionResult } from '../../shared/ai-vault-types'
-import type { AiVaultSessionDeleteRemoval } from '../../shared/ai-vault-session-deletion'
+import type {
+  AiVaultDeleteSessionResult,
+  AiVaultSessionDeleteRemoval
+} from '../../shared/ai-vault-session-deletion'
 import { isPathInsideOrEqual } from '../../shared/cross-platform-path'
 import {
   validateAiVaultSessionDeleteTarget,
@@ -92,12 +94,18 @@ async function removeOne(
     throw error
   }
   // Catches a path reached through a symlinked parent directory that escapes
-  // the agent's roots, which lstat() on the leaf can't see.
-  if (
-    realResolvedPath !== removal.path &&
-    !removal.roots.some((root) => isPathInsideOrEqual(root, realResolvedPath))
-  ) {
-    return 'path-outside-known-roots'
+  // the agent's roots, which lstat() on the leaf can't see. The roots are only
+  // resolve()'d (text, no symlink following), so realpath them too before
+  // comparing — otherwise a legit session under a symlinked root (e.g.
+  // ~/.claude -> /Volumes/data/.claude) is falsely rejected. A root that can't
+  // be realpath'd (a WSL root absent on this host) falls back to its text form.
+  if (realResolvedPath !== removal.path) {
+    const realRoots = await Promise.all(
+      removal.roots.map((root) => realpath(root).catch(() => root))
+    )
+    if (!realRoots.some((root) => isPathInsideOrEqual(root, realResolvedPath))) {
+      return 'path-outside-known-roots'
+    }
   }
 
   try {

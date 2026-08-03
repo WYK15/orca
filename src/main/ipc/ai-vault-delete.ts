@@ -1,16 +1,15 @@
 import { ipcMain } from 'electron'
-import { resolve } from 'node:path'
 import {
   getAiVaultWslHomeDirs,
   invalidateAiVaultSessionListCache
 } from '../ai-vault/cached-session-list'
 import { deleteAiVaultSessionFile } from '../ai-vault/session-delete'
 import { invalidateSessionParseCacheEntry } from '../ai-vault/session-scanner-parse-cache'
+import type { AiVaultAgent } from '../../shared/ai-vault-types'
 import type {
-  AiVaultAgent,
   AiVaultDeleteSessionArgs,
   AiVaultDeleteSessionResult
-} from '../../shared/ai-vault-types'
+} from '../../shared/ai-vault-session-deletion'
 
 // The multi-host scan-result cache is private module state in ai-vault.ts, so
 // its invalidation is injected rather than reached into from here.
@@ -53,7 +52,10 @@ export async function deleteAiVaultSession(
     // discovery walks disk first, so a trashed file is never rediscovered).
     deps.invalidateMultiHostListCache()
     invalidateAiVaultSessionListCache()
-    invalidateSessionParseCacheEntry(resolve(args?.filePath ?? ''))
+    // The parse cache is keyed by the raw path the scanner discovered (which is
+    // what the renderer echoes back as filePath), so invalidate with that exact
+    // key — resolve() could normalise it away from the stored key and miss.
+    invalidateSessionParseCacheEntry(args?.filePath ?? '')
   }
 
   return result

@@ -1,4 +1,21 @@
 import type { AiVaultAgent } from './ai-vault-types'
+import type { ExecutionHostId } from './execution-host'
+
+// IPC payload for aiVault:deleteSession. Kept in this shared module so both the
+// main handler and the renderer import one definition.
+export type AiVaultDeleteSessionArgs = {
+  agent: AiVaultAgent
+  filePath: string
+  // The session's host; only a local session may be deleted.
+  executionHostId?: ExecutionHostId
+}
+
+// The delete executor's result shape — imported by both main (IPC
+// handler/executor) and the renderer, so it lives where the renderer reaches.
+export type AiVaultDeleteSessionResult =
+  | { outcome: 'deleted' }
+  | { outcome: 'rejected'; agent: AiVaultAgent; reason: AiVaultSessionDeleteRejectionCode }
+  | { outcome: 'failed'; agent: AiVaultAgent; error: string }
 
 // Agents whose sessions Orca can remove completely: everything the
 // session wrote lives at paths derived from the one path the scanner surfaced,
