@@ -61,6 +61,16 @@ describe('root directory guard', () => {
     expect(result.stdout).toContain('no new root-level files or folders')
   })
 
+  it('allows the fork maintenance record required by repository guidance', () => {
+    const fixture = makeFixture()
+    const head = commitFiles(fixture.root, [['FORK_NOTES.md', '# Fork Notes\n']])
+
+    const result = runGuard({ ...fixture, head })
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('no new root-level files or folders')
+  })
+
   it('rejects a new root-level file with the landing-page message', () => {
     const fixture = makeFixture()
     const head = commitFiles(fixture.root, [['new-root.md', 'too prominent\n']])
