@@ -1,0 +1,167 @@
+name: Fork Desktop Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, or SHA to build'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-desktop-packages-${{ inputs.ref || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            platform: windows-x64
+            package_command: >-
+              node config/scripts/ensure-native-runtime.mjs --runtime=electron;
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE };
+              pnpm exec electron-builder --config config/electron-builder.config.cjs
+              --win --x64 --publish never
+            artifact_paths: dist/orca-windows-setup.exe
+            electron_cache: |-
+              ~\AppData\Local\electron\Cache
+              ~\AppData\Local\electron-builder\Cache
+          - os: ubuntu-24.04
+            platform: linux-x64
+            package_command: >-
+              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
+              pnpm exec electron-builder --config config/electron-builder.config.cjs
+              --linux AppImage deb rpm --x64 --publish never
+            artifact_paths: |-
+              dist/*.AppImage
+              dist/*.deb
+              dist/*.rpm
+            electron_cache: |-
+              ~/.cache/electron
+              ~/.cache/electron-builder
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64
+            package_command: >-
+              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
+              ORCA_LINUX_ARM64_RELEASE=1 pnpm exec electron-builder
+              --config config/electron-builder.config.cjs
+              --linux AppImage deb rpm --arm64 --publish never
+            artifact_paths: |-
+              dist/*.AppImage
+              dist/*.deb
+              dist/*.rpm
+            electron_cache: |-
+              ~/.cache/electron
+              ~/.cache/electron-builder
+          - os: macos-15-intel
+            platform: macos-x64
+            package_command: >-
+              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
+              CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder
+              --config config/electron-builder.config.cjs
+              --mac --x64 --publish never
+            artifact_paths: |-
+              dist/orca-macos-x64.dmg
+              dist/orca-macos-x64.zip
+            electron_cache: |-
+              ~/Library/Caches/electron
+              ~/Library/Caches/electron-builder
+          - os: macos-15
+            platform: macos-arm64
+            package_command: >-
+              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
+              CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder
+              --config config/electron-builder.config.cjs
+              --mac --arm64 --publish never
+            artifact_paths: |-
+              dist/orca-macos-arm64.dmg
+              dist/orca-macos-arm64.zip
+            electron_cache: |-
+              ~/Library/Caches/electron
+              ~/Library/Caches/electron-builder
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+
+    steps:
+      - name: Checkout requested ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Identify checked-out source
+        id: source
+        shell: bash
+        run: echo "short_sha=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Use external node-gyp on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          npm install -g node-gyp@11.5.0
+          echo "npm_config_node_gyp=$(npm root -g)/node-gyp/bin/node-gyp.js" >> "$GITHUB_ENV"
+
+      - name: Cache Electron Builder downloads
+        uses: actions/cache@v5
+        with:
+          path: ${{ matrix.electron_cache }}
+          key: fork-electron-builder-${{ matrix.platform }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            fork-electron-builder-${{ matrix.platform }}-
+
+      - name: Install dependencies
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: pnpm install --frozen-lockfile
+
+      # `build:release` imports AT-SPI bindings, and rpm packaging needs fpm's rpm backend.
+      - name: Install Linux package dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: >-
+          sudo apt-get update &&
+          sudo apt-get install -y
+          python3-gi gir1.2-atspi-2.0 at-spi2-core xclip xdotool rpm
+
+      - name: Build package inputs
+        run: pnpm run build:release
+
+      - name: Package desktop app
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 45
+          max_attempts: 2
+          retry_wait_seconds: 30
+          command: ${{ matrix.package_command }}
+
+      - name: Upload desktop packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: orca-${{ matrix.platform }}-${{ github.run_number }}-${{ steps.source.outputs.short_sha }}
+          path: ${{ matrix.artifact_paths }}
+          if-no-files-found: error
+          retention-days: 14
