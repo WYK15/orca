@@ -10,7 +10,7 @@ import {
 const resolveHelperAppPathMock = vi.hoisted(() => vi.fn())
 const resolveHelperExecutablePathMock = vi.hoisted(() => vi.fn())
 const permissionStatusTempDir = '/tmp/orca-computer-use-permissions-test'
-const helperAppPath = '/Applications/Orca Computer Use.app'
+const helperAppPath = '/Applications/Orcaw Computer Use.app'
 const helperInfoPlistPath = join(helperAppPath, 'Contents', 'Info.plist')
 
 vi.mock('child_process', () => ({
@@ -59,7 +59,7 @@ describe('openComputerUsePermissions', () => {
     resolveHelperAppPathMock.mockReset()
     resolveHelperExecutablePathMock.mockReset()
     resolveHelperExecutablePathMock.mockReturnValue(
-      '/Applications/Orca Computer Use.app/Contents/MacOS/orca-computer-use-macos'
+      '/Applications/Orcaw Computer Use.app/Contents/MacOS/orca-computer-use-macos'
     )
     vi.mocked(mkdtemp).mockResolvedValue(permissionStatusTempDir)
     vi.mocked(stat).mockResolvedValue({} as Awaited<ReturnType<typeof stat>>)
@@ -73,11 +73,11 @@ describe('openComputerUsePermissions', () => {
   })
 
   it('does not launch the setup helper when all permissions are granted', async () => {
-    resolveHelperAppPathMock.mockReturnValue('/Applications/Orca Computer Use.app')
+    resolveHelperAppPathMock.mockReturnValue('/Applications/Orcaw Computer Use.app')
 
     await expect(openComputerUsePermissions()).resolves.toEqual({
       platform: 'darwin',
-      helperAppPath: '/Applications/Orca Computer Use.app',
+      helperAppPath: '/Applications/Orcaw Computer Use.app',
       permissionId: undefined,
       openedSettings: false,
       launchedHelper: false,
@@ -89,18 +89,18 @@ describe('openComputerUsePermissions', () => {
     })
     expect(spawn).not.toHaveBeenCalledWith(
       '/usr/bin/open',
-      ['-n', '/Applications/Orca Computer Use.app', '--args', '--permissions'],
+      ['-n', '/Applications/Orcaw Computer Use.app', '--args', '--permissions'],
       { detached: true, stdio: 'ignore' }
     )
   })
 
   it('launches the helper app in permissions mode', async () => {
-    resolveHelperAppPathMock.mockReturnValue('/Applications/Orca Computer Use.app')
+    resolveHelperAppPathMock.mockReturnValue('/Applications/Orcaw Computer Use.app')
     mockPermissionStatus('{"accessibility":"granted","screenshots":"not-granted"}')
 
     await expect(openComputerUsePermissions()).resolves.toEqual({
       platform: 'darwin',
-      helperAppPath: '/Applications/Orca Computer Use.app',
+      helperAppPath: '/Applications/Orcaw Computer Use.app',
       permissionId: undefined,
       openedSettings: false,
       launchedHelper: true,
@@ -108,7 +108,7 @@ describe('openComputerUsePermissions', () => {
         { id: 'accessibility', status: 'granted' },
         { id: 'screenshots', status: 'not-granted' }
       ],
-      nextStep: 'Grant Screen Recording to Orca Computer Use, then retry get-app-state.'
+      nextStep: 'Grant Screen Recording to Orcaw Computer Use, then retry get-app-state.'
     })
     expect(spawnSync).toHaveBeenCalledWith(
       '/usr/bin/pkill',
@@ -122,18 +122,18 @@ describe('openComputerUsePermissions', () => {
     )
     expect(spawn).toHaveBeenCalledWith(
       '/usr/bin/open',
-      ['-n', '/Applications/Orca Computer Use.app', '--args', '--permissions'],
+      ['-n', '/Applications/Orcaw Computer Use.app', '--args', '--permissions'],
       { detached: true, stdio: 'ignore' }
     )
   })
 
   it('launches a targeted permission helper flow', async () => {
-    resolveHelperAppPathMock.mockReturnValue('/Applications/Orca Computer Use.app')
+    resolveHelperAppPathMock.mockReturnValue('/Applications/Orcaw Computer Use.app')
     mockPermissionStatus('{"accessibility":"not-granted","screenshots":"not-granted"}')
 
     await expect(openComputerUsePermissions('accessibility')).resolves.toEqual({
       platform: 'darwin',
-      helperAppPath: '/Applications/Orca Computer Use.app',
+      helperAppPath: '/Applications/Orcaw Computer Use.app',
       permissionId: 'accessibility',
       openedSettings: true,
       launchedHelper: true,
@@ -141,22 +141,22 @@ describe('openComputerUsePermissions', () => {
         { id: 'accessibility', status: 'not-granted' },
         { id: 'screenshots', status: 'not-granted' }
       ],
-      nextStep: 'Grant Accessibility to Orca Computer Use, then retry get-app-state.'
+      nextStep: 'Grant Accessibility to Orcaw Computer Use, then retry get-app-state.'
     })
     expect(spawn).toHaveBeenCalledWith(
       '/usr/bin/open',
-      ['-n', '/Applications/Orca Computer Use.app', '--args', '--permission', 'accessibility'],
+      ['-n', '/Applications/Orcaw Computer Use.app', '--args', '--permission', 'accessibility'],
       { detached: true, stdio: 'ignore' }
     )
   })
 
   it('launches a targeted permission helper even when that permission is already granted', async () => {
-    resolveHelperAppPathMock.mockReturnValue('/Applications/Orca Computer Use.app')
+    resolveHelperAppPathMock.mockReturnValue('/Applications/Orcaw Computer Use.app')
     mockPermissionStatus('{"accessibility":"granted","screenshots":"not-granted"}')
 
     await expect(openComputerUsePermissions('accessibility')).resolves.toEqual({
       platform: 'darwin',
-      helperAppPath: '/Applications/Orca Computer Use.app',
+      helperAppPath: '/Applications/Orcaw Computer Use.app',
       permissionId: 'accessibility',
       openedSettings: true,
       launchedHelper: true,
@@ -164,11 +164,11 @@ describe('openComputerUsePermissions', () => {
         { id: 'accessibility', status: 'granted' },
         { id: 'screenshots', status: 'not-granted' }
       ],
-      nextStep: 'Grant Screen Recording to Orca Computer Use, then retry get-app-state.'
+      nextStep: 'Grant Screen Recording to Orcaw Computer Use, then retry get-app-state.'
     })
     expect(spawn).toHaveBeenCalledWith(
       '/usr/bin/open',
-      ['-n', '/Applications/Orca Computer Use.app', '--args', '--permission', 'accessibility'],
+      ['-n', '/Applications/Orcaw Computer Use.app', '--args', '--permission', 'accessibility'],
       { detached: true, stdio: 'ignore' }
     )
   })
@@ -195,21 +195,21 @@ describe('openComputerUsePermissions', () => {
     resolveHelperAppPathMock.mockReturnValue(null)
 
     await expect(openComputerUsePermissions()).rejects.toThrow(
-      'Orca Computer Use.app was not found'
+      'Orcaw Computer Use.app was not found'
     )
   })
 
   it('throws when the helper executable is missing during setup', async () => {
-    resolveHelperAppPathMock.mockReturnValue('/Applications/Orca Computer Use.app')
+    resolveHelperAppPathMock.mockReturnValue('/Applications/Orcaw Computer Use.app')
     resolveHelperExecutablePathMock.mockReturnValue(null)
 
     await expect(openComputerUsePermissions('accessibility')).rejects.toThrow(
-      '/Applications/Orca Computer Use.app/Contents/MacOS/orca-computer-use-macos was not found'
+      '/Applications/Orcaw Computer Use.app/Contents/MacOS/orca-computer-use-macos was not found'
     )
   })
 
   it('resets stale macOS TCC grants for the helper bundle id', async () => {
-    resolveHelperAppPathMock.mockReturnValue('/Applications/Orca Computer Use.app')
+    resolveHelperAppPathMock.mockReturnValue('/Applications/Orcaw Computer Use.app')
     vi.mocked(readFile)
       .mockResolvedValueOnce('{"accessibility":"granted","screenshots":"granted"}')
       .mockResolvedValueOnce('{"accessibility":"not-granted","screenshots":"not-granted"}')
@@ -218,7 +218,7 @@ describe('openComputerUsePermissions', () => {
 
     await expect(resetComputerUsePermissions()).resolves.toEqual({
       platform: 'darwin',
-      helperAppPath: '/Applications/Orca Computer Use.app',
+      helperAppPath: '/Applications/Orcaw Computer Use.app',
       helperUnavailableReason: null,
       bundleId: 'com.example.orca.computer-use',
       permissions: [
@@ -239,6 +239,26 @@ describe('openComputerUsePermissions', () => {
     expect(spawnSync).toHaveBeenCalledWith(
       '/usr/bin/tccutil',
       ['reset', 'ScreenCapture', 'com.example.orca.computer-use'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
+    )
+  })
+
+  it('uses the Orcaw helper identity when the bundle id cannot be read', async () => {
+    resolveHelperAppPathMock.mockReturnValue(helperAppPath)
+    vi.mocked(readFile)
+      .mockResolvedValueOnce('{"accessibility":"granted","screenshots":"granted"}')
+      .mockResolvedValueOnce('{"accessibility":"not-granted","screenshots":"not-granted"}')
+    vi.mocked(execFileSync).mockImplementationOnce(() => {
+      throw new Error('invalid plist')
+    })
+    vi.mocked(spawnSync).mockReturnValue({ status: 0 } as ReturnType<typeof spawnSync>)
+
+    await expect(resetComputerUsePermissions()).resolves.toMatchObject({
+      bundleId: 'com.wyk15.orcaw.computer-use'
+    })
+    expect(spawnSync).toHaveBeenCalledWith(
+      '/usr/bin/tccutil',
+      ['reset', 'Accessibility', 'com.wyk15.orcaw.computer-use'],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
     )
   })

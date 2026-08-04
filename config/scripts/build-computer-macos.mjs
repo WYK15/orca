@@ -1,11 +1,19 @@
 import { spawnSync } from 'node:child_process'
 import { chmodSync, copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 
+const require = createRequire(import.meta.url)
+const productIdentity = require('../orcaw-product-identity.json')
 const repoRoot = path.resolve(import.meta.dirname, '../..')
 const packagePath = path.join(repoRoot, 'native', 'computer-use-macos')
 const binaryPath = path.join(packagePath, '.build', 'release', 'orca-computer-use-macos')
-const appPath = path.join(packagePath, '.build', 'release', 'Orca Computer Use.app')
+const appPath = path.join(
+  packagePath,
+  '.build',
+  'release',
+  `${productIdentity.computerUseAppName}.app`
+)
 const appExecutablePath = path.join(appPath, 'Contents', 'MacOS', 'orca-computer-use-macos')
 const appIconPath = path.join(appPath, 'Contents', 'Resources', 'AppIcon.icns')
 const entitlementsPath = path.join(
@@ -14,8 +22,8 @@ const entitlementsPath = path.join(
   'build',
   'entitlements.computer-use.mac.plist'
 )
-const bundleId = process.env.ORCA_COMPUTER_MACOS_BUNDLE_ID ?? 'com.stablyai.orca.computer-use'
-const displayName = 'Orca Computer Use'
+const bundleId = process.env.ORCA_COMPUTER_MACOS_BUNDLE_ID ?? productIdentity.computerUseBundleId
+const displayName = productIdentity.computerUseAppName
 const signingIdentity = resolveSigningIdentity()
 const universalTriples = ['arm64-apple-macosx', 'x86_64-apple-macosx']
 
@@ -123,9 +131,9 @@ function infoPlist() {
   <key>LSUIElement</key>
   <true/>
   <key>NSAccessibilityUsageDescription</key>
-  <string>Orca Computer Use needs Accessibility permission to read and interact with app interfaces when you ask Orca to use apps.</string>
+  <string>Orcaw Computer Use needs Accessibility permission to read and interact with app interfaces when you ask Orcaw to use apps.</string>
   <key>NSScreenCaptureUsageDescription</key>
-  <string>Orca Computer Use needs Screen Recording permission to capture app windows when you ask Orca to inspect your screen.</string>
+  <string>Orcaw Computer Use needs Screen Recording permission to capture app windows when you ask Orcaw to inspect your screen.</string>
 </dict>
 </plist>
 `

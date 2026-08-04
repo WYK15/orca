@@ -264,7 +264,10 @@ module.exports = {
       chmodSync(join(resourcesDir, filename), 0o755)
     }
     if (context.electronPlatformName === 'darwin') {
-      await signMacComputerUseHelper(join(resourcesDir, 'Orca Computer Use.app'), context.packager)
+      await signMacComputerUseHelper(
+        join(resourcesDir, `${productIdentity.computerUseAppName}.app`),
+        context.packager
+      )
       await signMacNotificationStatusHelper(
         join(resourcesDir, '..', 'MacOS', 'orca-notification-status'),
         context.packager
@@ -368,8 +371,8 @@ module.exports = {
         to: 'serve-sim'
       },
       {
-        from: 'native/computer-use-macos/.build/release/Orca Computer Use.app',
-        to: 'Orca Computer Use.app'
+        from: `native/computer-use-macos/.build/release/${productIdentity.computerUseAppName}.app`,
+        to: `${productIdentity.computerUseAppName}.app`
       },
       featureWallResources
     ],
@@ -529,7 +532,7 @@ function chmodMacServeSimHelpers(resourcesDir, electronPlatformName) {
 async function signMacComputerUseHelper(helperAppPath, packager) {
   if (!existsSync(helperAppPath)) {
     if (isMacRelease) {
-      throw new Error(`Missing Orca Computer Use helper app at ${helperAppPath}`)
+      throw new Error(`Missing ${productIdentity.computerUseAppName} helper app at ${helperAppPath}`)
     }
     return
   }
@@ -543,10 +546,10 @@ async function signMacComputerUseHelper(helperAppPath, packager) {
     findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
     (isMacRelease ? null : '-')
   if (!identity) {
-    throw new Error('Missing signing identity for Orca Computer Use helper app')
+    throw new Error(`Missing signing identity for ${productIdentity.computerUseAppName} helper app`)
   }
   // Why: TCC grants attach to this nested app's code identity. Sign it before
-  // the outer Orca.app is sealed so production builds preserve that identity.
+  // the outer Orcaw.app is sealed so production builds preserve that identity.
   execFileSync('codesign', codesignArgs(identity, helperAppPath), { stdio: 'inherit' })
   execFileSync('codesign', ['--verify', '--deep', '--strict', helperAppPath], {
     stdio: 'inherit'
@@ -574,7 +577,7 @@ async function signMacNotificationStatusHelper(helperPath, packager) {
   // Why: macOS keys notification records to the code-signing identifier; the
   // binary embeds the app's CFBundleIdentifier in __TEXT,__info_plist so this
   // (and any later) `codesign --force` derives the correct identifier. Sign
-  // before the outer Orca.app is sealed, like the computer-use helper.
+  // before the outer Orcaw.app is sealed, like the computer-use helper.
   const args = ['--force', '--sign', identity]
   if (isMacRelease) {
     args.push('--options', 'runtime', '--timestamp')
