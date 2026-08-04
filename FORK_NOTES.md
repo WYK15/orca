@@ -12,6 +12,8 @@ Remove an entry after an upstream sync contains its equivalent commits.
 
 - Desktop workspace tabs shrink evenly to a 72px minimum before horizontal
   overflow, instead of upstream's 88px minimum.
+- Rich Markdown's toolbar provides a 10×10 table-size grid and a validated
+  custom-size dialog; selected rows are body rows and insertion adds a header.
 
 ## Fork desktop packages
 
