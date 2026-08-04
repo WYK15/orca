@@ -8,6 +8,8 @@ export const RICH_MARKDOWN_SAFE_HTML_INLINE_TAGS = new Set([
   'kbd',
   'br'
 ])
+export const RICH_MARKDOWN_SAFE_HTML_INLINE_NODE = 'richMarkdownSafeHtmlInline'
+export const RICH_MARKDOWN_SAFE_HTML_BLOCK_NODE = 'richMarkdownSafeHtmlBlock'
 export const RICH_MARKDOWN_SAFE_HTML_BLOCK_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
 
 export type RichMarkdownSafeHtmlKind = 'inline' | 'block'

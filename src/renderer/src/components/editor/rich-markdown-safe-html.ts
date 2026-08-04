@@ -8,13 +8,17 @@ import {
   type RichMarkdownSafeHtmlKind,
   type RichMarkdownSafeHtmlNode
 } from './rich-markdown-safe-html-source'
+import { createRichMarkdownSafeHtmlNodeView } from './rich-markdown-safe-html-node-view'
+import {
+  RICH_MARKDOWN_SAFE_HTML_BLOCK_NODE,
+  RICH_MARKDOWN_SAFE_HTML_INLINE_NODE
+} from './rich-markdown-safe-html-schema'
 import type {
   RichMarkdownSourceKind,
   RichMarkdownSourceTransport
 } from './rich-markdown-source-transport'
 
-export const RICH_MARKDOWN_SAFE_HTML_INLINE_NODE = 'richMarkdownSafeHtmlInline'
-export const RICH_MARKDOWN_SAFE_HTML_BLOCK_NODE = 'richMarkdownSafeHtmlBlock'
+export { RICH_MARKDOWN_SAFE_HTML_BLOCK_NODE, RICH_MARKDOWN_SAFE_HTML_INLINE_NODE }
 
 const CLIPBOARD_VERSION = '1'
 const SOURCE_ATTRIBUTE = 'data-orca-safe-html-source'
@@ -103,6 +107,14 @@ function createSafeHtmlNode({
     renderText: ({ node }) => {
       const parsed = parseRichMarkdownSafeHtml(String(node.attrs.source ?? ''), kind)
       return parsed ? safeHtmlText(parsed.root) : String(node.attrs.source ?? '')
+    },
+
+    addNodeView() {
+      return createRichMarkdownSafeHtmlNodeView({
+        kind,
+        rawInlineNodeName: 'rawMarkdownHtmlInline',
+        rawBlockNodeName: 'rawMarkdownHtmlBlock'
+      })
     },
 
     parseHTML() {
