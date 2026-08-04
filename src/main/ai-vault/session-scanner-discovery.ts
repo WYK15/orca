@@ -42,6 +42,19 @@ export async function discoverFiles(args: {
   }
 }
 
+// OpenClaw session files live under <stateDir>/agents; a stateDir that already
+// ends in `agents` is used as-is. Shared so session-delete-target.ts derives
+// the exact root this scanner walks instead of re-declaring the rule.
+export function openClawAgentsRootDir(stateDir: string): string {
+  return basename(stateDir) === 'agents' ? stateDir : join(stateDir, 'agents')
+}
+
+// Every discovered OpenClaw session file carries a `sessions` path segment.
+// Shared so the deletion validator accepts exactly what this scanner surfaces.
+export function isOpenClawSessionFilePath(filePath: string): boolean {
+  return filePath.split(/[\\/]/).includes('sessions')
+}
+
 export async function discoverOpenClawFiles(args: {
   rootDirs: string[]
   limit: number
@@ -50,12 +63,12 @@ export async function discoverOpenClawFiles(args: {
   const discoveries = await Promise.all(
     args.rootDirs.map((rootDir) =>
       discoverFiles({
-        rootDir: basename(rootDir) === 'agents' ? rootDir : join(rootDir, 'agents'),
+        rootDir: openClawAgentsRootDir(rootDir),
         limit: args.limit,
         agent: 'openclaw',
         issues: args.issues,
         extensions: ['.jsonl'],
-        filePredicate: (path) => path.split(/[\\/]/).includes('sessions')
+        filePredicate: isOpenClawSessionFilePath
       })
     )
   )

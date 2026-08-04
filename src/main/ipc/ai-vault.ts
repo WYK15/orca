@@ -1,17 +1,15 @@
 import { app, ipcMain } from 'electron'
-import { resolve } from 'node:path'
 import {
   configureAiVaultSessionSources,
-  getAiVaultWslHomeDirs,
   listAiVaultSessions as listCachedLocalAiVaultSessions,
   resetAiVaultSessionListCacheForTests,
   type AiVaultSessionSources
 } from '../ai-vault/cached-session-list'
 import { scanRemoteAiVaultSessions } from '../ai-vault/remote-session-scanner'
-import { listClaudeSubagentSessions } from '../ai-vault/session-scanner-claude-subagents'
-import { claudeProjectsRootDirs } from '../ai-vault/session-scanner-source-discovery'
-import { isPathInsideOrEqual } from '../../shared/cross-platform-path'
+import { deleteAiVaultSession, registerAiVaultDeleteHandler } from './ai-vault-delete'
+import { listAiVaultSubagentSessions } from './ai-vault-subagent-list'
 import { aiVaultScanIssueResult, mergeAiVaultListResults } from '../ai-vault/session-list-results'
+import type { AiVaultDeleteSessionArgs } from '../../shared/ai-vault-session-deletion'
 import type {
   AiVaultFirstUserPromptArgs,
   AiVaultListArgs,
@@ -66,7 +64,14 @@ type RuntimeAiVaultHostInfo = {
 let cachedList: CachedAiVaultList | null = null
 let inflightList: Promise<AiVaultListResult> | null = null
 let inflightKey: string | null = null
+// Disarms a scan already in flight when the cache is invalidated: a scan that
+// started before an invalidation must not write its stale result back.
+let cacheGeneration = 0
 let handlerOptions: AiVaultHandlerOptions = {}
+// Shared by the IPC registration and the test internals; the multi-host
+// scan-result cache below is this module's private state (invalidateMultiHost
+// AiVaultListCache is a hoisted function declaration).
+const aiVaultDeleteDeps = { invalidateMultiHostListCache: invalidateMultiHostAiVaultListCache }
 
 async function listAiVaultSessions(args?: AiVaultListArgs): Promise<AiVaultListResult> {
   const executionHostScope = normalizeExecutionHostScope(
@@ -96,12 +101,17 @@ async function listAiVaultSessions(args?: AiVaultListArgs): Promise<AiVaultListR
   }
 
   inflightKey = key
+  const startGeneration = cacheGeneration
   inflightList = scanAiVaultSessionsByHostScope(args, executionHostScope)
     .then((result) => {
-      cachedList = {
-        key,
-        result,
-        expiresAt: Date.now() + AI_VAULT_CACHE_TTL_MS
+      // A delete's invalidation landed while this scan was running; caching a
+      // pre-delete result would resurrect the deleted session for the TTL.
+      if (startGeneration === cacheGeneration) {
+        cachedList = {
+          key,
+          result,
+          expiresAt: Date.now() + AI_VAULT_CACHE_TTL_MS
+        }
       }
       return result
     })
@@ -288,6 +298,7 @@ export function registerAiVaultHandlers(options: AiVaultHandlerOptions = {}): vo
     (_event, args?: AiVaultSubagentListArgs): Promise<AiVaultSubagentListResult> =>
       listAiVaultSubagentSessions(args)
   )
+  registerAiVaultDeleteHandler(aiVaultDeleteDeps)
   ipcMain.handle('aiVault:getFirstUserPrompt', (_event, args?: AiVaultFirstUserPromptArgs) =>
     handleAiVaultGetFirstUserPrompt(args)
   )
@@ -300,44 +311,15 @@ export function registerAiVaultHandlers(options: AiVaultHandlerOptions = {}): vo
   })
 }
 
-// Provider-gated: only Claude materializes Task subagent transcripts as
-// sibling files today; other agents resolve to an empty list.
-async function listAiVaultSubagentSessions(
-  args?: AiVaultSubagentListArgs
-): Promise<AiVaultSubagentListResult> {
-  // IPC payloads are untyped at runtime; malformed input resolves empty like
-  // every other rejected input instead of throwing.
-  if (
-    !args ||
-    args.agent !== 'claude' ||
-    typeof args.parentFilePath !== 'string' ||
-    !args.parentFilePath.trim()
-  ) {
-    return { sessions: [], issues: [] }
-  }
-  // Why: subagent transcripts are read from the local filesystem. The UI
-  // skips remote sessions (their transcripts live on the remote host); return
-  // empty defensively rather than reading local paths for a remote session.
-  const executionHostId = args.executionHostId ?? LOCAL_EXECUTION_HOST_ID
-  if (executionHostId !== LOCAL_EXECUTION_HOST_ID) {
-    return { sessions: [], issues: [] }
-  }
-  // Why: the path is renderer-supplied; only list files under a known Claude
-  // projects root so a crafted path can't readdir/preview arbitrary dirs.
-  // resolve() collapses `..` segments first — isPathInsideOrEqual compares
-  // textually and would otherwise pass `<root>/../../etc/x.jsonl`.
-  const parentFilePath = resolve(args.parentFilePath)
-  const roots = claudeProjectsRootDirs({ wslHomeDirs: await getAiVaultWslHomeDirs() })
-  if (!roots.some((root) => isPathInsideOrEqual(resolve(root), parentFilePath))) {
-    return { sessions: [], issues: [] }
-  }
-  return listClaudeSubagentSessions({ parentFilePath })
-}
-
-function resetAiVaultCacheForTests(): void {
+function invalidateMultiHostAiVaultListCache(): void {
+  cacheGeneration++
   cachedList = null
   inflightList = null
   inflightKey = null
+}
+
+function resetAiVaultCacheForTests(): void {
+  invalidateMultiHostAiVaultListCache()
   handlerOptions = {}
   // The local leg delegates to the shared cache module; reset it too so tests
   // never see a scan cached by an earlier case.
@@ -347,5 +329,7 @@ function resetAiVaultCacheForTests(): void {
 export const _internals = {
   listAiVaultSessions,
   listAiVaultSubagentSessions,
+  deleteAiVaultSession: (args?: AiVaultDeleteSessionArgs) =>
+    deleteAiVaultSession(args, aiVaultDeleteDeps),
   resetAiVaultCacheForTests
 }

@@ -231,6 +231,7 @@ import type {
   AutomationUpdateInput
 } from '../shared/automations-types'
 import type { KeybindingActionId, KeybindingFileSnapshot } from '../shared/keybindings'
+import type { AiVaultDeleteSessionArgs } from '../shared/ai-vault-session-deletion'
 import type {
   AiVaultFirstUserPromptArgs,
   AiVaultListArgs,
@@ -4157,6 +4158,8 @@ const api = {
       ipcRenderer.invoke('aiVault:prepareSessionResume', args),
     listSubagentSessions: (args: AiVaultSubagentListArgs): Promise<unknown> =>
       ipcRenderer.invoke('aiVault:listSubagentSessions', args),
+    deleteSession: (args: AiVaultDeleteSessionArgs): Promise<unknown> =>
+      ipcRenderer.invoke('aiVault:deleteSession', args),
     getFirstUserPrompt: (args: AiVaultFirstUserPromptArgs): Promise<unknown> =>
       ipcRenderer.invoke('aiVault:getFirstUserPrompt', args),
     onWindowFocused: (callback: () => void): (() => void) => {

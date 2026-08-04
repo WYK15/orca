@@ -5,11 +5,16 @@ import {
   LocateFixed,
   MessageSquarePlus,
   PanelTopOpen,
-  Play
+  Play,
+  Trash2
 } from 'lucide-react'
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
+import type { AiVaultAgent } from '../../../../shared/ai-vault-types'
+import type { AiVaultSessionDeletabilityResult } from './ai-vault-session-deletability'
+import { aiVaultSessionDeleteReasonText } from './ai-vault-session-delete-reason'
 
 export function SessionActionMenuItems({
   menuKind = 'dropdown',
@@ -25,7 +30,10 @@ export function SessionActionMenuItems({
   onCopyPath,
   onOpenLog,
   onRevealLog,
-  onOpenCwd
+  onOpenCwd,
+  agent,
+  deletability,
+  onDelete
 }: {
   menuKind?: 'dropdown' | 'context'
   resumeDisabled: boolean
@@ -43,10 +51,31 @@ export function SessionActionMenuItems({
   onOpenLog?: () => void
   onRevealLog?: () => void
   onOpenCwd?: () => void
+  agent: AiVaultAgent
+  deletability: AiVaultSessionDeletabilityResult
+  onDelete: () => void
 }) {
   const Item = menuKind === 'context' ? ContextMenuItem : DropdownMenuItem
   const Separator = menuKind === 'context' ? ContextMenuSeparator : DropdownMenuSeparator
   const hasLocalPathActions = Boolean(onOpenLog || onRevealLog || onOpenCwd)
+  const deleteLabel = translate('auto.components.right.sidebar.AiVaultSessionRow.delete', 'Delete')
+  // Reason is shown both visually (tooltip below) and to assistive tech
+  // (aria-label), so a keyboard/screen-reader user hears WHY Delete is disabled,
+  // not just that it is.
+  const deleteReasonText = deletability.deletable
+    ? undefined
+    : aiVaultSessionDeleteReasonText(deletability, agent)
+  const deleteItem = (
+    <Item
+      variant="destructive"
+      disabled={!deletability.deletable}
+      onSelect={deletability.deletable ? onDelete : undefined}
+      aria-label={deleteReasonText ? `${deleteLabel}. ${deleteReasonText}` : undefined}
+    >
+      <Trash2 className="size-3.5" />
+      {deleteLabel}
+    </Item>
+  )
 
   return (
     <>
@@ -126,6 +155,26 @@ export function SessionActionMenuItems({
       <Item onSelect={onCopyPath}>
         {translate('auto.components.right.sidebar.AiVaultSessionRow.copyLogPath', 'Copy Log Path')}
       </Item>
+      <Separator />
+      {deletability.deletable ? (
+        deleteItem
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {/* Why: a disabled item is pointer-events:none, so the tooltip
+               trigger needs this wrapping div to still receive hover (mirrors
+               the "Delete Worktree" disabled pattern in WorktreeContextMenu). */}
+            <div>{deleteItem}</div>
+          </TooltipTrigger>
+          <TooltipContent
+            side={menuKind === 'context' ? 'right' : 'left'}
+            sideOffset={8}
+            className="max-w-72"
+          >
+            {deleteReasonText}
+          </TooltipContent>
+        </Tooltip>
+      )}
     </>
   )
 }

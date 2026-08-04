@@ -48,6 +48,8 @@ import {
 } from './ai-vault-host-scope'
 import { usePersistedAiVaultViewOptions } from './use-persisted-ai-vault-view-options'
 import { AgentSessionContinuationDialog } from '@/components/agent-session-continuation/AgentSessionContinuationDialog'
+import { AiVaultSessionDeleteDialog } from './AiVaultSessionDeleteDialog'
+import { useAiVaultSessionDeleteAction } from './ai-vault-session-delete-action'
 
 export default function AiVaultPanel(): React.JSX.Element {
   const activeWorktreeId = useActiveWorktreeId()
@@ -299,6 +301,14 @@ export default function AiVaultPanel(): React.JSX.Element {
     })
   }, [])
 
+  const {
+    sessionPendingDelete,
+    deletingSession,
+    requestDelete,
+    handleDialogOpenChange: handleDeleteDialogOpenChange,
+    handleConfirmDelete
+  } = useAiVaultSessionDeleteAction({ refresh })
+
   return (
     <div className="@container/ai-vault flex h-full min-h-0 flex-col bg-sidebar">
       <AiVaultPanelHeader
@@ -387,6 +397,7 @@ export default function AiVaultPanel(): React.JSX.Element {
             void window.api.shell.openPath(session.cwd)
           }
         }}
+        onRequestDelete={requestDelete}
       />
       {launchActions.continuationRequest && (
         <AgentSessionContinuationDialog
@@ -395,6 +406,13 @@ export default function AiVaultPanel(): React.JSX.Element {
           onOpenChange={launchActions.handleContinuationDialogOpenChange}
         />
       )}
+      <AiVaultSessionDeleteDialog
+        open={Boolean(sessionPendingDelete)}
+        session={sessionPendingDelete}
+        deleting={deletingSession}
+        onOpenChange={handleDeleteDialogOpenChange}
+        onConfirm={() => void handleConfirmDelete()}
+      />
     </div>
   )
 }

@@ -10,30 +10,38 @@ import type { AiVaultScanOptions, SessionFileDiscovery } from './session-scanner
 import { normalizeAgentSessionsDir } from './session-scanner-values'
 import { resolveGrokSessionsDir } from '../../shared/grok-session-paths'
 import { antigravityDiscoveries } from './session-scanner-antigravity-sources'
+import { sessionRootDirs } from './session-scanner-root-dirs'
 
 const CLAUDE_PROJECTS_DIR = join(homedir(), '.claude', 'projects')
 export const DEFAULT_CODEX_HOME_DIR = join(homedir(), '.codex')
 const CODEX_HOME_DIR = process.env.CODEX_HOME?.trim() || DEFAULT_CODEX_HOME_DIR
 const CODEX_SESSIONS_DIR = join(CODEX_HOME_DIR, 'sessions')
-const GEMINI_SESSIONS_DIR = join(homedir(), '.gemini', 'tmp')
-const COPILOT_SESSIONS_DIR = join(
+// Exported (not just used internally): session-delete-target.ts reuses these
+// same per-agent roots for path-membership checks, so a deletion root can
+// never drift from the scanner's own root.
+export const GEMINI_SESSIONS_DIR = join(homedir(), '.gemini', 'tmp')
+export const COPILOT_SESSIONS_DIR = join(
   process.env.COPILOT_HOME?.trim() || join(homedir(), '.copilot'),
   'session-state'
 )
-const CURSOR_PROJECTS_DIR = join(homedir(), '.cursor', 'projects')
-const HERMES_SESSIONS_DIR = join(homedir(), '.hermes', 'sessions')
-const ROVO_SESSIONS_DIR = join(homedir(), '.rovodev', 'sessions')
-const OPENCLAW_STATE_DIR = process.env.OPENCLAW_STATE_DIR?.trim() || join(homedir(), '.openclaw')
-const PI_SESSIONS_DIR = normalizeAgentSessionsDir(
+// Exported because session-delete-target.ts reuses these per-agent roots for
+// its path-membership checks, so a deletion root can't drift from the scanner's.
+export const CURSOR_PROJECTS_DIR = join(homedir(), '.cursor', 'projects')
+export const GROK_SESSIONS_DIR = resolveGrokSessionsDir()
+export const HERMES_SESSIONS_DIR = join(homedir(), '.hermes', 'sessions')
+export const ROVO_SESSIONS_DIR = join(homedir(), '.rovodev', 'sessions')
+export const OPENCLAW_STATE_DIR =
+  process.env.OPENCLAW_STATE_DIR?.trim() || join(homedir(), '.openclaw')
+export const PI_SESSIONS_DIR = normalizeAgentSessionsDir(
   process.env.PI_CODING_AGENT_DIR?.trim() || join(homedir(), '.pi', 'agent', 'sessions'),
   '.pi'
 )
-const OMP_SESSIONS_DIR = normalizeAgentSessionsDir(
+export const OMP_SESSIONS_DIR = normalizeAgentSessionsDir(
   process.env.OMP_CODING_AGENT_DIR?.trim() || join(homedir(), '.omp', 'agent', 'sessions'),
   '.omp'
 )
 // Why: Devin ATIF transcripts are stored under <DEVIN_HOME>/transcripts.
-const DEVIN_TRANSCRIPTS_DIR = join(
+export const DEVIN_TRANSCRIPTS_DIR = join(
   process.env.DEVIN_HOME?.trim() || join(homedir(), '.local', 'share', 'devin', 'cli'),
   'transcripts'
 )
@@ -310,12 +318,4 @@ function normalizedWslHomeDirs(homeDirs: readonly string[] | undefined): string[
     unique.push(trimmed)
   }
   return unique
-}
-
-function sessionRootDirs(
-  hostRootDir: string,
-  wslHomeDirs: readonly string[],
-  segments: readonly string[]
-): string[] {
-  return [hostRootDir, ...wslHomeDirs.map((homeDir) => join(homeDir, ...segments))]
 }

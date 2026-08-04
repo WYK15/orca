@@ -19,6 +19,7 @@ import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import { agentLabel } from './ai-vault-session-filters'
 import { translate } from '@/i18n/i18n'
 import { SessionActionMenuItems } from './AiVaultSessionActionMenuItems'
+import type { AiVaultSessionDeletabilityResult } from './ai-vault-session-deletability'
 import {
   aiVaultWorktreeJumpTooltip,
   type AiVaultSessionWorktreeInfo
@@ -58,7 +59,9 @@ export function SessionRowTrailingActions({
   onCopyPath,
   onOpenLog,
   onRevealLog,
-  onOpenCwd
+  onOpenCwd,
+  deletability,
+  onRequestDelete
 }: {
   session: AiVaultSession
   detailsExpanded: boolean
@@ -79,6 +82,8 @@ export function SessionRowTrailingActions({
   onOpenLog?: () => void
   onRevealLog?: () => void
   onOpenCwd?: () => void
+  deletability: AiVaultSessionDeletabilityResult
+  onRequestDelete: () => void
 }) {
   const jumpToWorktreeTooltip = aiVaultWorktreeJumpTooltip(worktreeInfo)
 
@@ -260,6 +265,9 @@ export function SessionRowTrailingActions({
             onOpenLog={onOpenLog}
             onRevealLog={onRevealLog}
             onOpenCwd={onOpenCwd}
+            agent={session.agent}
+            deletability={deletability}
+            onDelete={onRequestDelete}
           />
         </DropdownMenuContent>
       </DropdownMenu>
