@@ -46,7 +46,9 @@ describe('getRequiredReleaseAssetNames', () => {
   })
 
   it('includes x64 and arm64 Linux assets', () => {
-    expect(getRequiredReleaseAssetNames('v1.4.27')).toEqual(
+    const required = getRequiredReleaseAssetNames('v1.4.27')
+
+    expect(required).toEqual(
       expect.arrayContaining([
         'latest-linux-arm64.yml',
         'orcaw-linux.AppImage',
@@ -55,6 +57,12 @@ describe('getRequiredReleaseAssetNames', () => {
         'orcaw-ide_1.4.27_arm64.deb',
         'orcaw-ide-1.4.27.x86_64.rpm',
         'orcaw-ide-1.4.27.aarch64.rpm'
+      ])
+    )
+    expect(required).not.toEqual(
+      expect.arrayContaining([
+        'orcaw-linux.AppImage.blockmap',
+        'orcaw-linux-arm64.AppImage.blockmap'
       ])
     )
   })

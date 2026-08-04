@@ -47,7 +47,6 @@ jobs:
               --linux AppImage deb rpm --x64 --publish never
             artifact_paths: |-
               dist/*.AppImage
-              dist/*.AppImage.blockmap
               dist/*.deb
               dist/*.rpm
               dist/latest-linux.yml
@@ -63,7 +62,6 @@ jobs:
               --linux AppImage deb rpm --arm64 --publish never
             artifact_paths: |-
               dist/*.AppImage
-              dist/*.AppImage.blockmap
               dist/*.deb
               dist/*.rpm
               dist/latest-linux-arm64.yml
