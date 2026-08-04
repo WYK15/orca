@@ -25,7 +25,9 @@ import { prepareDevCliTerminalWrappers } from './dev-cli-terminal-wrapper.mjs'
 delete process.env.ELECTRON_RUN_AS_NODE
 
 const require = createRequire(import.meta.url)
+const productIdentity = require('../orcaw-product-identity.json')
 const repoRoot = path.resolve(import.meta.dirname, '../..')
+const devUserDataDirectoryName = `${productIdentity.productName.toLowerCase()}-dev`
 const STABLE_NAME_FLAG = '--stable-name'
 const rawForwardedArgs = process.argv.slice(2)
 // Why: keep an escape hatch for tools that key off Electron's stock app name.
@@ -64,7 +66,7 @@ function formatDevInstanceLabel(branch, worktreeName) {
 }
 
 function createDockTitle(branch, label) {
-  return `Orca: ${branch || label || 'dev'}`
+  return `${productIdentity.productName}: ${branch || label || 'dev'}`
 }
 
 function seedDevInstanceIdentityEnv() {
@@ -106,7 +108,7 @@ function sanitizeMacAppBundleName(value) {
       .join('')
       .replace(/\s+/g, ' ')
       .trim()
-      .slice(0, 120) || 'Orca'
+      .slice(0, 120) || productIdentity.productName
   )
 }
 
@@ -126,7 +128,7 @@ function prepareMacDevElectronApp() {
     electronVersion = JSON.parse(readFileSync(electronPackagePath, 'utf8')).version ?? null
   } catch {}
 
-  const title = process.env.ORCA_DEV_DOCK_TITLE || 'Orca: dev'
+  const title = process.env.ORCA_DEV_DOCK_TITLE || `${productIdentity.productName}: dev`
   const identityKey = process.env.ORCA_DEV_INSTANCE_KEY || repoRoot
   // v7: give the terminal daemon helper an Orca-specific TCC identity.
   const bundleLayoutVersion = 'dock-title-app-preserve-framework-symlinks-v7'
@@ -144,7 +146,7 @@ function prepareMacDevElectronApp() {
   const markerPath = path.join(distDir, 'orca-dev-electron-app.json')
   // Why: one stable id for every dev instance. Per-instance ids registered a
   // new macOS Notification Settings entry for each branch × Electron version,
-  // piling up "Orca: <branch>" rows forever and breaking the notification
+  // piling up "Orcaw: <branch>" rows forever and breaking the notification
   // settings deep-link (System Settings can't resolve an id it has no entry
   // for and falls back to the root list). macOS keys notification permission
   // by bundle id, so a single id also means granting notifications to one dev
@@ -152,7 +154,7 @@ function prepareMacDevElectronApp() {
   // once, macOS may route a notification click to the other instance —
   // Electron drops clicks for notification ids it didn't create, so the
   // click is lost, not misdirected.
-  const bundleId = 'com.stablyai.orca.dev'
+  const bundleId = productIdentity.devAppIdPrefix
   const helperBundleId = `${bundleId}.helper`
   process.env.ORCA_DEV_MACOS_BUNDLE_ID = bundleId
   const expectedMarker = JSON.stringify(
@@ -307,17 +309,22 @@ function getDevUserDataPath() {
     return process.env.ORCA_DEV_USER_DATA_PATH
   }
   if (process.platform === 'darwin') {
-    return path.join(process.env.HOME ?? '', 'Library', 'Application Support', 'orca-dev')
+    return path.join(
+      process.env.HOME ?? '',
+      'Library',
+      'Application Support',
+      devUserDataDirectoryName
+    )
   }
   if (process.platform === 'win32') {
     return path.join(
       process.env.APPDATA ?? path.join(process.env.USERPROFILE ?? '', 'AppData', 'Roaming'),
-      'orca-dev'
+      devUserDataDirectoryName
     )
   }
   return path.join(
     process.env.XDG_CONFIG_HOME ?? path.join(process.env.HOME ?? '', '.config'),
-    'orca-dev'
+    devUserDataDirectoryName
   )
 }
 
