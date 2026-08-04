@@ -64,6 +64,24 @@ describe('rich Markdown safe HTML extensions', () => {
     }
   })
 
+  it('reopens exact mixed safe HTML source after serialization', () => {
+    const markdown =
+      'Before <A HREF="./Guide.md">Guide</A><br />after\n\n<h2 style="color: rebeccapurple">Title</h2>'
+    const first = createMarkdownEditor(markdown)
+    let second: Editor | null = null
+    try {
+      const serialized = first.getMarkdown()
+      second = createMarkdownEditor(serialized)
+      expect(serialized).toBe(markdown)
+      expect(second.getMarkdown()).toBe(markdown)
+      expect(nodeNames(second)).toContain(SAFE_INLINE_NODE)
+      expect(nodeNames(second)).toContain(SAFE_BLOCK_NODE)
+    } finally {
+      first.destroy()
+      second?.destroy()
+    }
+  })
+
   it('rejects a forged safe transport payload', () => {
     const codec = createRichMarkdownEditorCodec()
     const forged = codec.transport.create('safe-inline-html', '<span onclick="go()">unsafe</span>')

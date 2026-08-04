@@ -31,6 +31,14 @@ function buildEditor(
   })
 }
 
+function nodeNames(editor: Editor): string[] {
+  const names: string[] = []
+  editor.state.doc.descendants((node) => {
+    names.push(node.type.name)
+  })
+  return names
+}
+
 describe('useRichMarkdownProgrammaticSync external-reload baseline adoption (#6080)', () => {
   it('adopts externally-canonicalized bytes as the reconciliation baseline without a reload', () => {
     const codec = createRichMarkdownEditorCodec()
@@ -84,6 +92,58 @@ describe('useRichMarkdownProgrammaticSync external-reload baseline adoption (#60
       expect(originalSourceRef.current).toBe(canonical)
       expect(baseCanonicalRef.current).toBe(canonical)
     } finally {
+      editor.destroy()
+    }
+  })
+
+  it('rebuilds safe block HTML and preserves unsupported external HTML losslessly', () => {
+    const codec = createRichMarkdownEditorCodec()
+    const htmlSuperscriptLinkContext = createRichMarkdownHtmlSuperscriptLinkContext({
+      sourceFilePath: '/repo/README.md',
+      worktreeId: 'w1',
+      worktreeRoot: '/repo',
+      sourceOwner: { kind: 'local' as const }
+    })
+    const initial = '<span>old</span>'
+    const safeBlock = '<p>Alpha\n<span>Beta</span>\nGamma</p>'
+    const unsafe = '<iframe src="https://example.com">fallback</iframe>'
+    const editor = buildEditor(codec, htmlSuperscriptLinkContext, initial)
+    const lastCommittedMarkdownRef = { current: initial }
+    const originalSourceRef = { current: initial }
+    const baseCanonicalRef = { current: initial }
+    const isApplyingProgrammaticUpdateRef = { current: false }
+    const hook = renderHook(
+      ({ content }) =>
+        useRichMarkdownProgrammaticSync({
+          codec,
+          content,
+          docLinkMenuSetter: vi.fn(),
+          editor,
+          fileId: 'f1',
+          filePath: '/repo/README.md',
+          isApplyingProgrammaticUpdateRef,
+          lastCommittedMarkdownRef,
+          originalSourceRef,
+          baseCanonicalRef,
+          markdownDocuments: undefined,
+          rootRef: { current: null },
+          runtimeEnvironmentId: null,
+          settings: null,
+          slashMenuSetter: vi.fn(),
+          worktreeId: 'w1',
+          worktreeRoot: '/repo'
+        }),
+      { initialProps: { content: safeBlock } }
+    )
+    try {
+      expect(editor.getMarkdown()).toBe(safeBlock)
+      expect(editor.state.doc.firstChild?.type.name).toBe('richMarkdownSafeHtmlBlock')
+      hook.rerender({ content: unsafe })
+      expect(editor.getMarkdown()).toBe(unsafe)
+      expect(nodeNames(editor)).not.toContain('richMarkdownSafeHtmlBlock')
+      expect(nodeNames(editor)).toContain('rawMarkdownHtmlInline')
+    } finally {
+      hook.unmount()
       editor.destroy()
     }
   })
