@@ -8,6 +8,11 @@
 
 Remove an entry after an upstream sync contains its equivalent commits.
 
+## Persistent customizations
+
+- Desktop workspace tabs shrink evenly to a 72px minimum before horizontal
+  overflow, instead of upstream's 88px minimum.
+
 ## Fork desktop packages
 
 For a temporary test build, run `Fork Desktop Packages` from the Actions tab
