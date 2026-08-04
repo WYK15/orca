@@ -53,6 +53,7 @@ Run:
 
 ```bash
 PATH="/usr/local/opt/node@24/bin:$PATH" pnpm vitest run \
+  --config config/vitest.config.ts \
   src/renderer/src/components/tab-bar/tab-title-tooltip.test.tsx \
   --pool=threads \
   --maxWorkers=1
@@ -76,6 +77,7 @@ Run:
 
 ```bash
 PATH="/usr/local/opt/node@24/bin:$PATH" pnpm vitest run \
+  --config config/vitest.config.ts \
   src/renderer/src/components/tab-bar/tab-title-tooltip.test.tsx \
   --pool=threads \
   --maxWorkers=1
@@ -122,6 +124,7 @@ Run:
 
 ```bash
 PATH="/usr/local/opt/node@24/bin:$PATH" pnpm vitest run \
+  --config config/vitest.config.ts \
   src/renderer/src/components/tab-bar/tab-title-tooltip.test.tsx \
   config/scripts/check-root-directory-entries.test.mjs \
   --pool=threads \
@@ -157,6 +160,7 @@ Run:
 
 ```bash
 PATH="/usr/local/opt/node@24/bin:$PATH" pnpm vitest run \
+  --config config/vitest.config.ts \
   src/renderer/src/components/tab-bar/tab-title-tooltip.test.tsx \
   config/scripts/check-root-directory-entries.test.mjs \
   --pool=threads \
