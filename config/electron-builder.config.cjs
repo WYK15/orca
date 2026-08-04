@@ -456,7 +456,7 @@ module.exports = {
       'xclip',
       'xvfb'
     ],
-    // Why: symlink the bundled CLI onto PATH at install time so `orca-ide serve`
+    // Why: symlink the bundled CLI onto PATH at install time so `orcaw-ide serve`
     // works on a headless host. The in-app CLI registration (CliInstaller) is
     // GUI-triggered and can never run on a server, so without this the CLI is
     // unreachable from the shell on exactly the hosts that need it.

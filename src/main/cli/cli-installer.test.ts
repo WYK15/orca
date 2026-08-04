@@ -82,7 +82,7 @@ describe('CliInstaller', () => {
         platform: 'darwin',
         isPackaged: false,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         commandPathOverride: installPath,
         processPathEnv: join(fixture.root, 'bin')
@@ -329,7 +329,7 @@ describe('CliInstaller', () => {
       platform: 'win32',
       isPackaged: false,
       userDataPath: fixture.userDataPath,
-      execPath: 'C:\\Users\\me\\AppData\\Local\\Orca\\Orca.exe',
+      execPath: 'C:\\Users\\me\\AppData\\Local\\Orcaw\\Orcaw.exe',
       appPath: fixture.appPath,
       commandPathOverride: installPath,
       userPathReader: async () => userPathRead(userPath),
@@ -364,7 +364,7 @@ describe('CliInstaller', () => {
         platform: 'win32',
         isPackaged: false,
         userDataPath: fixture.userDataPath,
-        execPath: 'C:\\Users\\me\\AppData\\Local\\Orca\\Orca.exe',
+        execPath: 'C:\\Users\\me\\AppData\\Local\\Orcaw\\Orcaw.exe',
         appPath: fixture.appPath,
         commandPathOverride: installPath,
         userPathReader: async () => userPathRead('C:\\Windows\\System32'),
@@ -396,7 +396,7 @@ describe('CliInstaller', () => {
       platform: 'win32',
       isPackaged: false,
       userDataPath: fixture.userDataPath,
-      execPath: 'C:\\Users\\me\\AppData\\Local\\Orca\\Orca.exe',
+      execPath: 'C:\\Users\\me\\AppData\\Local\\Orcaw\\Orcaw.exe',
       appPath: fixture.appPath,
       commandPathOverride: join(fixture.root, 'Programs', 'Orca', 'bin', 'orcaw.cmd'),
       userPathReader: async () => userPathRead('C:\\Windows\\System32'),
@@ -422,7 +422,7 @@ describe('CliInstaller', () => {
         platform: 'win32',
         isPackaged: false,
         userDataPath: fixture.userDataPath,
-        execPath: 'C:\\Users\\me\\AppData\\Local\\Orca\\Orca.exe',
+        execPath: 'C:\\Users\\me\\AppData\\Local\\Orcaw\\Orcaw.exe',
         appPath: fixture.appPath,
         commandPathOverride: installPath,
         userPathReader: async () => userPathRead('C:\\Windows\\System32'),
@@ -444,7 +444,7 @@ describe('CliInstaller', () => {
       platform: 'win32',
       isPackaged: false,
       userDataPath: fixture.userDataPath,
-      execPath: 'C:\\Users\\me\\AppData\\Local\\Orca\\Orca.exe',
+      execPath: 'C:\\Users\\me\\AppData\\Local\\Orcaw\\Orcaw.exe',
       appPath: fixture.appPath,
       commandPathOverride: installPath,
       userPathReader: async () => ({
@@ -468,7 +468,7 @@ describe('CliInstaller', () => {
       platform: 'win32',
       isPackaged: false,
       userDataPath: fixture.userDataPath,
-      execPath: 'C:\\Users\\me\\AppData\\Local\\Orca\\Orca.exe',
+      execPath: 'C:\\Users\\me\\AppData\\Local\\Orcaw\\Orcaw.exe',
       appPath: fixture.appPath,
       commandPathOverride: join(fixture.root, 'Programs', 'Orca', 'bin', 'orcaw.cmd'),
       userPathReader: async () => ({
@@ -503,7 +503,7 @@ describe('CliInstaller', () => {
       platform: 'win32',
       isPackaged: false,
       userDataPath: fixture.userDataPath,
-      execPath: 'C:\\Users\\me\\AppData\\Local\\Orca\\Orca.exe',
+      execPath: 'C:\\Users\\me\\AppData\\Local\\Orcaw\\Orcaw.exe',
       appPath: fixture.appPath,
       commandPathOverride: installPath,
       userPathReader: () => registryReader.read(),
@@ -529,7 +529,7 @@ describe('CliInstaller', () => {
       platform: 'win32',
       isPackaged: false,
       userDataPath: fixture.userDataPath,
-      execPath: 'C:\\Users\\me\\AppData\\Local\\Orca\\Orca.exe',
+      execPath: 'C:\\Users\\me\\AppData\\Local\\Orcaw\\Orcaw.exe',
       appPath: fixture.appPath,
       commandPathOverride: installPath,
       windowsEnvironment: { LOCALAPPDATA: join(fixture.root, 'Local App Data') },
@@ -553,7 +553,7 @@ describe('CliInstaller', () => {
       platform: 'win32',
       isPackaged: false,
       userDataPath: fixture.userDataPath,
-      execPath: 'C:\\Users\\me\\AppData\\Local\\Orca\\Orca.exe',
+      execPath: 'C:\\Users\\me\\AppData\\Local\\Orcaw\\Orcaw.exe',
       appPath: fixture.appPath,
       commandPathOverride: installPath,
       windowsEnvironment: { LOCALAPPDATA: join(fixture.root, 'Local App Data') },
@@ -580,7 +580,7 @@ describe('CliInstaller', () => {
         platform: 'darwin',
         isPackaged: false,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         commandPathOverride: installPath
       })
@@ -764,7 +764,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: absentUsrLocalBin,
@@ -799,7 +799,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         defaultMacCommandPath: installPath,
         processPathEnv: usrLocalBin
@@ -834,7 +834,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: defaultInstallPath,
@@ -876,7 +876,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: defaultInstallPath,
@@ -921,7 +921,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: defaultInstallPath,
@@ -956,7 +956,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: defaultInstallPath,
@@ -996,7 +996,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: defaultInstallPath,
@@ -1038,7 +1038,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: defaultInstallPath,
@@ -1079,7 +1079,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: defaultInstallPath,
@@ -1121,7 +1121,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: defaultInstallPath,
@@ -1159,7 +1159,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: defaultInstallPath,
@@ -1192,7 +1192,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: absentUsrLocalBin,
@@ -1220,7 +1220,7 @@ describe('CliInstaller', () => {
         platform: 'darwin',
         isPackaged: false,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         commandPathOverride: installPath,
         privilegedRunner: async (command: string) => {
@@ -1262,7 +1262,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: absentUsrLocalBin,
@@ -1283,7 +1283,7 @@ describe('CliInstaller', () => {
   it('resolves custom-install packaged Windows command path from resourcesPath', async () => {
     const fixture = await makeFixture()
     const localAppDataPath = join(fixture.root, 'AppData', 'Local')
-    const resourcesPath = join(fixture.root, 'D Custom Orca', 'resources')
+    const resourcesPath = join(fixture.root, 'D Custom Orcaw', 'resources')
     await mkdir(join(resourcesPath, 'bin'), { recursive: true })
     await writeFile(join(resourcesPath, 'bin', 'orcaw.exe'), 'native launcher', 'utf8')
 
@@ -1293,7 +1293,7 @@ describe('CliInstaller', () => {
       resourcesPath,
       localAppDataPath,
       userDataPath: fixture.userDataPath,
-      execPath: join(fixture.root, 'D Custom Orca', 'Orca.exe'),
+      execPath: join(fixture.root, 'D Custom Orcaw', 'Orcaw.exe'),
       appPath: fixture.appPath,
       userPathReader: async () => userPathRead(null),
       userPathWriter: async () => {}
@@ -1315,7 +1315,7 @@ describe('CliInstaller', () => {
       isPackaged: true,
       resourcesPath,
       userDataPath: fixture.userDataPath,
-      execPath: join(fixture.root, 'Orca.exe'),
+      execPath: join(fixture.root, 'Orcaw.exe'),
       appPath: fixture.appPath,
       userPathReader: async () => ({
         state: 'unknown',
@@ -1333,7 +1333,7 @@ describe('CliInstaller', () => {
   it('does not overwrite the packaged Windows launcher while registering PATH', async () => {
     const fixture = await makeFixture()
     const localAppDataPath = join(fixture.root, 'AppData', 'Local')
-    const resourcesPath = join(fixture.root, 'D Custom Orca', 'resources')
+    const resourcesPath = join(fixture.root, 'D Custom Orcaw', 'resources')
     const bundledLauncher = join(resourcesPath, 'bin', 'orcaw.exe')
     const bundledContent = 'native launcher'
     await mkdir(dirname(bundledLauncher), { recursive: true })
@@ -1346,7 +1346,7 @@ describe('CliInstaller', () => {
       resourcesPath,
       localAppDataPath,
       userDataPath: fixture.userDataPath,
-      execPath: join(fixture.root, 'D Custom Orca', 'Orca.exe'),
+      execPath: join(fixture.root, 'D Custom Orcaw', 'Orcaw.exe'),
       appPath: fixture.appPath,
       userPathReader: async () => userPathRead(userPath),
       userPathWriter: async (value) => {
@@ -1390,7 +1390,7 @@ describe('CliInstaller', () => {
         isPackaged: true,
         resourcesPath,
         userDataPath: fixture.userDataPath,
-        execPath: '/Applications/Orca.app/Contents/MacOS/Orca',
+        execPath: '/Applications/Orcaw.app/Contents/MacOS/Orcaw',
         appPath: fixture.appPath,
         homePath,
         defaultMacCommandPath: absentUsrLocalBin,

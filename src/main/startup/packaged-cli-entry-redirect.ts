@@ -27,15 +27,15 @@ type RedirectOptions = {
 const REDIRECT_ATTEMPT_ENV = 'ORCA_PACKAGED_CLI_ENTRY_REDIRECTED'
 
 /**
- * Why: on Windows the bundled native launcher runs `Orca.exe <unpacked CLI entry>`
+ * Why: on Windows the bundled native launcher runs `Orcaw.exe <unpacked CLI entry>`
  * with ELECTRON_RUN_AS_NODE=1. When that env var is dropped (e.g. a wrapper or
- * shell that resets it), Orca boots as a GUI, loses the single-instance lock to
+ * shell that resets it), Orcaw boots as a GUI, loses the single-instance lock to
  * an already-running window, and exits silently with no stdout. This detects the
  * CLI-shaped launch — argv carrying the known in-package CLI entry path — and
  * re-runs it in Electron node mode BEFORE the lock gate, then exits with the
  * CLI's status.
  *
- * Security: the spawned program is always `execPath` (Orca.exe) and the script
+ * Security: the spawned program is always `execPath` (Orcaw.exe) and the script
  * is always `cliEntryPath`, derived solely from `resourcesPath` + a fixed
  * relative path — never taken from argv. argv only contributes the trailing
  * CLI arguments forwarded to the already-trusted in-package CLI, and the

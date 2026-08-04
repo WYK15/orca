@@ -98,21 +98,25 @@ describe('AppImage CLI redirect', () => {
       platform: 'linux',
       isPackaged: true,
       resourcesPath: root,
-      execPath: '/opt/orca/orca-ide',
+      execPath: '/opt/orcaw-ide/orcaw-ide',
       commandNames,
       spawn: spawn as never
     })
 
     expect(result).toEqual({ redirected: true, status: 0 })
-    expect(spawn).toHaveBeenCalledWith('/opt/orca/orca-ide', [cliEntryPath, 'status', '--json'], {
-      env: expect.objectContaining({
-        APPIMAGE: '/opt/orca/orca-linux.AppImage',
-        ELECTRON_RUN_AS_NODE: '1',
-        ORCA_NODE_OPTIONS: '--inspect',
-        ORCA_NODE_REPL_EXTERNAL_MODULE: '/tmp/repl.js'
-      }),
-      stdio: 'inherit'
-    })
+    expect(spawn).toHaveBeenCalledWith(
+      '/opt/orcaw-ide/orcaw-ide',
+      [cliEntryPath, 'status', '--json'],
+      {
+        env: expect.objectContaining({
+          APPIMAGE: '/opt/orca/orca-linux.AppImage',
+          ELECTRON_RUN_AS_NODE: '1',
+          ORCA_NODE_OPTIONS: '--inspect',
+          ORCA_NODE_REPL_EXTERNAL_MODULE: '/tmp/repl.js'
+        }),
+        stdio: 'inherit'
+      }
+    )
     const spawnOptions = spawn.mock.calls[0]?.[2] as { env: NodeJS.ProcessEnv } | undefined
     expect(spawnOptions?.env).not.toHaveProperty('NODE_OPTIONS')
     expect(spawnOptions?.env).not.toHaveProperty('NODE_REPL_EXTERNAL_MODULE')
@@ -131,13 +135,13 @@ describe('AppImage CLI redirect', () => {
       platform: 'linux',
       isPackaged: true,
       resourcesPath: root,
-      execPath: '/opt/orca/orca-ide',
+      execPath: '/opt/orcaw-ide/orcaw-ide',
       commandNames,
       spawn: spawn as never
     })
 
     expect(spawn).toHaveBeenCalledWith(
-      '/opt/orca/orca-ide',
+      '/opt/orcaw-ide/orcaw-ide',
       [cliEntryPath, 'serve'],
       expect.objectContaining({
         env: expect.objectContaining({ ORCA_APPIMAGE_NO_SANDBOX: '1' })

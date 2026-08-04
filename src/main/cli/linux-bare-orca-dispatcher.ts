@@ -7,7 +7,7 @@ import { getBundledLauncherPath } from './cli-installer'
 // Why: marks a dispatcher this function wrote so repeat serve starts overwrite
 // our own file idempotently but never clobber a user's own ~/.local/bin/orca.
 export type LinuxBareOrcaDispatcherOptions = {
-  /** Packaged app resources root; the bundled `orca-ide` launcher lives under it. */
+  /** Packaged app resources root; the bundled `orcaw-ide` launcher lives under it. */
   resourcesPath: string
   /** Test seam — defaults to the real home directory. */
   homePath?: string
@@ -23,17 +23,11 @@ export type LinuxBareOrcaDispatcherState =
 export type LinuxBareOrcaDispatcherResult = {
   state: LinuxBareOrcaDispatcherState
   dispatcherPath: string
-  /** What the dispatcher execs: the stable AppImage, or the bundled orca-ide. */
+  /** What the dispatcher execs: the stable AppImage, or bundled `orcaw-ide`. */
   target: string | null
 }
 
-// Why: on Linux the CLI installs as `orca-ide`, not bare `orca`, to avoid
-// shadowing GNOME Orca's /usr/bin/orca. But the Claude Team launcher typed into
-// the initial managed terminal invokes the literal `orca claude-teams`, so a
-// headless serve box needs a bare-`orca` dispatcher on the managed-terminal PATH
-// (~/.local/bin, which patchPackagedProcessPath puts ahead of /usr/bin). It is a
-// plain file, not a managed symlink, so CliInstaller.removeLegacyLinuxCommandIfManaged
-// never reclaims it.
+// Fork isolation leaves both GNOME Orca and official Orca commands untouched.
 export async function installLinuxBareOrcaDispatcher(
   options: LinuxBareOrcaDispatcherOptions
 ): Promise<LinuxBareOrcaDispatcherResult> {

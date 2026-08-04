@@ -17,9 +17,12 @@ Remove an entry after an upstream sync contains its equivalent commits.
 - Rich Markdown renders and source-edits a bounded allowlist of safe inline
   HTML plus `<p>` and `<h1>`–`<h6>` blocks; unsupported HTML remains lossless
   raw source.
-- Desktop updates are sourced only from `WYK15/orca`. Unsigned macOS builds
-  open the matching Release for manual installation; signed macOS and
-  Windows/Linux builds retain automatic updates.
+- Desktop builds ship as Orcaw with the independent `com.wyk15.orcaw`
+  application identity, isolated user data, `orcaw` / `orcaw-ide` commands,
+  and updates sourced only from `WYK15/orca`. Preserve these seams during
+  upstream synchronization. Unsigned macOS builds open the matching Release
+  for manual installation; signed macOS and Windows/Linux builds retain
+  automatic updates.
 
 ## Fork desktop packages
 
@@ -43,5 +46,12 @@ generates the release notes, and attached installers remain available until the
 Release or assets are deleted. A failed asset upload leaves an unpublished
 draft that can be retried.
 
+Release assets use Orcaw names such as `orcaw-windows-setup.exe`,
+`orcaw-linux.AppImage`, `orcaw-ide_<version>_amd64.deb`, and
+`Orcaw-<version>-arm64-mac.zip`. The workflow verifies installers, blockmaps,
+and updater manifests before publishing the draft.
+
 These personal Windows and macOS builds are unsigned, so SmartScreen or
-Gatekeeper can warn when opening them.
+Gatekeeper can warn when opening them. Unsigned macOS builds do not replace the
+app automatically; use Orcaw's update prompt to open the Release, download the
+matching DMG, and replace the installed app manually.

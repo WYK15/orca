@@ -2,6 +2,15 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type * as NodeOs from 'node:os'
+
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof NodeOs>()
+  return {
+    ...actual,
+    homedir: () => process.env.HOME ?? actual.homedir()
+  }
+})
 
 vi.mock('electron', () => {
   const paths = new Map<string, string>([['appData', '/tmp/app-data']])

@@ -6,7 +6,7 @@ import {
 } from './packaged-cli-entry-redirect'
 
 const resourcesPath = 'C:\\Users\\me\\AppData\\Local\\Programs\\Orca\\resources'
-const execPath = 'C:\\Users\\me\\AppData\\Local\\Programs\\Orca\\Orca.exe'
+const execPath = 'C:\\Users\\me\\AppData\\Local\\Programs\\Orcaw\\Orcaw.exe'
 const cliEntryPath = win32.join(resourcesPath, 'app.asar.unpacked', 'out', 'cli', 'index.js')
 
 describe('packaged CLI entry redirect', () => {
@@ -89,11 +89,11 @@ describe('packaged CLI entry redirect', () => {
     const spawn = vi.fn()
 
     const result = maybeRedirectPackagedCliEntryLaunch({
-      argv: ['C:\\dev\\Orca.exe', cliEntryPath, 'status'],
+      argv: ['C:\\dev\\Orcaw.exe', cliEntryPath, 'status'],
       platform: 'win32',
       isPackaged: false,
       resourcesPath,
-      execPath: 'C:\\dev\\Orca.exe',
+      execPath: 'C:\\dev\\Orcaw.exe',
       exists: () => true,
       spawn: spawn as never
     })

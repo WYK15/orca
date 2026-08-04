@@ -345,7 +345,7 @@ export class CliInstaller {
 
     if (this.platform === 'linux') {
       // Why: Linux lacks a privileged global command flow; ~/.local/bin is the least-surprising user-scoped dir.
-      // Why `orca-ide`: GNOME Orca ships /usr/bin/orca, so avoid shadowing that screen reader.
+      // Why `orcaw-ide`: GNOME Orca ships /usr/bin/orca, so avoid shadowing it.
       return join(this.homePath, '.local', 'bin', LINUX_COMMAND_NAME)
     }
 
@@ -528,8 +528,8 @@ export class CliInstaller {
         detail: isInstalled
           ? `Registered at ${commandPath}.`
           : isManagedStaleTarget
-            ? `${commandPath} points to an older Orca launcher.`
-            : `${commandPath} points to a non-Orca launcher.`
+            ? `${commandPath} points to an older Orcaw launcher.`
+            : `${commandPath} points to a non-Orcaw launcher.`
       })
     } catch (error) {
       if (isMissingError(error)) {
@@ -540,7 +540,7 @@ export class CliInstaller {
           supported: true,
           state: 'not_installed',
           currentTarget: null,
-          detail: `Register ${commandPath} to use Orca from the terminal.`
+          detail: `Register ${commandPath} to use Orcaw from the terminal.`
         })
       }
       throw error
@@ -563,7 +563,7 @@ export class CliInstaller {
     }
 
     if (this.platform === 'darwin') {
-      // Why: reclaim symlinks to an older Orca.app launcher, but never replace arbitrary user-owned symlinks.
+      // Why: reclaim older Orcaw.app launchers without replacing user-owned symlinks.
       return /(?:^|[/\\])[^/\\]+\.app[/\\]Contents[/\\]Resources[/\\]bin[/\\][^/\\]+$/.test(
         resolvedTarget
       )
