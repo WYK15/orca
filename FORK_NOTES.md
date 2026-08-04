@@ -25,6 +25,9 @@ Remove an entry after an upstream sync contains its equivalent commits.
   upstream synchronization. Unsigned macOS builds open the matching Release
   for manual installation; signed macOS and Windows/Linux builds retain
   automatic updates.
+- Inherited cron schedules are disabled in this fork. Tag pushes still build
+  and publish desktop releases; manual, pull-request, and release event
+  triggers remain available where their workflows define them.
 
 ## Fork desktop packages
 
