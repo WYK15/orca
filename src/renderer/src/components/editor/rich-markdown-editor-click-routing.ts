@@ -124,14 +124,14 @@ export function handleRichMarkdownEditorClick({
             safeHtmlDom
           )
         : getClickedLinkHref(view, pos)
+  if (!href) {
+    return false
+  }
   if (
     clickedNode?.type.name === 'richMarkdownHtmlSuperscriptLink' &&
     !classifyHtmlSuperscriptLinkAction(href, sourceSnapshot)
   ) {
     return true
-  }
-  if (!href) {
-    return false
   }
   if (href.startsWith('#')) {
     scrollToAnchorInEditor(rootRef.current, href.slice(1))

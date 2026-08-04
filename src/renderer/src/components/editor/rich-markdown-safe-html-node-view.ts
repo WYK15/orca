@@ -113,7 +113,8 @@ export function createRichMarkdownSafeHtmlNodeView(
       control.addEventListener('compositionend', () => {
         composing = false
       })
-      control.addEventListener('keydown', (event) => {
+      control.addEventListener('keydown', (rawEvent) => {
+        const event = rawEvent as KeyboardEvent
         if (composing || event.isComposing) {
           return
         }
