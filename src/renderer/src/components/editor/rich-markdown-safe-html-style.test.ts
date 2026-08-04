@@ -32,6 +32,8 @@ describe('rich Markdown safe HTML styles', () => {
     'font-style: oblique 10deg',
     'text-decoration: blink',
     'color: \\72 ed',
+    'color: #12345',
+    'color: #1234567',
     'background: linear-gradient(red, blue)'
   ])('rejects %s', (source) => {
     expect(parseRichMarkdownSafeHtmlStyle(source)).toBeNull()

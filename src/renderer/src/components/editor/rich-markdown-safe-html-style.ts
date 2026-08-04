@@ -89,7 +89,7 @@ function isColor(value: string): boolean {
   const normalized = value.toLowerCase()
   return (
     NAMED_COLORS.has(normalized) ||
-    /^#[\da-f]{3,4}(?:[\da-f]{2}){0,2}$/i.test(value) ||
+    /^#(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/i.test(value) ||
     RGB_PATTERN.test(value) ||
     HSL_PATTERN.test(value)
   )

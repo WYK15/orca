@@ -29,8 +29,8 @@ export const SAFE_HTML_INLINE_BYTE_LIMIT = 16 * 1024
 export const SAFE_HTML_BLOCK_BYTE_LIMIT = 64 * 1024
 export const SAFE_HTML_NESTING_LIMIT = 8
 
-const TAG_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9-]*/
-const ATTRIBUTE_NAME_PATTERN = /^[A-Za-z_:][A-Za-z0-9_.:-]*/
+const TAG_NAME_PATTERN = /[A-Za-z][A-Za-z0-9-]*/y
+const ATTRIBUTE_NAME_PATTERN = /[A-Za-z_:][A-Za-z0-9_.:-]*/y
 const HTML_WHITESPACE_PATTERN = /[\t\n\f\r ]/
 const encoder = new TextEncoder()
 
@@ -60,10 +60,6 @@ class HtmlCursor {
 
   startsWith(value: string): boolean {
     return this.source.startsWith(value, this.index)
-  }
-
-  rest(): string {
-    return this.source.slice(this.index)
   }
 }
 
@@ -193,11 +189,10 @@ function parseOpeningTag(cursor: HtmlCursor): ParsedOpeningTag | null {
     return null
   }
   cursor.advance()
-  const nameMatch = cursor.rest().match(TAG_NAME_PATTERN)
+  const nameMatch = matchAtCursor(cursor, TAG_NAME_PATTERN)
   if (!nameMatch) {
     return null
   }
-  cursor.advance(nameMatch[0].length)
   const tagName = nameMatch[0].toLowerCase()
   if (!isRichMarkdownSafeHtmlTag(tagName)) {
     return null
@@ -229,11 +224,10 @@ function parseOpeningTag(cursor: HtmlCursor): ParsedOpeningTag | null {
 }
 
 function parseAttribute(cursor: HtmlCursor): RichMarkdownSafeHtmlParsedAttribute | null {
-  const nameMatch = cursor.rest().match(ATTRIBUTE_NAME_PATTERN)
+  const nameMatch = matchAtCursor(cursor, ATTRIBUTE_NAME_PATTERN)
   if (!nameMatch) {
     return null
   }
-  cursor.advance(nameMatch[0].length)
   skipWhitespace(cursor)
   if (!cursor.startsWith('=')) {
     return null
@@ -274,11 +268,10 @@ function parseClosingTag(cursor: HtmlCursor, expectedTag: RichMarkdownSafeHtmlTa
     return false
   }
   cursor.advance(2)
-  const nameMatch = cursor.rest().match(TAG_NAME_PATTERN)
+  const nameMatch = matchAtCursor(cursor, TAG_NAME_PATTERN)
   if (!nameMatch || nameMatch[0].toLowerCase() !== expectedTag) {
     return false
   }
-  cursor.advance(nameMatch[0].length)
   skipWhitespace(cursor)
   if (!cursor.startsWith('>')) {
     return false
@@ -294,6 +287,15 @@ function skipWhitespace(cursor: HtmlCursor): void {
   ) {
     cursor.advance()
   }
+}
+
+function matchAtCursor(cursor: HtmlCursor, pattern: RegExp): RegExpExecArray | null {
+  pattern.lastIndex = cursor.index
+  const match = pattern.exec(cursor.source)
+  if (match) {
+    cursor.advance(match[0].length)
+  }
+  return match
 }
 
 function isLineStart(content: string, start: number): boolean {

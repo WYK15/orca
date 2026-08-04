@@ -1,5 +1,7 @@
 import { decodeNamedCharacterReference } from 'decode-named-character-reference'
 
+const CHARACTER_REFERENCE_PATTERN = /&([#A-Za-z0-9]+);/y
+
 export function decodeRichMarkdownSafeHtmlCharacterReferences(value: string): string | null {
   let result = ''
   let index = 0
@@ -9,7 +11,8 @@ export function decodeRichMarkdownSafeHtmlCharacterReferences(value: string): st
       index += 1
       continue
     }
-    const match = value.slice(index).match(/^&([#A-Za-z0-9]+);/)
+    CHARACTER_REFERENCE_PATTERN.lastIndex = index
+    const match = CHARACTER_REFERENCE_PATTERN.exec(value)
     if (!match) {
       result += '&'
       index += 1
