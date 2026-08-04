@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { macOSComputerHelperAppPath } from './computer-native-macos-helper-path.mjs'
 
 const repoRoot = resolve(import.meta.dirname, '..', '..')
 const checks = [
@@ -123,14 +124,7 @@ function hasCommand(command) {
 }
 
 function verifyMacOSHelperApp() {
-  const appPath = join(
-    repoRoot,
-    'native',
-    'computer-use-macos',
-    '.build',
-    'release',
-    'Orca Computer Use.app'
-  )
+  const appPath = macOSComputerHelperAppPath(repoRoot)
   if (!existsSync(appPath)) {
     console.error(
       `[computer-native] missing helper app at ${appPath}; run pnpm build:computer-macos`
