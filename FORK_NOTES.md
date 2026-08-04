@@ -14,6 +14,9 @@ Remove an entry after an upstream sync contains its equivalent commits.
   overflow, instead of upstream's 88px minimum.
 - Rich Markdown's toolbar provides a 10×10 table-size grid and a validated
   custom-size dialog; selected rows are body rows and insertion adds a header.
+- Rich Markdown renders and source-edits a bounded allowlist of safe inline
+  HTML plus `<p>` and `<h1>`–`<h6>` blocks; unsupported HTML remains lossless
+  raw source.
 
 ## Fork desktop packages
 
