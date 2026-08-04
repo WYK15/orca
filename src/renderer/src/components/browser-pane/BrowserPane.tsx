@@ -84,6 +84,7 @@ import {
 } from '../../../../shared/browser-viewport-presets'
 import { rememberLiveBrowserUrl } from './browser-runtime'
 import { ensureBrowserPageWebview } from './browser-page-webview'
+import { resolveBrowserPageTitleEvent } from './browser-page-title-event'
 import {
   destroyPersistentWebview,
   moveFocusToRendererBeforeWebviewDetach,
@@ -3909,7 +3910,10 @@ function BrowserPagePane({
       try {
         const currentUrl = webview.getURL() || browserTab.url
         const browserModelUrl = redactKagiSessionToken(currentUrl)
-        const title = getBrowserDisplayTitle(event.title, browserModelUrl)
+        const title = getBrowserDisplayTitle(
+          resolveBrowserPageTitleEvent(event.title, () => webview.getTitle()),
+          browserModelUrl
+        )
         onUpdatePageStateRef.current(browserTab.id, { title })
         addBrowserHistoryEntryRef.current(browserModelUrl, title)
       } catch {
