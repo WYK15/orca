@@ -9,6 +9,7 @@ import type {
 } from './rich-markdown-source-transport'
 import { isReservedRichMarkdownTransportBody } from './rich-markdown-source-transport'
 import { matchHtmlSuperscriptLinkSource } from './rich-markdown-html-superscript-link-source'
+import { matchRichMarkdownSafeHtml } from './rich-markdown-safe-html-source'
 
 const INLINE_HTML_PATTERN = /^<!--[\s\S]*?-->|^<\/?[A-Za-z][\w.:-]*(?:\s[^<>]*?)?\/?>/
 
@@ -25,11 +26,6 @@ function isEscaped(content: string, index: number): boolean {
   return backslashCount % 2 === 1
 }
 
-function findLineEnd(content: string, start: number): number {
-  const newlineIndex = content.indexOf('\n', start)
-  return newlineIndex === -1 ? content.length : newlineIndex
-}
-
 function isLineOnlyHtml(line: string): boolean {
   const trimmed = line.trim()
   if (!trimmed.startsWith('<')) {
@@ -44,7 +40,8 @@ function isLineOnlyHtml(line: string): boolean {
 }
 
 function matchBlockHtml(content: string, start: number): string | null {
-  const lineEnd = findLineEnd(content, start)
+  const newlineIndex = content.indexOf('\n', start)
+  const lineEnd = newlineIndex === -1 ? content.length : newlineIndex
   const line = content.slice(start, lineEnd)
   if (!isLineOnlyHtml(line)) {
     return null
@@ -145,6 +142,13 @@ export function encodeRawMarkdownHtmlForRichEditor(
         continue
       }
 
+      const safeBlockHtml = matchRichMarkdownSafeHtml(normalizedContent, index, 'block')
+      if (safeBlockHtml) {
+        result += transport.create('safe-block-html', safeBlockHtml.source)
+        index += safeBlockHtml.source.length
+        continue
+      }
+
       const blockHtml = matchBlockHtml(normalizedContent, index)
       if (blockHtml) {
         result += transport.create('block-html', blockHtml)
@@ -174,6 +178,12 @@ export function encodeRawMarkdownHtmlForRichEditor(
           index = superscriptLink.end
           continue
         }
+      }
+      const safeInlineHtml = matchRichMarkdownSafeHtml(normalizedContent, index, 'inline')
+      if (safeInlineHtml) {
+        result += transport.create('safe-inline-html', safeInlineHtml.source)
+        index += safeInlineHtml.source.length
+        continue
       }
       const inlineHtml = matchInlineHtml(normalizedContent.slice(index))
       if (inlineHtml) {
