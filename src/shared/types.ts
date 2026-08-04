@@ -2424,6 +2424,7 @@ export type UpdateStatus = (
       state: 'available'
       version: string
       activeNudgeId?: string
+      delivery?: 'automatic' | 'manual'
       // Why: releaseUrl is not currently populated by the update-available handler
       // (it always sends undefined). Kept on the type for the Settings page's
       // release-notes link fallback and for potential future use if the main

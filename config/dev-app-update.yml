@@ -1,4 +1,4 @@
 provider: github
-owner: stablyai
+owner: WYK15
 repo: orca
-updaterCacheDirName: orca-updater
+updaterCacheDirName: orcaw-updater

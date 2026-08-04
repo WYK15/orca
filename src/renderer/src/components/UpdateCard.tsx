@@ -243,6 +243,12 @@ export function UpdateCard() {
   const isRichMode = changelog?.release != null
 
   const handleUpdate = () => {
+    if (status.state === 'available' && status.delivery === 'manual') {
+      void window.api.shell.openUrl(
+        status.releaseUrl ?? getReleaseNotesUrlForVersion(status.version)
+      )
+      return
+    }
     hasStartedDownload.current = true
     // Why: clicking Update implies the user isn't worried about interruption, so retire the reassurance tip.
     if (!reassuranceSeen) {
@@ -328,7 +334,10 @@ export function UpdateCard() {
           ? {
               variant: 'http1Compatibility',
               title: translate('auto.components.UpdateCard.1339b82cee', 'HTTP/2 Download Blocked'),
-              summary: 'Orca can retry through HTTP/1.1 compatibility mode.',
+              summary: translate(
+                'auto.components.UpdateCard.orcawHttp1Retry',
+                'Orcaw can retry through HTTP/1.1 compatibility mode.'
+              ),
               explainer: translate(
                 'auto.components.UpdateCard.90559b14e3',
                 'This turns on a process-wide Electron networking switch after restart. Use it for corporate VPNs or proxies that reject HTTP/2 update downloads.'
@@ -351,15 +360,15 @@ export function UpdateCard() {
                   "Update Wasn't Installed"
                 ),
                 summary: translate(
-                  'auto.components.UpdateCard.092f09fc14',
-                  "The installer's publisher doesn't match Orca, so we stopped the update. Don't install this download; check official releases for a corrected version."
+                  'auto.components.UpdateCard.orcawPublisherMismatch',
+                  "The installer's publisher doesn't match Orcaw, so we stopped the update. Don't install this download; check Orcaw releases for a corrected version."
                 ),
                 detail: status.message,
                 // Why: linking the rejected version would let users bypass the publisher check by re-running it.
                 releaseUrl: getReleaseNotesUrlForVersion(null),
                 manualLabel: translate(
-                  'auto.components.UpdateCard.c9ff9b9ec2',
-                  'Check official releases'
+                  'auto.components.UpdateCard.checkOrcawReleases',
+                  'Check Orcaw releases'
                 )
               }
             : isSignatureCheckBlockedError
@@ -369,8 +378,8 @@ export function UpdateCard() {
                     'Update Verification Blocked'
                   ),
                   summary: translate(
-                    'auto.components.UpdateCard.a05992a26b',
-                    "The signature check couldn't run — usually because antivirus software blocked it. Retry the download, or get the installer from our official releases."
+                    'auto.components.UpdateCard.orcawSignatureCheckBlocked',
+                    "The signature check couldn't run — usually because antivirus software blocked it. Retry the download, or get the installer from Orcaw releases."
                   ),
                   detail: status.message,
                   releaseUrl: getReleaseNotesUrlForVersion(cachedVersion),
@@ -576,6 +585,10 @@ export function UpdateCard() {
       ? undefined
       : (('releaseUrl' in status ? status.releaseUrl : undefined) ??
         getReleaseNotesUrlForVersion(status.version))
+    const actionLabel =
+      status.delivery === 'manual'
+        ? translate('auto.components.UpdateCard.downloadOrcaw', 'Download Orcaw')
+        : translate('auto.components.UpdateCard.ec8fe71cfc', 'Update')
 
     if (isRichMode && changelog) {
       return (
@@ -589,6 +602,7 @@ export function UpdateCard() {
           onMediaLoad={() => setMediaLoaded(true)}
           onUpdate={handleUpdate}
           onClose={handleDismissWithAnimation}
+          actionLabel={actionLabel}
         />
       )
     }
@@ -599,13 +613,17 @@ export function UpdateCard() {
         releaseUrl={releaseUrl}
         onUpdate={handleUpdate}
         onClose={handleDismissWithAnimation}
+        actionLabel={actionLabel}
+        manualDelivery={status.delivery === 'manual'}
       />
     )
   })()
 
   // One-time reassurance tip that updating won't kill running terminals; persisted once seen.
   const showReassurance =
-    !reassuranceSeen && (status.state === 'available' || status.state === 'downloading')
+    !reassuranceSeen &&
+    ((status.state === 'available' && status.delivery !== 'manual') ||
+      status.state === 'downloading')
 
   return (
     <div
@@ -661,7 +679,8 @@ function RichCardContent({
   onMediaError,
   onMediaLoad,
   onUpdate,
-  onClose
+  onClose,
+  actionLabel
 }: {
   release: NonNullable<ChangelogData['release']>
   releasesBehind: number | null
@@ -672,6 +691,7 @@ function RichCardContent({
   onMediaLoad: () => void
   onUpdate: () => void
   onClose: () => void
+  actionLabel: string
 }) {
   const showMedia =
     release.mediaUrl &&
@@ -740,7 +760,7 @@ function RichCardContent({
       </button>
 
       <Button variant="default" size="sm" onClick={onUpdate} className="w-full cursor-pointer">
-        {translate('auto.components.UpdateCard.ec8fe71cfc', 'Update')}
+        {actionLabel}
       </Button>
     </div>
   )
@@ -752,12 +772,16 @@ function SimpleCardContent({
   version,
   releaseUrl,
   onUpdate,
-  onClose
+  onClose,
+  actionLabel,
+  manualDelivery
 }: {
   version: string
   releaseUrl?: string
   onUpdate: () => void
   onClose: () => void
+  actionLabel: string
+  manualDelivery: boolean
 }) {
   return (
     <div className="flex flex-col gap-2.5 p-3.5">
@@ -777,13 +801,18 @@ function SimpleCardContent({
       </div>
 
       <p className="text-sm text-muted-foreground">
-        {translate('auto.components.UpdateCard.05ad78a6d1', 'Orca v{{value0}} is ready.', {
+        {translate('auto.components.UpdateCard.orcawReady', 'Orcaw v{{value0}} is available.', {
           value0: version
         })}
       </p>
 
       <p className="text-xs leading-relaxed text-muted-foreground">
-        {translate('auto.components.UpdateCard.fdd4a364fa', "Sessions won't be interrupted.")}
+        {manualDelivery
+          ? translate(
+              'auto.components.UpdateCard.manualInstall',
+              'Download the release and install it manually.'
+            )
+          : translate('auto.components.UpdateCard.fdd4a364fa', "Sessions won't be interrupted.")}
       </p>
 
       {releaseUrl && (
@@ -801,7 +830,7 @@ function SimpleCardContent({
         onClick={onUpdate}
         className="mt-0.5 w-full cursor-pointer"
       >
-        {translate('auto.components.UpdateCard.ec8fe71cfc', 'Update')}
+        {actionLabel}
       </Button>
     </div>
   )
@@ -881,9 +910,11 @@ function DownloadingContent({
       <p className="text-sm text-muted-foreground">
         {release
           ? release.description
-          : translate('auto.components.UpdateCard.93794ea932', 'Orca v{{value0}} is downloading.', {
-              value0: version
-            })}
+          : translate(
+              'auto.components.UpdateCard.orcawDownloading',
+              'Orcaw v{{value0}} is downloading.',
+              { value0: version }
+            )}
       </p>
 
       {showReleaseNotes && (
@@ -941,8 +972,8 @@ function ReadyToInstallContent({
 
       <p className="text-sm text-muted-foreground">
         {translate(
-          'auto.components.UpdateCard.6714206e5a',
-          "Orca v{{value0}} is downloaded. Restart when you're ready.",
+          'auto.components.UpdateCard.orcawDownloaded',
+          "Orcaw v{{value0}} is downloaded. Restart when you're ready.",
           { value0: version }
         )}
       </p>

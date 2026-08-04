@@ -14,9 +14,9 @@ export const RELEASE_CHANNEL_LABELS: Readonly<Record<ReleaseChannel, string>> = 
 /** Dev builds live in their own repos so their tags never enter the main
  *  releases atom feed, which only exposes the 10 newest entries — 24 hourly
  *  tags a day would evict every stable/RC entry and strand real users. */
-export const HOURLY_RELEASE_REPO = 'stablyai/orca-hourly'
-export const ADHOC_RELEASE_REPO = 'stablyai/orca-adhoc'
-export const MAIN_RELEASE_REPO = 'stablyai/orca'
+export const HOURLY_RELEASE_REPO = 'WYK15/orca-hourly'
+export const ADHOC_RELEASE_REPO = 'WYK15/orca-adhoc'
+export const MAIN_RELEASE_REPO = 'WYK15/orca'
 
 export const HOURLY_PRERELEASE_IDENTIFIER = 'hourly'
 export const ADHOC_PRERELEASE_IDENTIFIER = 'adhoc'

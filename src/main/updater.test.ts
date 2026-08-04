@@ -1,6 +1,7 @@
 /* eslint-disable max-lines */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as UpdaterModule from './updater'
+import type * as UpdaterDeliveryPolicy from './updater-delivery-policy'
 
 const {
   appMock,
@@ -81,6 +82,7 @@ const {
     appMock: {
       isPackaged: true,
       getVersion: vi.fn(() => '1.0.51'),
+      getAppPath: vi.fn(() => '/Applications/Orcaw.app/Contents/Resources/app.asar'),
       on: appOn,
       emit: appEmit,
       quit: vi.fn()
@@ -184,8 +186,12 @@ vi.mock('./updater-prerelease-feed', () => ({
       ? { tags: result, state: result.length > 0 ? 'ready' : 'no-newer' }
       : result
   },
-  getReleaseDownloadUrl: (tag: string) =>
-    `https://github.com/stablyai/orca/releases/download/${tag}`
+  getReleaseDownloadUrl: (tag: string) => `https://github.com/WYK15/orca/releases/download/${tag}`
+}))
+
+vi.mock('./updater-delivery-policy', async (importOriginal) => ({
+  ...(await importOriginal<typeof UpdaterDeliveryPolicy>()),
+  readPackagedMacAutoUpdateEnabled: () => true
 }))
 
 vi.mock('./local-builds/local-build-switch', () => ({
@@ -364,7 +370,7 @@ describe('updater', () => {
       expect(autoUpdaterMock.disableDifferentialDownload).toBe(false)
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       })
     }
   )
@@ -407,7 +413,7 @@ describe('updater', () => {
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       })
     }
   )
@@ -447,7 +453,7 @@ describe('updater', () => {
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       })
     }
   )
@@ -504,7 +510,7 @@ describe('updater', () => {
       expect(send).toHaveBeenCalledWith('updater:status', { state: 'not-available' })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       })
     }
   )
@@ -550,7 +556,7 @@ describe('updater', () => {
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       })
     }
   )
@@ -1333,7 +1339,7 @@ describe('updater', () => {
     })
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/download/v1.4.36-rc.5'
+      url: 'https://github.com/WYK15/orca/releases/download/v1.4.36-rc.5'
     })
     expect(
       sendMock.mock.calls
@@ -1443,7 +1449,7 @@ describe('updater', () => {
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/download/v1.3.18-rc.1'
+        url: 'https://github.com/WYK15/orca/releases/download/v1.3.18-rc.1'
       })
       expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
     })
@@ -1470,7 +1476,7 @@ describe('updater', () => {
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/download/v1.4.121-rc.6.perf'
+        url: 'https://github.com/WYK15/orca/releases/download/v1.4.121-rc.6.perf'
       })
       expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
     })
@@ -1537,7 +1543,7 @@ describe('updater', () => {
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/download/v1.4.121'
+        url: 'https://github.com/WYK15/orca/releases/download/v1.4.121'
       })
     })
   })
@@ -1781,7 +1787,10 @@ describe('updater', () => {
       expect.objectContaining({
         state: 'error',
         // Why: a pre-commit install failure is not fixed by restarting, so the copy must not suggest it.
-        message: 'Could not start the update installer. Orca remains open.'
+        message:
+          process.platform === 'darwin'
+            ? 'Could not restart to install the update. Quit and reopen Orcaw, then try again.'
+            : 'Could not start the update installer. Orcaw remains open.'
       })
     )
   })
@@ -2516,7 +2525,7 @@ describe('updater', () => {
     // Setup pins the default generic feed; resolver only runs per check.
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/latest/download'
+      url: 'https://github.com/WYK15/orca/releases/latest/download'
     })
     expect(autoUpdaterMock.allowPrerelease).not.toBe(true)
 
@@ -2528,7 +2537,7 @@ describe('updater', () => {
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/download/v1.3.17-rc.2'
+        url: 'https://github.com/WYK15/orca/releases/download/v1.3.17-rc.2'
       })
       expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
     })
@@ -2550,7 +2559,7 @@ describe('updater', () => {
     await vi.waitFor(() => {
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/download/v1.3.19'
+        url: 'https://github.com/WYK15/orca/releases/download/v1.3.19'
       })
     })
     expect(autoUpdaterMock.allowPrerelease).not.toBe(true)
@@ -2574,7 +2583,7 @@ describe('updater', () => {
     })
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/latest/download'
+      url: 'https://github.com/WYK15/orca/releases/latest/download'
     })
   })
 
@@ -2605,7 +2614,7 @@ describe('updater', () => {
     expect(autoUpdaterMock.setFeedURL.mock.calls.slice(feedCallsBeforeCheck)).not.toContainEqual([
       {
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       }
     ])
   })
@@ -2629,7 +2638,7 @@ describe('updater', () => {
     })
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/latest/download'
+      url: 'https://github.com/WYK15/orca/releases/latest/download'
     })
     expect(sendMock).not.toHaveBeenCalledWith(
       'updater:status',
@@ -2671,16 +2680,16 @@ describe('updater', () => {
     expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/download/v1.4.26'
+      url: 'https://github.com/WYK15/orca/releases/download/v1.4.26'
     })
     expect(autoUpdaterMock.setFeedURL).not.toHaveBeenCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/download/v1.4.27'
+      url: 'https://github.com/WYK15/orca/releases/download/v1.4.27'
     })
     expect(autoUpdaterMock.setFeedURL.mock.calls.slice(feedCallsBeforeCheck)).not.toContainEqual([
       {
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       }
     ])
     expect(sendMock).not.toHaveBeenCalledWith(
@@ -2723,7 +2732,7 @@ describe('updater', () => {
     })
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/download/v1.4.26'
+      url: 'https://github.com/WYK15/orca/releases/download/v1.4.26'
     })
   })
 
@@ -2758,7 +2767,7 @@ describe('updater', () => {
     })
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/download/v1.4.26'
+      url: 'https://github.com/WYK15/orca/releases/download/v1.4.26'
     })
     expect(setLastUpdateCheckAt).not.toHaveBeenCalled()
 
@@ -2778,7 +2787,7 @@ describe('updater', () => {
     })
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/download/v1.4.27'
+      url: 'https://github.com/WYK15/orca/releases/download/v1.4.27'
     })
   })
 
@@ -2828,7 +2837,7 @@ describe('updater', () => {
     })
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/download/v1.4.27'
+      url: 'https://github.com/WYK15/orca/releases/download/v1.4.27'
     })
   })
 
@@ -2867,7 +2876,7 @@ describe('updater', () => {
     })
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/download/v1.4.27'
+      url: 'https://github.com/WYK15/orca/releases/download/v1.4.27'
     })
   })
 
@@ -3133,11 +3142,11 @@ describe('updater', () => {
       expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(2)
       expect(autoUpdaterMock.setFeedURL).toHaveBeenCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/download/v1.3.51-rc.7'
+        url: 'https://github.com/WYK15/orca/releases/download/v1.3.51-rc.7'
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/download/v1.3.51-rc.6'
+        url: 'https://github.com/WYK15/orca/releases/download/v1.3.51-rc.6'
       })
     })
 
@@ -3763,7 +3772,7 @@ describe('updater', () => {
     })
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/download/v1.3.18'
+      url: 'https://github.com/WYK15/orca/releases/download/v1.3.18'
     })
   })
 
@@ -3789,7 +3798,7 @@ describe('updater', () => {
     expect(autoUpdaterMock.allowPrerelease).toBe(true)
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/download/v1.3.18-rc.1'
+      url: 'https://github.com/WYK15/orca/releases/download/v1.3.18-rc.1'
     })
   })
 
@@ -3802,8 +3811,8 @@ describe('updater', () => {
     // Why: macOS keeps the restart advice because quitting does re-stage a Squirrel update.
     const PRE_COMMIT_FAILURE_MESSAGE =
       process.platform === 'darwin'
-        ? 'Could not restart to install the update. Quit and reopen Orca, then try again.'
-        : 'Could not start the update installer. Orca remains open.'
+        ? 'Could not restart to install the update. Quit and reopen Orcaw, then try again.'
+        : 'Could not start the update installer. Orcaw remains open.'
     const DEB_PATH = '/home/tester/.cache/orca-updater/pending/orca-ide_1.0.61_amd64.deb'
     const RPM_PATH = '/home/tester/.cache/orca-updater/pending/orca-ide-1.0.61.x86_64.rpm'
     const AGENT_STDERR =
@@ -3997,7 +4006,7 @@ describe('updater', () => {
       expect(autoUpdaterMock.quitAndInstall).not.toHaveBeenCalled()
       expect(send).toHaveBeenCalledWith('updater:status', {
         state: 'error',
-        message: 'Could not restart to install the update. Quit and reopen Orca, then try again.'
+        message: 'Could not restart to install the update. Quit and reopen Orcaw, then try again.'
       })
       expect(updater.isQuittingForUpdate()).toBe(false)
     })

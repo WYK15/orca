@@ -17,7 +17,7 @@ const release = (tag: string, extra: Record<string, unknown> = {}) => ({
   tag_name: tag,
   draft: false,
   published_at: '2026-07-28T14:00:00Z',
-  html_url: `https://github.com/stablyai/orca/releases/tag/${tag}`,
+  html_url: `https://github.com/WYK15/orca/releases/tag/${tag}`,
   ...extra
 })
 
@@ -37,7 +37,7 @@ describe('listReleaseBuilds', () => {
 
     const builds = await listReleaseBuilds('hourly')
 
-    expect(fetchMock.mock.calls[0][0]).toContain('stablyai/orca-hourly')
+    expect(fetchMock.mock.calls[0][0]).toContain('WYK15/orca-hourly')
     expect(builds.map((build) => build.version)).toEqual([
       '1.4.160-hourly.202607281400',
       '1.4.160-hourly.202607281000',
@@ -119,14 +119,13 @@ describe('resolveTargetBuild', () => {
     expect(resolveTargetBuild('hourly', 'v1.4.160-hourly.202607281400')).toEqual({
       tag: 'v1.4.160-hourly.202607281400',
       version: '1.4.160-hourly.202607281400',
-      feedUrl:
-        'https://github.com/stablyai/orca-hourly/releases/download/v1.4.160-hourly.202607281400'
+      feedUrl: 'https://github.com/WYK15/orca-hourly/releases/download/v1.4.160-hourly.202607281400'
     })
   })
 
   it('pins a stable tag at the main repo download path', () => {
     expect(resolveTargetBuild('stable', 'v1.4.159').feedUrl).toBe(
-      'https://github.com/stablyai/orca/releases/download/v1.4.159'
+      'https://github.com/WYK15/orca/releases/download/v1.4.159'
     )
   })
 

@@ -102,8 +102,8 @@ describe('UpdateCard Windows signature failures', () => {
     expect(screen.getByText(/Don't install this download/)).toBeTruthy()
     expect(screen.queryByText(message)).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Check official releases' }))
-    expect(openUrl).toHaveBeenCalledWith('https://github.com/stablyai/orca/releases')
+    fireEvent.click(screen.getByRole('button', { name: 'Check Orcaw releases' }))
+    expect(openUrl).toHaveBeenCalledWith('https://github.com/WYK15/orca/releases')
     expect(openUrl).not.toHaveBeenCalledWith(expect.stringContaining('/tag/'))
   })
 
@@ -147,8 +147,34 @@ describe('UpdateCard hourly builds', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Release notes' }))
     expect(openUrl).toHaveBeenCalledWith(
-      'https://github.com/stablyai/orca-hourly/releases/tag/v1.4.160-hourly.202607281400'
+      'https://github.com/WYK15/orca-hourly/releases/tag/v1.4.160-hourly.202607281400'
     )
+  })
+})
+
+describe('UpdateCard manual releases', () => {
+  it('opens the fork release without starting the updater download', () => {
+    useAppStore.setState({
+      updateStatus: {
+        state: 'available',
+        version: '1.4.165-wyk.2',
+        changelog: null,
+        delivery: 'manual',
+        releaseUrl: 'https://github.com/WYK15/orca/releases/tag/v1.4.165-wyk.2'
+      },
+      updateChangelog: null,
+      dismissedUpdateVersion: null,
+      updateCardCollapsed: false,
+      updateReassuranceSeen: true
+    })
+    render(<UpdateCard />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download Orcaw' }))
+
+    expect(openUrl).toHaveBeenCalledWith(
+      'https://github.com/WYK15/orca/releases/tag/v1.4.165-wyk.2'
+    )
+    expect(download).not.toHaveBeenCalled()
   })
 })
 
@@ -246,7 +272,7 @@ describe('UpdateCard Linux package-install recovery', () => {
     await flushActions()
 
     fireEvent.click(screen.getByRole('button', { name: 'Download Manually' }))
-    expect(openUrl).toHaveBeenCalledWith('https://github.com/stablyai/orca/releases/tag/v1.4.200')
+    expect(openUrl).toHaveBeenCalledWith('https://github.com/WYK15/orca/releases/tag/v1.4.200')
   })
 
   it('keeps generic errors on the generic card when no recovery is attached', () => {

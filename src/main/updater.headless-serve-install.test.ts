@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type * as UpdaterDeliveryPolicy from './updater-delivery-policy'
 
 const {
   appMock,
@@ -26,6 +27,7 @@ const {
   const appMock = {
     isPackaged: true,
     getVersion: vi.fn(() => '1.0.51'),
+    getAppPath: vi.fn(() => '/Applications/Orcaw.app/Contents/Resources/app.asar'),
     on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
       appHandlers.set(event, [...(appHandlers.get(event) ?? []), handler])
       return appMock
@@ -96,6 +98,10 @@ vi.mock('./update-install-exit-watchdog', () => ({
 }))
 vi.mock('./updater-lifecycle-diagnostics', () => ({
   recordUpdaterLifecycle: recordUpdaterLifecycleMock
+}))
+vi.mock('./updater-delivery-policy', async (importOriginal) => ({
+  ...(await importOriginal<typeof UpdaterDeliveryPolicy>()),
+  readPackagedMacAutoUpdateEnabled: () => true
 }))
 vi.mock('./serve-update-handoff', () => ({
   failServeUpdateHandoff: failServeUpdateHandoffMock,
@@ -199,7 +205,7 @@ describe('headless serve update install handoff', () => {
           status.state === 'error' &&
           'message' in status &&
           typeof status.message === 'string' &&
-          status.message.includes('orca serve')
+          status.message.includes('orcaw serve')
       ),
       deferralDiagnostics: recordUpdaterLifecycleMock.mock.calls.filter(
         ([event]) => event === 'headless_serve_install_deferred'
@@ -401,7 +407,7 @@ describe('headless serve update install handoff', () => {
       )
       expect(send).toHaveBeenCalledWith(
         'updater:status',
-        expect.objectContaining({ state: 'error', message: expect.stringContaining('orca serve') })
+        expect.objectContaining({ state: 'error', message: expect.stringContaining('orcaw serve') })
       )
     }
   )
@@ -463,7 +469,7 @@ describe('headless serve update install handoff', () => {
       expect(killAllPtyMock).not.toHaveBeenCalled()
       expect(send).toHaveBeenCalledWith(
         'updater:status',
-        expect.objectContaining({ state: 'error', message: expect.stringContaining('orca serve') })
+        expect.objectContaining({ state: 'error', message: expect.stringContaining('orcaw serve') })
       )
     }
   )

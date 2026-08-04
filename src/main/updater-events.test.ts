@@ -62,6 +62,7 @@ function createContext(overrides?: Partial<HandlerContext>): HandlerContext {
     getCurrentStatus: vi.fn(() => ({ state: 'checking' }) as never),
     getActiveUpdateCheckEventAttemptId: vi.fn(() => 1),
     getKnownReleaseUrl: vi.fn(() => undefined),
+    getReleaseUpdateDelivery: vi.fn<() => 'automatic'>(() => 'automatic'),
     getPendingInstallVersion: vi.fn(() => '1.0.61'),
     getUserInitiatedCheck: vi.fn(() => false),
     handleQuitAndInstallFailure: vi.fn(() => false),
@@ -139,6 +140,24 @@ describe('registerAutoUpdaterHandlers linux package artifact tracking', () => {
       version: '1.0.61',
       path: DEB_PATH,
       sha512: DEB_SHA512
+    })
+  })
+
+  it('marks release updates as manual with a fork release URL', async () => {
+    const { emit, context } = await register({
+      getReleaseUpdateDelivery: vi.fn<() => 'manual'>(() => 'manual')
+    })
+
+    emit('update-available', { version: '1.0.61' })
+
+    await vi.waitFor(() => {
+      expect(context.sendStatus).toHaveBeenCalledWith({
+        state: 'available',
+        version: '1.0.61',
+        changelog: null,
+        delivery: 'manual',
+        releaseUrl: 'https://github.com/WYK15/orca/releases/tag/v1.0.61'
+      })
     })
   })
 

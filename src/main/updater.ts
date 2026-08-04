@@ -49,6 +49,11 @@ import {
   type LinuxPackageRecoveryUnavailableReason
 } from './linux-package-update-recovery'
 import {
+  getReleaseUpdateDelivery,
+  readPackagedMacAutoUpdateEnabled,
+  type ReleaseUpdateDelivery
+} from './updater-delivery-policy'
+import {
   compareVersions,
   isBenignCheckFailure,
   isMissingUpdateManifestFailure,
@@ -183,6 +188,7 @@ let pinnedBuildSelectionInProgress = false
 // deliberate downgrade, so newer-only gates must yield to it too.
 let isPinnedBuildActive = false
 let getReleaseChannelOverride: (() => ReleaseChannel | null) | null = null
+let releaseUpdateDelivery: ReleaseUpdateDelivery = 'automatic'
 
 function getAutoUpdater(): ElectronAutoUpdater {
   if (!autoUpdater) {
@@ -658,12 +664,12 @@ function deferHeadlessServeInstall(phase: 'download' | 'install', version: strin
       { phase, version: version || null },
       {
         level: 'warn',
-        message: 'Update install deferred while hosting orca serve'
+        message: 'Update install deferred while hosting orcaw serve'
       }
     )
   }
   sendErrorStatus(
-    'This orca serve process was not started by an update-capable supervisor. Keep it running and update Orca through its service manager.',
+    'This orcaw serve process was not started by an update-capable supervisor. Keep it running and update Orcaw through its service manager.',
     true
   )
   return true
@@ -743,7 +749,7 @@ async function performQuitAndInstall(): Promise<void> {
           }
         )
         sendErrorStatus(
-          'Could not prepare the supervised server restart. Orca remains running.',
+          'Could not prepare the supervised server restart. Orcaw remains running.',
           true
         )
         resetQuitForUpdateState()
@@ -839,7 +845,7 @@ async function performQuitAndInstall(): Promise<void> {
         // Why: past the native invoke this is the same pre-commit failure the event path reports, so it gets the same copy; only a pre-native exception can be helped by a restart.
         message: quitAndInstallNativeInvokedBeforeReset
           ? getPreCommitInstallFailureMessage()
-          : 'Could not restart to install the update. Quit and reopen Orca, then try again.'
+          : 'Could not restart to install the update. Quit and reopen Orcaw, then try again.'
       }
     )
   }
@@ -861,8 +867,8 @@ function resetQuitForUpdateState(): void {
  */
 function getPreCommitInstallFailureMessage(): string {
   return process.platform === 'darwin'
-    ? 'Could not restart to install the update. Quit and reopen Orca, then try again.'
-    : 'Could not start the update installer. Orca remains open.'
+    ? 'Could not restart to install the update. Quit and reopen Orcaw, then try again.'
+    : 'Could not start the update installer. Orcaw remains open.'
 }
 
 /**
@@ -1377,7 +1383,7 @@ async function pinDefaultReleaseFeed(
   } else {
     clearPrereleaseFallbackContext()
     clearPublishingWindowLastGoodCheck()
-    const url = 'https://github.com/stablyai/orca/releases/latest/download'
+    const url = 'https://github.com/WYK15/orca/releases/latest/download'
     console.info(
       `[updater] release feed fallback: current=${currentVersion} includePrerelease=${includePrerelease} → ${url}`
     )
@@ -1751,18 +1757,18 @@ const LINUX_PACKAGE_RECOVERY_MESSAGES: Record<LinuxPackageRecoveryUnavailableRea
     'The downloaded package is no longer in the update cache. Download the update again, or get it from the official release page.',
   // Why: this reason also covers a path that left the cache (traversal or symlinked parent), so the copy must not promise the file merely changed type.
   'not-regular':
-    'The downloaded package is no longer a valid file in the update cache. Download the update again, or get it from the official release page.',
+    'The downloaded package is no longer a valid file in the update cache. Download the update again, or get it from the Orcaw release page.',
   'hash-mismatch':
-    'The downloaded package no longer matches the verified release, so Orca will not hand it to a package manager. Download the update again, or get it from the official release page.',
+    'The downloaded package no longer matches the verified release, so Orcaw will not hand it to a package manager. Download the update again, or get it from the Orcaw release page.',
   'read-failed':
-    'Orca could not read the downloaded package. Download the update again, or get it from the official release page.',
+    'Orcaw could not read the downloaded package. Download the update again, or get it from the Orcaw release page.',
   'no-sudo':
-    'No sudo command was found in the system directories, so Orca cannot build a safe install command. Show the package and install it with your package manager.',
+    'No sudo command was found in the system directories, so Orcaw cannot build a safe install command. Show the package and install it with your package manager.',
   'no-package-manager':
-    'No supported package manager was found in the system directories, so Orca cannot build a safe install command. Show the package and install it with your package manager.',
+    'No supported package manager was found in the system directories, so Orcaw cannot build a safe install command. Show the package and install it with your package manager.',
   // Defensive: capture only ever tracks absolute cache paths, so this reports a bug rather than a machine state.
   'invalid-package-path':
-    'The downloaded package is not at a usable path, so Orca cannot build a safe install command. Show the package and install it with your package manager.'
+    'The downloaded package is not at a usable path, so Orcaw cannot build a safe install command. Show the package and install it with your package manager.'
 }
 
 // Why: clearing the artifact alone would leave the renderer's actions enabled; the status must lose its recovery too.
@@ -2013,6 +2019,10 @@ export function setupAutoUpdater(
   if (is.dev) {
     return
   }
+  releaseUpdateDelivery = getReleaseUpdateDelivery(
+    process.platform,
+    process.platform === 'darwin' && readPackagedMacAutoUpdateEnabled(app.getAppPath())
+  )
 
   const autoUpdater = getAutoUpdater()
   autoUpdater.autoDownload = false
@@ -2037,7 +2047,7 @@ export function setupAutoUpdater(
   if (activeUpdateSource === 'release') {
     autoUpdater.setFeedURL({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/latest/download'
+      url: 'https://github.com/WYK15/orca/releases/latest/download'
     })
   }
 
@@ -2055,6 +2065,8 @@ export function setupAutoUpdater(
     getActiveUpdateCheckEventAttemptId,
     getCurrentStatus: () => currentStatus,
     getKnownReleaseUrl,
+    getReleaseUpdateDelivery: () =>
+      activeUpdateSource === 'release' ? releaseUpdateDelivery : 'automatic',
     getPendingInstallVersion,
     getUserInitiatedCheck: () => userInitiatedCheck,
     handleQuitAndInstallFailure,
@@ -2140,6 +2152,9 @@ export function downloadUpdate(): void {
   }
   const version = currentStatus.state === 'available' ? currentStatus.version : availableVersion
   if (!version) {
+    return
+  }
+  if (activeUpdateSource === 'release' && releaseUpdateDelivery === 'manual') {
     return
   }
   if (deferHeadlessServeInstall('download', version)) {

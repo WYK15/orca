@@ -17,6 +17,9 @@ Remove an entry after an upstream sync contains its equivalent commits.
 - Rich Markdown renders and source-edits a bounded allowlist of safe inline
   HTML plus `<p>` and `<h1>`–`<h6>` blocks; unsupported HTML remains lossless
   raw source.
+- Desktop updates are sourced only from `WYK15/orca`. Unsigned macOS builds
+  open the matching Release for manual installation; signed macOS and
+  Windows/Linux builds retain automatic updates.
 
 ## Fork desktop packages
 
@@ -41,5 +44,4 @@ Release or assets are deleted. A failed asset upload leaves an unpublished
 draft that can be retried.
 
 These personal Windows and macOS builds are unsigned, so SmartScreen or
-Gatekeeper can warn when opening them. Publishing a Release does not change
-the application's official Orca update feed.
+Gatekeeper can warn when opening them.
