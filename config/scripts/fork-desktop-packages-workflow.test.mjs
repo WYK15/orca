@@ -54,22 +54,42 @@ describe('fork desktop package workflow', () => {
 
   it('builds both macOS architectures in the configured target set', () => {
     const workflow = parse(readFileSync(workflowPath, 'utf8'))
+    const windows = workflow.jobs.package.strategy.matrix.include.find(
+      ({ platform }) => platform === 'windows-x64'
+    )
+    const linuxX64 = workflow.jobs.package.strategy.matrix.include.find(
+      ({ platform }) => platform === 'linux-x64'
+    )
+    const linuxArm64 = workflow.jobs.package.strategy.matrix.include.find(
+      ({ platform }) => platform === 'linux-arm64'
+    )
     const macos = workflow.jobs.package.strategy.matrix.include.find(
       ({ platform }) => platform === 'macos'
     )
 
+    expect(windows.artifact_paths).toContain('dist/orcaw-windows-setup.exe')
+    expect(windows.artifact_paths).toContain('dist/orcaw-windows-setup.exe.blockmap')
+    expect(windows.artifact_paths).toContain('dist/latest.yml')
+    expect(linuxX64.artifact_paths).toContain('dist/*.AppImage.blockmap')
+    expect(linuxX64.artifact_paths).toContain('dist/latest-linux.yml')
+    expect(linuxArm64.artifact_paths).toContain('dist/latest-linux-arm64.yml')
     expect(macos.package_command).toContain('--mac --publish never')
     expect(macos.package_command).not.toMatch(/--(?:x64|arm64)/)
-    expect(macos.artifact_paths).toContain('dist/orca-macos-*.dmg')
-    expect(macos.artifact_paths).toContain('dist/*-mac.zip')
+    expect(macos.artifact_paths).toContain('dist/orcaw-macos-*.dmg')
+    expect(macos.artifact_paths).toContain('dist/orcaw-macos-*.dmg.blockmap')
+    expect(macos.artifact_paths).toContain('dist/Orcaw-*-mac.zip')
+    expect(macos.artifact_paths).toContain('dist/Orcaw-*-mac.zip.blockmap')
+    expect(macos.artifact_paths).toContain('dist/latest-mac.yml')
   })
 
   it('publishes complete tag builds through one least-privilege release job', () => {
     const workflow = parse(readFileSync(workflowPath, 'utf8'))
     const release = workflow.jobs.release
+    const checkout = release.steps.find((step) => step.name === 'Checkout release verifier')
     const download = release.steps.find((step) => step.name === 'Download desktop packages')
     const create = release.steps.find((step) => step.name === 'Create or reuse draft release')
     const upload = release.steps.find((step) => step.name === 'Upload release assets')
+    const verify = release.steps.find((step) => step.name === 'Verify Orcaw release assets')
     const publish = release.steps.find((step) => step.name === 'Publish release')
 
     expect(workflow.permissions).toEqual({ contents: 'read' })
@@ -77,8 +97,10 @@ describe('fork desktop package workflow', () => {
     expect(release.if).toContain("github.event_name == 'push'")
     expect(release.if).toContain("startsWith(github.ref, 'refs/tags/v')")
     expect(release.permissions).toEqual({ contents: 'write' })
+    expect(checkout.uses).toBe('actions/checkout@v6')
+    expect(checkout.with['persist-credentials']).toBe(false)
     expect(download.uses).toBe('actions/download-artifact@v8')
-    expect(download.with.pattern).toContain('${{ github.run_number }}')
+    expect(download.with.pattern).toBe('orcaw-*-${{ github.run_number }}-*')
     expect(download.with['merge-multiple']).toBe(true)
     expect(create.run).toContain('release create "$TAG_NAME"')
     expect(create.run).toContain('--draft')
@@ -87,6 +109,9 @@ describe('fork desktop package workflow', () => {
     expect(create.run).toContain('--prerelease')
     expect(upload.run).toContain('gh release upload "$TAG_NAME"')
     expect(upload.run).toContain('--clobber')
+    expect(verify.run).toContain(
+      'node config/scripts/verify-release-required-assets.mjs "$TAG_NAME"'
+    )
     expect(publish.run).toContain('gh release edit "$TAG_NAME"')
     expect(publish.run).toContain('--draft=false')
   })
@@ -104,7 +129,7 @@ describe('fork desktop package workflow', () => {
     expect(source.run).toContain('git rev-parse --short=12 HEAD')
     expect(upload.uses).toBe('actions/upload-artifact@v7')
     expect(upload.with.name).toBe(
-      'orca-${{ matrix.platform }}-${{ github.run_number }}-${{ steps.source.outputs.short_sha }}'
+      'orcaw-${{ matrix.platform }}-${{ github.run_number }}-${{ steps.source.outputs.short_sha }}'
     )
     expect(upload.with.path).toBe('${{ matrix.artifact_paths }}')
     expect(upload.with['if-no-files-found']).toBe('error')

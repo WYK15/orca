@@ -32,7 +32,10 @@ jobs:
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE };
               pnpm exec electron-builder --config config/electron-builder.config.cjs
               --win --x64 --publish never
-            artifact_paths: dist/orca-windows-setup.exe
+            artifact_paths: |-
+              dist/orcaw-windows-setup.exe
+              dist/orcaw-windows-setup.exe.blockmap
+              dist/latest.yml
             electron_cache: |-
               ~\AppData\Local\electron\Cache
               ~\AppData\Local\electron-builder\Cache
@@ -44,8 +47,10 @@ jobs:
               --linux AppImage deb rpm --x64 --publish never
             artifact_paths: |-
               dist/*.AppImage
+              dist/*.AppImage.blockmap
               dist/*.deb
               dist/*.rpm
+              dist/latest-linux.yml
             electron_cache: |-
               ~/.cache/electron
               ~/.cache/electron-builder
@@ -58,8 +63,10 @@ jobs:
               --linux AppImage deb rpm --arm64 --publish never
             artifact_paths: |-
               dist/*.AppImage
+              dist/*.AppImage.blockmap
               dist/*.deb
               dist/*.rpm
+              dist/latest-linux-arm64.yml
             electron_cache: |-
               ~/.cache/electron
               ~/.cache/electron-builder
@@ -71,8 +78,11 @@ jobs:
               --config config/electron-builder.config.cjs
               --mac --publish never
             artifact_paths: |-
-              dist/orca-macos-*.dmg
-              dist/*-mac.zip
+              dist/orcaw-macos-*.dmg
+              dist/orcaw-macos-*.dmg.blockmap
+              dist/Orcaw-*-mac.zip
+              dist/Orcaw-*-mac.zip.blockmap
+              dist/latest-mac.yml
             electron_cache: |-
               ~/Library/Caches/electron
               ~/Library/Caches/electron-builder
@@ -151,7 +161,7 @@ jobs:
       - name: Upload desktop packages
         uses: actions/upload-artifact@v7
         with:
-          name: orca-${{ matrix.platform }}-${{ github.run_number }}-${{ steps.source.outputs.short_sha }}
+          name: orcaw-${{ matrix.platform }}-${{ github.run_number }}-${{ steps.source.outputs.short_sha }}
           path: ${{ matrix.artifact_paths }}
           if-no-files-found: error
           retention-days: 14
@@ -164,10 +174,16 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout release verifier
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+          persist-credentials: false
+
       - name: Download desktop packages
         uses: actions/download-artifact@v8
         with:
-          pattern: orca-*-${{ github.run_number }}-*
+          pattern: orcaw-*-${{ github.run_number }}-*
           path: release-assets
           merge-multiple: true
 
@@ -220,6 +236,13 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --clobber \
             "${packages[@]}"
+
+      - name: Verify Orcaw release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: node config/scripts/verify-release-required-assets.mjs "$TAG_NAME"
 
       - name: Publish release
         env:
