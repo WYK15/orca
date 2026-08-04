@@ -42,6 +42,15 @@ describe('raw Markdown HTML preprocessing', () => {
     expect(encoded).toContain(transport.startFor('inline-html'))
   })
 
+  it.each([
+    '<sup class="x"><a href="./guide.md">nested</a></sup>',
+    '<div><span>nested</span></div>'
+  ])('does not promote safe descendants of a raw HTML container: %s', (source) => {
+    const { encoded, transport } = encode(source)
+    expect(encoded).not.toContain(transport.startFor('safe-inline-html'))
+    expect(encoded).toContain(transport.startFor('inline-html'))
+  })
+
   it.each(['`<span>code</span>`', '```\n<span>code</span>\n```', '\\<span>escaped</span>'])(
     'does not transport safe HTML in protected Markdown: %s',
     (source) => {
