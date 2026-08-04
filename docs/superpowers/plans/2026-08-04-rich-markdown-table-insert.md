@@ -563,63 +563,68 @@ export function RichMarkdownTableInsertMenu({
 
 - [ ] **Step 1: Write failing menu orchestration tests**
 
-In `RichMarkdownTableInsertMenu.test.tsx`, mock Popover, Tooltip, grid, dialog,
-and the editor insertion module. The Popover mock must capture its `open` and
-`onOpenChange` props; the grid and dialog mocks must capture their complete
-props. Reset all captures in `beforeEach`. Wrap direct captured-callback calls
-in Testing Library's `act` so React commits state before the assertion:
+In `RichMarkdownTableInsertMenu.test.tsx`, use a real Tiptap editor plus the
+real grid, dialog, and insertion contract. Replace only the Radix Popover,
+Dialog, and Tooltip primitives with portal-free test boundaries. Assert
+consumer-visible document and UI behavior:
 
 ```ts
-it('opens custom size with the current grid selection', () => {
+it('inserts the quick-grid size and closes the popover', () => {
+  const editor = createEditor()
   render(<RichMarkdownTableInsertMenu editor={editor} />)
   fireEvent.click(screen.getByRole('button', { name: 'Table' }))
-  act(() => capturedGridProps.onSelectionChange({ bodyRows: 7, columns: 8 }))
+  fireEvent.click(screen.getByRole('gridcell', { name: '2 body rows by 4 columns' }))
+  expect(tableDimensions(editor)).toEqual({ rows: 3, columns: 4 })
+  expect(screen.queryByRole('grid')).toBeNull()
+})
+
+it('inherits the grid selection in the custom-size dialog', () => {
+  const editor = createEditor()
+  render(<RichMarkdownTableInsertMenu editor={editor} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Table' }))
+  fireEvent.mouseEnter(screen.getByRole('gridcell', { name: '7 body rows by 8 columns' }))
   fireEvent.click(screen.getByRole('button', { name: 'Custom size' }))
-  expect(capturedDialogProps.open).toBe(true)
-  expect(capturedDialogProps.initialDimensions).toEqual({ bodyRows: 7, columns: 8 })
+  expect((screen.getByLabelText('Body rows') as HTMLInputElement).value).toBe('7')
+  expect((screen.getByLabelText('Columns') as HTMLInputElement).value).toBe('8')
 })
 
-it('closes quick selection only after successful insertion', () => {
-  insertRichMarkdownTableMock.mockReturnValueOnce(false).mockReturnValueOnce(true)
-  render(<RichMarkdownTableInsertMenu editor={editor} />)
-  act(() => capturedGridProps.onSelect({ bodyRows: 2, columns: 4 }))
-  expect(capturedPopoverProps.open).toBe(true)
+it('keeps the quick grid open when no editor can insert', () => {
+  render(<RichMarkdownTableInsertMenu editor={null} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Table' }))
+  fireEvent.click(screen.getByRole('gridcell', { name: '2 body rows by 4 columns' }))
   expect(screen.getByText('Could not insert table')).toBeTruthy()
-  act(() => capturedGridProps.onSelect({ bodyRows: 2, columns: 4 }))
-  expect(capturedPopoverProps.open).toBe(false)
-  expect(screen.queryByText('Could not insert table')).toBeNull()
+  expect(screen.getByRole('grid')).toBeTruthy()
 })
 
-it('closes on Escape without inserting', () => {
+it('closes on Escape without changing the document', () => {
+  const editor = createEditor()
+  const before = editor.getMarkdown()
   render(<RichMarkdownTableInsertMenu editor={editor} />)
   fireEvent.click(screen.getByRole('button', { name: 'Table' }))
-  act(() => capturedPopoverProps.onOpenChange(false))
-  expect(capturedPopoverProps.open).toBe(false)
-  expect(insertRichMarkdownTableMock).not.toHaveBeenCalled()
-})
-
-it('returns false without a command when the editor is unavailable', () => {
-  render(<RichMarkdownTableInsertMenu editor={null} />)
-  expect(capturedDialogProps.onInsert({ bodyRows: 3, columns: 3 })).toBe(false)
-  expect(insertRichMarkdownTableMock).not.toHaveBeenCalled()
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+  expect(screen.queryByRole('grid')).toBeNull()
+  expect(editor.getMarkdown()).toBe(before)
 })
 ```
 
 - [ ] **Step 2: Write the failing toolbar placement test**
 
-In `RichMarkdownToolbar.test.tsx`, mock `RichMarkdownToolbarButton`,
-`RichMarkdownTableInsertMenu`, and `RichMarkdownTableToolbar` to simple markup,
-then render `RichMarkdownToolbar` to static markup. Assert that the insertion
-menu marker appears after the Image button and before the contextual table
-toolbar marker:
+In `RichMarkdownToolbar.test.tsx`, render the real toolbar and replace only
+Tooltip's portal behavior. Assert DOM order through accessible buttons. Add a
+real editor whose selection is inside a table to prove the new button coexists
+with the contextual controls:
 
 ```ts
-expect(markup.indexOf('aria-label="Image"')).toBeLessThan(
-  markup.indexOf('data-table-insert-menu="true"')
-)
-expect(markup.indexOf('data-table-insert-menu="true"')).toBeLessThan(
-  markup.indexOf('data-contextual-table-toolbar="true"')
-)
+const imageButton = screen.getByRole('button', { name: 'Image' })
+const tableButton = screen.getByRole('button', { name: 'Table' })
+expect(
+  imageButton.compareDocumentPosition(tableButton) & Node.DOCUMENT_POSITION_FOLLOWING
+).not.toBe(0)
+
+const insertRowButton = screen.getByRole('button', { name: 'Insert row above' })
+expect(
+  tableButton.compareDocumentPosition(insertRowButton) & Node.DOCUMENT_POSITION_FOLLOWING
+).not.toBe(0)
 ```
 
 - [ ] **Step 3: Run both integration tests to verify RED**
