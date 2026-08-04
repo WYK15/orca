@@ -1,7 +1,7 @@
 ---
 name: orca-emulator
 description: >
-  Control a mobile (iOS) emulator / simulator stream from inside Orca using the `orca` CLI.
+  Control a mobile (iOS) emulator / simulator stream from inside Orca using the `orcaw` CLI.
   Use for taps, gestures, typing, hardware buttons, camera injection, permissions, accessibility tree, and more — all while seeing the live view in Orca's emulator pane.
   Prefer this over raw `npx serve-sim` or direct simctl when running agents inside Orca (the orca surface handles device scoping, helper lifecycle, and worktree context).
   Complements the orca-cli skill for terminals, worktrees, and the built-in browser.
@@ -17,9 +17,9 @@ The underlying serve-sim helper captures the real simulator framebuffer (via pri
 ## CLI executable
 
 Choose the Orca executable once: use the `ORCA_CLI_COMMAND` environment value when set;
-otherwise use `orca-dev` in a dev session exposing `ORCA_DEV_REPO_ROOT`, `orca-ide` on
-Linux outside an Orca-managed terminal, and `orca` everywhere else. Never try bare
-`orca` first on unmanaged Linux because it normally resolves to the GNOME screen reader.
+otherwise use `orca-dev` in a dev session exposing `ORCA_DEV_REPO_ROOT`, `orcaw-ide` on
+Linux outside an Orca-managed terminal, and `orcaw` everywhere else. Never try bare
+`orcaw` first on unmanaged Linux because it normally resolves to the GNOME screen reader.
 
 In every command example — fenced blocks, tables, and prose — `ORCA` is a documentation
 placeholder. Replace it with the chosen executable before running the command; do not
@@ -82,7 +82,7 @@ Orca owns:
 
 Agents use the Orca executable chosen above (on PATH in Orca terminals) and never have to manage PIDs, state files in /tmp, or raw WS URLs themselves.
 
-**For `pnpm dev` testing:** run `pnpm build:cli` first (rebuilds the CLI + ensures the `orca-dev` shim points at *this* worktree). Then inside the dev app use `orca-dev emulator ...` (or the direct `./config/scripts/orca-dev.mjs emulator ...` from the repo root). The orchestration preambles and dev launchers automatically select the dev command name so the CLI reaches your in-memory EmulatorBridge / runtime. Plain `orca` reaches a packaged install instead.
+**For `pnpm dev` testing:** run `pnpm build:cli` first (rebuilds the CLI + ensures the `orca-dev` shim points at *this* worktree). Then inside the dev app use `orca-dev emulator ...` (or the direct `./config/scripts/orca-dev.mjs emulator ...` from the repo root). The orchestration preambles and dev launchers automatically select the dev command name so the CLI reaches your in-memory EmulatorBridge / runtime. Plain `orcaw` reaches a packaged install instead.
 
 ## Common operations
 

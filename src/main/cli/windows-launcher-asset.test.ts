@@ -4,11 +4,11 @@ import { describe, expect, it } from 'vitest'
 
 describe('packaged Windows CLI launcher asset', () => {
   it('keeps the batch compatibility shim behind the newline-safe native launcher', () => {
-    const launcherPath = join(process.cwd(), 'resources', 'win32', 'bin', 'orca.cmd')
+    const launcherPath = join(process.cwd(), 'resources', 'win32', 'bin', 'orcaw.cmd')
     const launcher = readFileSync(launcherPath, 'utf8')
 
-    expect(launcher).toContain('set "LAUNCHER=%SCRIPT_DIR%orca.exe"')
-    expect(launcher).toContain('orca.cmd cannot safely forward orchestration message bodies')
+    expect(launcher).toContain('set "LAUNCHER=%SCRIPT_DIR%orcaw.exe"')
+    expect(launcher).toContain('orcaw.cmd cannot safely forward orchestration message bodies')
     expect(launcher).not.toContain('"%ELECTRON%" "%CLI%" %*')
   })
 
@@ -19,9 +19,11 @@ describe('packaged Windows CLI launcher asset', () => {
     expect(source).toContain(
       'startInfo.EnvironmentVariables["ORCA_WINDOWS_PACKAGED_CLI_LAUNCHER"] = "1";'
     )
-    expect(source).toContain('Environment.GetEnvironmentVariable("ORCA_CLI_COMMAND") == "orca-ide"')
-    expect(source).toContain('? "orca-ide"')
-    expect(source).toContain(': "orca";')
+    expect(source).toContain(
+      'Environment.GetEnvironmentVariable("ORCA_CLI_COMMAND") == "orcaw-ide"'
+    )
+    expect(source).toContain('? "orcaw-ide"')
+    expect(source).toContain(': "orcaw";')
     expect(source).toContain('child.WaitForExit();')
     expect(source).toContain('return child.ExitCode;')
   })

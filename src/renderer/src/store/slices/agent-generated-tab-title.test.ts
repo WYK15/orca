@@ -77,7 +77,7 @@ describe('generated agent tab titles', () => {
 Your task ID is: task-1
 
 === CLI COMMANDS ===
-orca orchestration send --to term_parent
+orcaw orchestration send --to term_parent
 
 === TASK ===
 Implement the detailed worker instructions that should not be the short label`,
@@ -114,7 +114,7 @@ Implement the detailed worker instructions that should not be the short label`,
 Your task ID is: task-1
 
 === CLI COMMANDS ===
-orca orchestration send --to term_parent
+orcaw orchestration send --to term_parent
 
 === TASK ===
 Implement the detailed worker instructions that should not be the short label`

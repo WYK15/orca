@@ -12626,39 +12626,36 @@ describe('OrcaRuntimeService', () => {
   // platform (launchCmdByPlatform), so it is what proves resolution is
   // platform-aware rather than a fixed string.
   it.each([
-    { platform: 'win32' as const, expected: 'orca.cmd claude-teams' },
-    { platform: 'linux' as const, expected: 'orca-ide claude-teams' },
-    { platform: 'darwin' as const, expected: 'orca claude-teams' }
-  ])(
-    'resolves a startupAgent through the $platform launcher name',
-    async ({ platform, expected }) => {
-      setPlatform(platform)
-      const spawn = vi.fn().mockResolvedValue({ id: 'pty-bg' })
-      const runtime = new OrcaRuntimeService({
-        ...store,
-        getSettings: () => ({
-          ...store.getSettings(),
-          disabledTuiAgents: [],
-          agentCmdOverrides: {},
-          agentDefaultArgs: { 'claude-agent-teams': '' },
-          agentDefaultEnv: {}
-        })
+    { platform: 'win32' as const, expected: 'orcaw.cmd claude-teams' },
+    { platform: 'linux' as const, expected: 'orcaw-ide claude-teams' },
+    { platform: 'darwin' as const, expected: 'orcaw claude-teams' }
+  ])('emits Orcaw CLI commands for packaged runtimes', async ({ platform, expected }) => {
+    setPlatform(platform)
+    const spawn = vi.fn().mockResolvedValue({ id: 'pty-bg' })
+    const runtime = new OrcaRuntimeService({
+      ...store,
+      getSettings: () => ({
+        ...store.getSettings(),
+        disabledTuiAgents: [],
+        agentCmdOverrides: {},
+        agentDefaultArgs: { 'claude-agent-teams': '' },
+        agentDefaultEnv: {}
       })
-      runtime.setPtyController({
-        spawn,
-        write: () => true,
-        kill: () => true,
-        getForegroundProcess: async () => null
-      })
+    })
+    runtime.setPtyController({
+      spawn,
+      write: () => true,
+      kill: () => true,
+      getForegroundProcess: async () => null
+    })
 
-      await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`, {
-        startupAgent: 'claude-agent-teams'
-      })
+    await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`, {
+      startupAgent: 'claude-agent-teams'
+    })
 
-      const spawnCall = spawn.mock.calls[0]?.[0] as { command?: string } | undefined
-      expect(spawnCall?.command).toBe(expected)
-    }
-  )
+    const spawnCall = spawn.mock.calls[0]?.[0] as { command?: string } | undefined
+    expect(spawnCall?.command).toBe(expected)
+  })
 
   // Why: a user who worked around this bug by pointing the override at their own
   // cursor-agent path must keep that override once the id resolves properly.

@@ -1,7 +1,7 @@
 ---
 name: orca-emulator-android
 description: >
-  Control an Android emulator / device from inside Orca using the `orca` CLI.
+  Control an Android emulator / device from inside Orca using the `orcaw` CLI.
   Use for listing/booting AVDs, taps, swipes, typing, hardware buttons (incl. Back
   and Recents), rotation, app install/launch, runtime permissions, the accessibility
   tree, and logcat — driving a real adb-connected device or emulator. Cross-platform

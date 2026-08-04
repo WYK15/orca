@@ -1,7 +1,7 @@
 ---
 name: orca-cli
 description: >-
-  Use the public `orca` CLI to operate Orca-managed worktrees, folder contexts,
+  Use the public `orcaw` CLI to operate Orca-managed worktrees, folder contexts,
   terminals, repos, automations, worktree comments, and the browser embedded
   inside the Orca app. Use when the user says "$orca-cli", "use orca cli",
   "Orca worktree", "child worktree", "cardStatus", "spawn codex/claude in a worktree",

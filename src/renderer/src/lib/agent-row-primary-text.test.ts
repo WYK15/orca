@@ -61,7 +61,7 @@ Your coordinator's terminal handle is: term_parent
 Your task ID is: task_1
 
 === CLI COMMANDS ===
-orca orchestration send --to term_parent
+orcaw orchestration send --to term_parent
 
 === TASK ===
 Review dispatch prompts and make worker labels distinct
@@ -111,7 +111,7 @@ Fix the checkout race condition in payments`
   it('derives a task preview from a normalized 200-char dispatch prompt without labels', () => {
     const longCliNoise = Array.from(
       { length: 40 },
-      (_, i) => `orca orchestration send --to term_parent --type heartbeat --phase step-${i}`
+      (_, i) => `orcaw orchestration send --to term_parent --type heartbeat --phase step-${i}`
     ).join('\n')
     const taskBody =
       'Release-fix task: orchestration fallback task preview for single-line normalization'
@@ -160,7 +160,7 @@ Fix login form`
 Your task ID is: task_label_later
 
 === CLI COMMANDS ===
-${'orca orchestration check\n'.repeat(30)}
+${'orcaw orchestration check\n'.repeat(30)}
 === TASK ===
 Implement the detailed worker instructions that should not stay as the final label`
     })

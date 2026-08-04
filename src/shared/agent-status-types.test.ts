@@ -103,7 +103,7 @@ describe('parseAgentStatusPayload', () => {
   it('compacts Orca dispatch preambles so the task body survives 200-char truncation', () => {
     const longCliNoise = Array.from(
       { length: 50 },
-      (_, i) => `orca orchestration send --to term_parent --type heartbeat --phase step-${i}`
+      (_, i) => `orcaw orchestration send --to term_parent --type heartbeat --phase step-${i}`
     ).join('\n')
     const result = parseAgentStatusPayload(
       JSON.stringify({

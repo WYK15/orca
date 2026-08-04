@@ -5,7 +5,7 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
     path: ['orchestration', 'worker-start'],
     summary: 'Start one supervised worker on the Run home or a connected Orca server',
     usage:
-      'orca orchestration worker-start --task <task_id> [--on <saved-environment>] [--worktree <current|selector|new-child|new-top-level>] (--agent <agent> | --terminal <handle>) [--name <name>] [--repo <selector>] [--base-branch <ref>] [--display-name <text>] [--comment <text>] [--setup <run|skip|inherit>] [--retry-of <dispatch_id>] [--timeout-ms <n>] [--run <run_id>] [--from <handle>] [--retry-request <id>] [--json]',
+      'orcaw orchestration worker-start --task <task_id> [--on <saved-environment>] [--worktree <current|selector|new-child|new-top-level>] (--agent <agent> | --terminal <handle>) [--name <name>] [--repo <selector>] [--base-branch <ref>] [--display-name <text>] [--comment <text>] [--setup <run|skip|inherit>] [--retry-of <dispatch_id>] [--timeout-ms <n>] [--run <run_id>] [--from <handle>] [--retry-request <id>] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'task',
@@ -38,14 +38,14 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['orchestration', 'worker-show'],
     summary: 'Inspect one supervised worker Dispatch',
-    usage: 'orca orchestration worker-show --dispatch <dispatch_id> [--json]',
+    usage: 'orcaw orchestration worker-show --dispatch <dispatch_id> [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'dispatch']
   },
   {
     path: ['orchestration', 'worker-read'],
     summary: 'Read bounded output from one supervised worker',
     usage:
-      'orca orchestration worker-read --dispatch <dispatch_id> [--source <auto|transcript|terminal>] [--cursor <cursor>] [--limit <n>] [--json]',
+      'orcaw orchestration worker-read --dispatch <dispatch_id> [--source <auto|transcript|terminal>] [--cursor <cursor>] [--limit <n>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'dispatch', 'source', 'cursor', 'limit'],
     notes: [
       'The default auto source uses an exact hook-reported transcript when available and otherwise returns labeled terminal output.',
@@ -56,7 +56,7 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
     path: ['orchestration', 'worker-stop'],
     summary: 'Fence and stop only one supervised agent terminal',
     usage:
-      'orca orchestration worker-stop --dispatch <dispatch_id> [--retry-request <id>] [--json]',
+      'orcaw orchestration worker-stop --dispatch <dispatch_id> [--retry-request <id>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'dispatch', 'retry-request'],
     notes: ['Never deletes the worktree, setup terminal, configured tabs, or unrelated processes.']
   },
@@ -64,7 +64,7 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
     path: ['orchestration', 'worker-abandon'],
     summary: 'Fence a worker without claiming its process stopped',
     usage:
-      'orca orchestration worker-abandon --dispatch <dispatch_id> [--retry-request <id>] [--json]',
+      'orcaw orchestration worker-abandon --dispatch <dispatch_id> [--retry-request <id>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'dispatch', 'retry-request'],
     notes: ['Retains all possibly-live resources and performs no process or filesystem action.']
   }

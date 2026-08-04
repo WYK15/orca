@@ -13,7 +13,7 @@ internal static class OrcaCliLauncher
             string launcherDirectory = Path.GetDirectoryName(typeof(OrcaCliLauncher).Assembly.Location);
             string resourcesDirectory = Directory.GetParent(launcherDirectory).FullName;
             string appDirectory = Directory.GetParent(resourcesDirectory).FullName;
-            string electronPath = Path.Combine(appDirectory, "Orca.exe");
+            string electronPath = Path.Combine(appDirectory, "Orcaw.exe");
             string cliPath = Path.Combine(
                 resourcesDirectory,
                 "app.asar.unpacked",
@@ -24,13 +24,13 @@ internal static class OrcaCliLauncher
 
             if (!File.Exists(electronPath))
             {
-                Console.Error.WriteLine("Unable to locate Orca.exe next to \"{0}\"", resourcesDirectory);
+                Console.Error.WriteLine("Unable to locate Orcaw.exe next to \"{0}\"", resourcesDirectory);
                 return 1;
             }
 
             if (!File.Exists(cliPath))
             {
-                Console.Error.WriteLine("Unable to locate the Orca CLI entrypoint at \"{0}\"", cliPath);
+                Console.Error.WriteLine("Unable to locate the Orcaw CLI entrypoint at \"{0}\"", cliPath);
                 return 1;
             }
 
@@ -52,9 +52,9 @@ internal static class OrcaCliLauncher
             startInfo.EnvironmentVariables["ELECTRON_RUN_AS_NODE"] = "1";
             startInfo.EnvironmentVariables["ORCA_WINDOWS_PACKAGED_CLI_LAUNCHER"] = "1";
             startInfo.EnvironmentVariables["ORCA_CLI_COMMAND"] =
-                Environment.GetEnvironmentVariable("ORCA_CLI_COMMAND") == "orca-ide"
-                    ? "orca-ide"
-                    : "orca";
+                Environment.GetEnvironmentVariable("ORCA_CLI_COMMAND") == "orcaw-ide"
+                    ? "orcaw-ide"
+                    : "orcaw";
 
             using (Process child = Process.Start(startInfo))
             {
@@ -64,7 +64,7 @@ internal static class OrcaCliLauncher
         }
         catch (Exception error)
         {
-            Console.Error.WriteLine("Unable to start the Orca CLI: {0}", error.Message);
+            Console.Error.WriteLine("Unable to start the Orcaw CLI: {0}", error.Message);
             return 1;
         }
     }

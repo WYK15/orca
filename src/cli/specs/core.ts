@@ -6,87 +6,87 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['open'],
     summary: 'Launch Orca and wait for the runtime to be reachable',
-    usage: 'orca open [--json]',
+    usage: 'orcaw open [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
-    examples: ['orca open', 'orca open --json']
+    examples: ['orcaw open', 'orcaw open --json']
   },
   ...SERVE_COMMAND_SPECS,
   {
     path: ['status'],
     summary: 'Show app/runtime/graph readiness',
-    usage: 'orca status [--json]',
+    usage: 'orcaw status [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
-    examples: ['orca status', 'orca status --json']
+    examples: ['orcaw status', 'orcaw status --json']
   },
   {
     path: ['claude-teams'],
     argumentMode: 'passthrough',
     summary: 'Start Claude Code Agent Teams in the current Orca terminal',
-    usage: 'orca claude-teams [claude args...]',
+    usage: 'orcaw claude-teams [claude args...]',
     allowedFlags: [...GLOBAL_FLAGS],
     notes: [
       'Passes all following arguments through to Claude Code after enabling Agent Teams native panes.',
       'Must be run from inside an Orca terminal. Starts Claude Code Agent Teams in the current pane and opens teammates as native Orca splits.'
     ],
-    examples: ['orca claude-teams', 'orca claude-teams --resume <session-id>']
+    examples: ['orcaw claude-teams', 'orcaw claude-teams --resume <session-id>']
   },
   {
     path: ['repo', 'list'],
     summary: 'List repos registered in Orca',
-    usage: 'orca repo list [--json]',
+    usage: 'orcaw repo list [--json]',
     allowedFlags: [...GLOBAL_FLAGS]
   },
   {
     path: ['repo', 'add'],
     summary: 'Add a project to Orca by filesystem path',
-    usage: 'orca repo add --path <path> [--json]',
+    usage: 'orcaw repo add --path <path> [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'path']
   },
   {
     path: ['repo', 'show'],
     summary: 'Show one registered repo',
-    usage: 'orca repo show --repo <selector> [--json]',
+    usage: 'orcaw repo show --repo <selector> [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'repo']
   },
   {
     path: ['repo', 'set-base-ref'],
     summary: "Set the repo's default base ref for future worktrees",
-    usage: 'orca repo set-base-ref --repo <selector> --ref <ref> [--json]',
+    usage: 'orcaw repo set-base-ref --repo <selector> --ref <ref> [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'repo', 'ref']
   },
   {
     path: ['repo', 'search-refs'],
     summary: 'Search branch/tag refs within a repo',
-    usage: 'orca repo search-refs --repo <selector> --query <text> [--limit <n>] [--json]',
+    usage: 'orcaw repo search-refs --repo <selector> --query <text> [--limit <n>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'repo', 'query', 'limit']
   },
   {
     path: ['worktree', 'list'],
     summary: 'List Orca-managed worktrees',
-    usage: 'orca worktree list [--repo <selector>] [--limit <n>] [--json]',
+    usage: 'orcaw worktree list [--repo <selector>] [--limit <n>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'repo', 'limit']
   },
   {
     path: ['worktree', 'show'],
     summary: 'Show one worktree',
-    usage: 'orca worktree show --worktree <selector> [--json]',
+    usage: 'orcaw worktree show --worktree <selector> [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'worktree']
   },
   {
     path: ['worktree', 'current'],
     summary: 'Show the Orca-managed worktree for the current directory',
-    usage: 'orca worktree current [--json]',
+    usage: 'orcaw worktree current [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
     notes: [
       'Resolves the current shell directory to a path: selector so agents can target the enclosing Orca worktree without spelling out $PWD.'
     ],
-    examples: ['orca worktree current', 'orca worktree current --json']
+    examples: ['orcaw worktree current', 'orcaw worktree current --json']
   },
   {
     path: ['worktree', 'create'],
     summary: 'Create a new Orca-managed worktree',
     usage:
-      'orca worktree create --name <name> [--repo <selector>|--project <id> [--host <host-id>]|--project-host-setup <id>] [--agent <id>] [--prompt <text>] [--setup run|skip|inherit] [--base-branch <ref>] [--issue <number>] [--linear-issue <identifier-or-url>] [--comment <text>] [--parent-worktree <selector>] [--no-parent] [--run-hooks] [--activate] [--json]',
+      'orcaw worktree create --name <name> [--repo <selector>|--project <id> [--host <host-id>]|--project-host-setup <id>] [--agent <id>] [--prompt <text>] [--setup run|skip|inherit] [--base-branch <ref>] [--issue <number>] [--linear-issue <identifier-or-url>] [--comment <text>] [--parent-worktree <selector>] [--no-parent] [--run-hooks] [--activate] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'repo',
@@ -122,21 +122,21 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
       'Passing --run-hooks is kept as a legacy alias for --setup run and reveals the worktree.'
     ],
     examples: [
-      'orca worktree create --name agent-task --agent codex --prompt "hi" --json',
-      'orca worktree create --repo id:<repoId> --name related-task --json',
-      'orca worktree create --project github:stablyai/orca --host runtime:gpu --name benchmark --json',
-      'orca worktree create --repo id:<repoId> --name linear-task --linear-issue https://linear.app/stably/issue/STA-335/test-issue --json',
-      'orca worktree create --repo id:<repoId> --name agent-task --agent codex --prompt "hi" --json',
-      'orca worktree create --repo id:<repoId> --name folder-child --parent-worktree folder:<folderId> --json',
-      'orca worktree create --repo id:<repoId> --name related-task --parent-worktree active --json',
-      'orca worktree create --repo id:<repoId> --name independent-task --no-parent --json'
+      'orcaw worktree create --name agent-task --agent codex --prompt "hi" --json',
+      'orcaw worktree create --repo id:<repoId> --name related-task --json',
+      'orcaw worktree create --project github:stablyai/orca --host runtime:gpu --name benchmark --json',
+      'orcaw worktree create --repo id:<repoId> --name linear-task --linear-issue https://linear.app/stably/issue/STA-335/test-issue --json',
+      'orcaw worktree create --repo id:<repoId> --name agent-task --agent codex --prompt "hi" --json',
+      'orcaw worktree create --repo id:<repoId> --name folder-child --parent-worktree folder:<folderId> --json',
+      'orcaw worktree create --repo id:<repoId> --name related-task --parent-worktree active --json',
+      'orcaw worktree create --repo id:<repoId> --name independent-task --no-parent --json'
     ]
   },
   {
     path: ['worktree', 'set'],
     summary: 'Update Orca metadata for a worktree',
     usage:
-      'orca worktree set --worktree <selector> [--display-name <name>] [--issue <number|null>] [--linear-issue <identifier-or-url|null>] [--comment <text>] [--workspace-status <id>] [--parent-worktree <selector>|--no-parent] [--json]',
+      'orcaw worktree set --worktree <selector> [--display-name <name>] [--issue <number|null>] [--linear-issue <identifier-or-url|null>] [--comment <text>] [--workspace-status <id>] [--parent-worktree <selector>|--no-parent] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'worktree',
@@ -153,8 +153,8 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
       'Pass --linear-issue null to clear the Linear issue link.'
     ],
     examples: [
-      'orca worktree set --worktree active --linear-issue STA-335 --json',
-      'orca worktree set --worktree active --linear-issue null --json'
+      'orcaw worktree set --worktree active --linear-issue STA-335 --json',
+      'orcaw worktree set --worktree active --linear-issue null --json'
     ]
   },
   {
@@ -167,32 +167,32 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     ],
     destructive: true,
     summary: 'Remove a worktree from Orca and git',
-    usage: 'orca worktree rm --worktree <selector> [--force] [--run-hooks] [--json]',
+    usage: 'orcaw worktree rm --worktree <selector> [--force] [--run-hooks] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'force', 'run-hooks'],
     notes: ['Repo-defined orca.yaml archive hooks are skipped unless --run-hooks is passed.']
   },
   {
     path: ['worktree', 'ps'],
     summary: 'Show a compact orchestration summary across worktrees',
-    usage: 'orca worktree ps [--limit <n>] [--json]',
+    usage: 'orcaw worktree ps [--limit <n>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'limit']
   },
   {
     path: ['terminal', 'list'],
     summary: 'List live Orca-managed terminals',
-    usage: 'orca terminal list [--worktree <selector>] [--limit <n>] [--json]',
+    usage: 'orcaw terminal list [--worktree <selector>] [--limit <n>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'limit']
   },
   {
     path: ['terminal', 'show'],
     summary: 'Show terminal metadata and preview',
-    usage: 'orca terminal show [--terminal <handle>] [--json]',
+    usage: 'orcaw terminal show [--terminal <handle>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'terminal']
   },
   {
     path: ['terminal', 'read'],
     summary: 'Read bounded terminal output',
-    usage: 'orca terminal read [--terminal <handle>] [--cursor <n>] [--limit <n>] [--json]',
+    usage: 'orcaw terminal read [--terminal <handle>] [--cursor <n>] [--limit <n>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'terminal', 'cursor', 'limit'],
     notes: [
       'Omit --terminal to target the active terminal in the current worktree.',
@@ -201,45 +201,45 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
       'Useful for capturing the response to a command: read before sending, then read --cursor <prev> after waiting.'
     ],
     examples: [
-      'orca terminal read --json',
-      'orca terminal read --terminal term_abc123 --cursor 42 --limit 1000 --json'
+      'orcaw terminal read --json',
+      'orcaw terminal read --terminal term_abc123 --cursor 42 --limit 1000 --json'
     ]
   },
   {
     path: ['terminal', 'send'],
     summary: 'Send input to a live terminal',
     usage:
-      'orca terminal send [--terminal <handle>] [--text <text>] [--enter] [--interrupt] [--json]',
+      'orcaw terminal send [--terminal <handle>] [--text <text>] [--enter] [--interrupt] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'terminal', 'text', 'enter', 'interrupt']
   },
   {
     path: ['terminal', 'wait'],
     summary: 'Wait for a terminal condition',
     usage:
-      'orca terminal wait [--terminal <handle>] --for exit|tui-idle [--timeout-ms <ms>] [--json]',
+      'orcaw terminal wait [--terminal <handle>] --for exit|tui-idle [--timeout-ms <ms>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'terminal', 'for', 'timeout-ms']
   },
   {
     path: ['terminal', 'stop'],
     summary: 'Stop terminals for a worktree',
-    usage: 'orca terminal stop --worktree <selector> [--json]',
+    usage: 'orcaw terminal stop --worktree <selector> [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'worktree']
   },
   {
     path: ['terminal', 'create'],
     summary: 'Create a terminal session in the current worktree',
     usage:
-      'orca terminal create [--worktree <selector>] [--title <name>] [--command <text>] [--focus] [--json]',
+      'orcaw terminal create [--worktree <selector>] [--title <name>] [--command <text>] [--focus] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'command', 'title', 'focus'],
     notes: [
       'Creates a visible terminal tab without switching focus when possible; falls back to a background handle if the UI cannot adopt it. Pass --focus to switch to it.',
       'Use this, not worktree create, for a fresh agent in the current checkout.'
     ],
     examples: [
-      'orca terminal create --json',
-      'orca terminal create --worktree active --command "codex" --json',
-      'orca terminal create --worktree path:/projects/myapp --title "RUNNER" --command "opencode"',
-      'orca terminal create --worktree path:/projects/myapp --command "opencode" --focus'
+      'orcaw terminal create --json',
+      'orcaw terminal create --worktree active --command "codex" --json',
+      'orcaw terminal create --worktree path:/projects/myapp --title "RUNNER" --command "opencode"',
+      'orcaw terminal create --worktree path:/projects/myapp --command "opencode" --focus'
     ]
   },
   {
@@ -248,43 +248,43 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     // alias rather than a duplicate spec + handler registration.
     aliases: [['terminal', 'focus']],
     summary: 'Switch to a terminal tab in the UI',
-    usage: 'orca terminal switch [--terminal <handle>] [--json]',
+    usage: 'orcaw terminal switch [--terminal <handle>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'terminal'],
-    examples: ['orca terminal switch --terminal term_abc123']
+    examples: ['orcaw terminal switch --terminal term_abc123']
   },
   {
     path: ['terminal', 'close'],
     summary: 'Close a terminal pane/session, or its whole tab with --tab',
-    usage: 'orca terminal close [--terminal <handle>] [--tab] [--json]',
+    usage: 'orcaw terminal close [--terminal <handle>] [--tab] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'terminal', 'tab'],
     notes: [
       'Without --tab, preserves the existing pane/session close behavior. With --tab, waits until the whole tab is durably removed.'
     ],
     examples: [
-      'orca terminal close --terminal term_abc123',
-      'orca terminal close --terminal term_abc123 --tab --json'
+      'orcaw terminal close --terminal term_abc123',
+      'orcaw terminal close --terminal term_abc123 --tab --json'
     ]
   },
   {
     path: ['terminal', 'rename'],
     summary: 'Set or clear the title of a terminal tab',
-    usage: 'orca terminal rename [--terminal <handle>] [--title <text>] [--json]',
+    usage: 'orcaw terminal rename [--terminal <handle>] [--title <text>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'terminal', 'title'],
     notes: ['Omit --title or pass an empty string to reset to the auto-generated title.'],
     examples: [
-      'orca terminal rename --terminal term_abc123 --title "RUNNER"',
-      'orca terminal rename --terminal term_abc123 --json'
+      'orcaw terminal rename --terminal term_abc123 --title "RUNNER"',
+      'orcaw terminal rename --terminal term_abc123 --json'
     ]
   },
   {
     path: ['terminal', 'split'],
     summary: 'Split an existing terminal pane',
     usage:
-      'orca terminal split [--terminal <handle>] [--direction horizontal|vertical] [--command <text>] [--json]',
+      'orcaw terminal split [--terminal <handle>] [--direction horizontal|vertical] [--command <text>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'terminal', 'direction', 'command'],
     examples: [
-      'orca terminal split --terminal term_abc123 --direction horizontal --json',
-      'orca terminal split --terminal term_abc123 --command "codex"'
+      'orcaw terminal split --terminal term_abc123 --direction horizontal --json',
+      'orcaw terminal split --terminal term_abc123 --command "codex"'
     ]
   }
 ]

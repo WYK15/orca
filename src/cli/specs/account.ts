@@ -9,7 +9,7 @@ export const ACCOUNT_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['account', 'add'],
     summary: 'Add a managed Claude or Codex account by signing in on this Orca host',
-    usage: 'orca account add [--agent claude|codex] [--json]',
+    usage: 'orcaw account add [--agent claude|codex] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'agent'],
     notes: [
       'Runs the agent login (`claude login` / `codex login`) in this terminal, then registers the account with the local Orca runtime.',
@@ -17,16 +17,16 @@ export const ACCOUNT_COMMAND_SPECS: CommandSpec[] = [
       'Sign in with the account you want to add (e.g. use a private/incognito browser window for a second account).',
       '--agent defaults to claude. Requires the Orca runtime to be running on this machine.'
     ],
-    examples: ['orca account add', 'orca account add --agent codex']
+    examples: ['orcaw account add', 'orcaw account add --agent codex']
   },
   {
     path: ['account', 'list'],
     summary: 'List managed Claude and Codex accounts on this Orca host',
-    usage: 'orca account list [--json]',
+    usage: 'orcaw account list [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
     notes: [
       'Lists the accounts on this machine. `--environment` / `--pairing-code` are rejected rather than ignored; run it on the host whose accounts you want to see.'
     ],
-    examples: ['orca account list']
+    examples: ['orcaw account list']
   }
 ]

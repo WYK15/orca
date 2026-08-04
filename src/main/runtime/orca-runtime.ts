@@ -11856,16 +11856,16 @@ export class OrcaRuntimeService {
       : undefined
   }
 
-  getTerminalOrchestrationCliCommand(handle: string): 'orca' | 'orca-ide' {
+  getTerminalOrchestrationCliCommand(handle: string): 'orcaw' | 'orcaw-ide' {
     let pty: RuntimePtyWorktreeRecord | null = null
     try {
       const ptyId = this.resolveLeafForHandle(handle)?.ptyId
       pty = ptyId ? (this.ptysById.get(ptyId) ?? null) : null
     } catch {
-      return 'orca'
+      return 'orcaw'
     }
     if (!pty) {
-      return 'orca'
+      return 'orcaw'
     }
     return resolveTerminalOrchestrationCliCommand({
       connectionId: pty.connectionId,

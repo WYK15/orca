@@ -2010,7 +2010,7 @@ describe('orchestration RPC methods', () => {
     it('uses the target pane CLI command for the returned preamble', async () => {
       setup()
       const task = db.createTask({ spec: 'work' })
-      vi.spyOn(runtime, 'getTerminalOrchestrationCliCommand').mockReturnValue('orca-ide')
+      vi.spyOn(runtime, 'getTerminalOrchestrationCliCommand').mockReturnValue('orcaw-ide')
 
       const result = (await call('orchestration.dispatch', {
         task: task.id,
@@ -2020,7 +2020,7 @@ describe('orchestration RPC methods', () => {
 
       expect(runtime.getTerminalOrchestrationCliCommand).toHaveBeenCalledWith('term_wsl')
       expect(result.preamble).toContain('orca-ide orchestration send')
-      expect(result.preamble).not.toMatch(/(^|\s)orca orchestration/m)
+      expect(result.preamble).not.toMatch(/(^|\s)orcaw orchestration/m)
     })
 
     it('injects preamble through the agent prompt path instead of raw terminal send', async () => {
@@ -2150,7 +2150,7 @@ describe('orchestration RPC methods', () => {
       vi.mocked(runtime.getTerminalProcessIncarnation).mockImplementation((handle) =>
         handle === 'term_worker' ? 'runtime_test:term_worker:1' : null
       )
-      vi.spyOn(runtime, 'getTerminalOrchestrationCliCommand').mockReturnValue('orca')
+      vi.spyOn(runtime, 'getTerminalOrchestrationCliCommand').mockReturnValue('orcaw')
       vi.spyOn(runtime, 'sendTerminalAgentPrompt').mockResolvedValue({
         handle: 'term_worker',
         accepted: true,

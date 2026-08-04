@@ -7,7 +7,7 @@ description: >-
   reusable base snapshot, the coding-agent auth snapshot, credentials, and
   state), not just the per-workspace lifecycle scripts. Use to stand up
   per-workspace environments, fix an `environmentRecipes` entry in `orca.yaml`, scaffold
-  provider lifecycle scripts, or resolve an `orca vm recipe doctor` failure.
+  provider lifecycle scripts, or resolve an `orcaw vm recipe doctor` failure.
 ---
 
 # Per-Workspace Environments

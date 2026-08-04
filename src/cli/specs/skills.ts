@@ -5,7 +5,7 @@ export const SKILL_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['skills', 'list'],
     summary: 'List version-matched skill guides bundled with this Orca CLI',
-    usage: 'orca skills list [--json]',
+    usage: 'orcaw skills list [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
     notes: [
       'Reads bundled guide metadata locally without contacting the Orca runtime.',
@@ -17,7 +17,7 @@ export const SKILL_COMMAND_SPECS: CommandSpec[] = [
     path: ['skills', 'get'],
     aliases: [['skills', 'show']],
     summary: 'Print a version-matched skill guide as Markdown',
-    usage: 'orca skills get <topic> [--full] [--json]',
+    usage: 'orcaw skills get <topic> [--full] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'topic', 'full'],
     positionalArgs: ['topic'],
     notes: [
@@ -25,13 +25,13 @@ export const SKILL_COMMAND_SPECS: CommandSpec[] = [
       'Use --full to include bundled reference documents when the guide provides them.',
       'Use --json for a deterministic object containing canonical topic metadata and content.'
     ],
-    examples: ['orca skills get orca-cli', 'orca skills get orchestration --full']
+    examples: ['orcaw skills get orca-cli', 'orcaw skills get orchestration --full']
   },
   {
     path: ['skills', 'install'],
     summary: 'Install bundled Orca skills via the community skills CLI',
     usage:
-      'orca skills install [--skill <name>]... [--all] [--agent <name>[,<name>]] ' +
+      'orcaw skills install [--skill <name>]... [--all] [--agent <name>[,<name>]] ' +
       '[--local] [--dry-run] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'skill', 'all', 'agent', 'local', 'dry-run'],
     notes: [
@@ -54,17 +54,17 @@ export const SKILL_COMMAND_SPECS: CommandSpec[] = [
       'Intended for headless hosts (SSH, containers, CI) with no desktop Settings UI to copy the install command from.'
     ],
     examples: [
-      'orca skills install',
-      'orca skills install --skill orca-cli --skill orchestration',
-      'orca skills install --skill orca-cli --local',
-      'orca skills install --skill orca-cli --agent claude-code,codex',
-      'orca skills install --all --dry-run'
+      'orcaw skills install',
+      'orcaw skills install --skill orca-cli --skill orchestration',
+      'orcaw skills install --skill orca-cli --local',
+      'orcaw skills install --skill orca-cli --agent claude-code,codex',
+      'orcaw skills install --all --dry-run'
     ]
   },
   {
     path: ['skills', 'update'],
     summary: 'Update already-installed Orca skills via the community skills CLI',
-    usage: 'orca skills update [--skill <name>]... [--all] [--local] [--dry-run] [--json]',
+    usage: 'orcaw skills update [--skill <name>]... [--all] [--local] [--dry-run] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'skill', 'all', 'local', 'dry-run'],
     notes: [
       'Reads the bundled skill registry locally without contacting the Orca runtime.',
@@ -81,10 +81,10 @@ export const SKILL_COMMAND_SPECS: CommandSpec[] = [
       'Intended for headless hosts (SSH, containers, CI) with no desktop Settings UI to copy the update command from.'
     ],
     examples: [
-      'orca skills update',
-      'orca skills update --skill orca-cli --skill orchestration',
-      'orca skills update --skill orca-cli --local',
-      'orca skills update --all --dry-run'
+      'orcaw skills update',
+      'orcaw skills update --skill orca-cli --skill orchestration',
+      'orcaw skills update --skill orca-cli --local',
+      'orcaw skills update --all --dry-run'
     ]
   }
 ]

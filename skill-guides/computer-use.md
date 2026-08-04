@@ -6,21 +6,21 @@ description: >-
   desktop app interaction: list apps/windows, get app state, read visible UI,
   click controls, type, press keys, scroll, drag, set values, or perform
   accessibility actions. Also use for browser windows, webviews, Orca app UI,
-  or other desktop UI. Triggers include "computer use", "orca computer", "read
+  or other desktop UI. Triggers include "computer use", "orcaw computer", "read
   Spotify", "read Slack", "control/click/read in a desktop app", and "get app
   state".
 ---
 
 # Computer Use
 
-Use this skill for desktop UI through `orca computer`. When the requested target is a website or web app, operate the desktop browser app/window that contains the page.
+Use this skill for desktop UI through `orcaw computer`. When the requested target is a website or web app, operate the desktop browser app/window that contains the page.
 
 ## Preconditions
 
 - Choose the Orca executable once: use the `ORCA_CLI_COMMAND` environment value when set;
-  otherwise use `orca-dev` in a dev session exposing `ORCA_DEV_REPO_ROOT`, `orca-ide` on
-  Linux outside an Orca-managed terminal, and `orca` everywhere else. Never try bare
-  `orca` first on unmanaged Linux because it normally resolves to the GNOME screen reader.
+  otherwise use `orca-dev` in a dev session exposing `ORCA_DEV_REPO_ROOT`, `orcaw-ide` on
+  Linux outside an Orca-managed terminal, and `orcaw` everywhere else. Never try bare
+  `orcaw` first on unmanaged Linux because it normally resolves to the GNOME screen reader.
 - In every command example, `ORCA` is a documentation placeholder — including examples that
   name a specific shell. Replace it with that chosen executable before running the command;
   do not create a shell variable or run `ORCA` literally. Blocks that name no shell are
@@ -134,7 +134,7 @@ Slack: the accessibility tree may be shallow while the screenshot contains usefu
 
 ## Errors
 
-- `app_not_found`: run `list-apps` and retry with the bundle ID. If the target is a web app such as Gmail, choose the desktop browser app/window that contains it; do not retry `ORCA computer ... --app Gmail` unchanged because `orca computer` app selectors refer to desktop apps, not website names.
+- `app_not_found`: run `list-apps` and retry with the bundle ID. If the target is a web app such as Gmail, choose the desktop browser app/window that contains it; do not retry `ORCA computer ... --app Gmail` unchanged because `orcaw computer` app selectors refer to desktop apps, not website names.
 - `app_blocked`: stop; the target is intentionally blocked from computer-use.
 - `window_not_found` / `window_stale`: run `list-windows`, choose a current selector, then rerun `get-app-state`.
 - `window_not_focused`: retry once with `--restore-window`; if the message says restore was already requested, stop retrying restore and bring the app forward manually or check permissions. For editable fields prefer `set-value`, then inspect before assuming keyboard input worked.

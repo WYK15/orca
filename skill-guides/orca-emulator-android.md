@@ -1,7 +1,7 @@
 ---
 name: orca-emulator-android
 description: >
-  Control an Android emulator / device from inside Orca using the `orca` CLI.
+  Control an Android emulator / device from inside Orca using the `orcaw` CLI.
   Use for listing/booting AVDs, taps, swipes, typing, hardware buttons (incl. Back
   and Recents), rotation, app install/launch, runtime permissions, the accessibility
   tree, and logcat — driving a real adb-connected device or emulator. Cross-platform
@@ -26,9 +26,9 @@ streaming server.
 ## CLI executable
 
 Choose the Orca executable once: use the `ORCA_CLI_COMMAND` environment value when set;
-otherwise use `orca-dev` in a dev session exposing `ORCA_DEV_REPO_ROOT`, `orca-ide` on
-Linux outside an Orca-managed terminal, and `orca` everywhere else. Never try bare
-`orca` first on unmanaged Linux because it normally resolves to the GNOME screen reader.
+otherwise use `orca-dev` in a dev session exposing `ORCA_DEV_REPO_ROOT`, `orcaw-ide` on
+Linux outside an Orca-managed terminal, and `orcaw` everywhere else. Never try bare
+`orcaw` first on unmanaged Linux because it normally resolves to the GNOME screen reader.
 
 In every command example — fenced blocks, tables, and prose — `ORCA` is a documentation
 placeholder. Replace it with the chosen executable before running the command; do not

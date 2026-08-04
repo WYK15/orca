@@ -1,9 +1,9 @@
-const MANAGED_MARKER = '# Orca managed WSL CLI launcher'
-const BRIDGE_MANAGED_MARKER = '# Orca managed WSL CLI PowerShell bridge'
+const MANAGED_MARKER = '# Orcaw managed WSL CLI launcher'
+const BRIDGE_MANAGED_MARKER = '# Orcaw managed WSL CLI PowerShell bridge'
 
 export function buildWslLauncher(
   windowsLauncherPath: string,
-  bridgePath = '${XDG_DATA_HOME:-$HOME/.local/share}/orca/orca-wsl-bridge.ps1'
+  bridgePath = '${XDG_DATA_HOME:-$HOME/.local/share}/orcaw/orcaw-wsl-bridge.ps1'
 ): string {
   const encodedTarget = Buffer.from(windowsLauncherPath, 'utf8').toString('base64')
   return `#!/usr/bin/env bash
@@ -17,7 +17,7 @@ if command -v powershell.exe >/dev/null 2>&1; then
 elif [ -x /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe ]; then
   ORCA_POWERSHELL=/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
 else
-  echo "Orca WSL CLI requires Windows interop and could not find powershell.exe." >&2
+  echo "Orcaw WSL CLI requires Windows interop and could not find powershell.exe." >&2
   exit 1
 fi
 # Why: a shell can outlive a deleted worktree; keep explicit CLI selectors and
@@ -72,9 +72,7 @@ exit $exitCode
 }
 
 export function getBridgePathFromCommandPath(commandPath: string): string {
-  // Why: both the current Linux command and the legacy pre-rename command
-  // share one WSL bridge under ~/.local/share/orca.
-  return `${commandPath.replace(/\/\.local\/bin\/(?:orca|orca-ide)$/, '/.local/share/orca')}/orca-wsl-bridge.ps1`
+  return `${commandPath.replace(/\/\.local\/bin\/orcaw-ide$/, '/.local/share/orcaw')}/orcaw-wsl-bridge.ps1`
 }
 
 export function buildSafeReplaceGuard(path: string, managedMarker: string): string {

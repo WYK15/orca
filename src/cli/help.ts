@@ -3,9 +3,9 @@ import type { CommandSpec } from './args'
 import { findCommandSpec, isCommandGroup, supportsBrowserPageFlag } from './args'
 import { unknownCommandData } from './command-suggestion'
 
-const ROOT_HELP_TEXT = `orca
+const ROOT_HELP_TEXT = `orcaw
 
-Usage: orca <command> [options]
+Usage: orcaw <command> [options]
 
 Startup:
   open                      Launch Orca and wait for the runtime to be reachable
@@ -213,54 +213,54 @@ Browser Automation:
   exec                      Run any agent-browser command (--command "...")
 
 Common Commands:
-  orca open [--json]
-  orca serve [--port <port>] [--pairing-address <host>] [--mobile-pairing] [--no-pairing] [--project-root <path>] [--recipe-json] [--json]
-  orca status [--json]
-  orca diagnostics memory [--json]
-  orca agent-context [--json]
-  orca account add [--agent claude|codex] [--json]
-  orca account list [--json]
-  orca environment add --name <name> --pairing-code <code> [--json]
-  orca environment list [--json]
-  orca environment show --environment <selector> [--json]
-  orca environment rm --environment <selector> [--json]
-  orca worktree list [--repo <selector>] [--limit <n>] [--json]
-  orca worktree create --name <name> [--repo <selector>|--project <id> [--host <host-id>]|--project-host-setup <id>] [--agent <id>] [--prompt <text>] [--setup run|skip|inherit] [--base-branch <ref>] [--issue <number>] [--linear-issue <identifier-or-url>] [--comment <text>] [--parent-worktree <selector>] [--no-parent] [--run-hooks] [--activate] [--json]
-  orca worktree show --worktree <selector> [--json]
-  orca worktree current [--json]
-  orca worktree set --worktree <selector> [--display-name <name>] [--issue <number|null>] [--linear-issue <identifier-or-url|null>] [--comment <text>] [--workspace-status <id>] [--parent-worktree <selector>|--no-parent] [--json]
-  orca worktree rm --worktree <selector> [--force] [--run-hooks] [--json]
-  orca worktree ps [--limit <n>] [--json]
-  orca file open <path> [--worktree <selector>] [--json]
-  orca file diff <path> [--staged] [--worktree <selector>] [--json]
-  orca file open-changed [--mode edit|diff|both] [--worktree <selector>] [--json]
-  orca terminal list [--worktree <selector>] [--limit <n>] [--json]
-  orca terminal show [--terminal <handle>] [--json]
-  orca terminal read [--terminal <handle>] [--cursor <n>] [--limit <n>] [--json]
-  orca terminal send [--terminal <handle>] [--text <text>] [--enter] [--interrupt] [--json]
-  orca terminal wait [--terminal <handle>] --for exit|tui-idle [--timeout-ms <ms>] [--json]
-  orca terminal stop --worktree <selector> [--json]
-  orca terminal create [--worktree <selector>] [--title <name>] [--command <text>] [--focus] [--json]
-  orca terminal split [--terminal <handle>] [--direction horizontal|vertical] [--json]
-  orca terminal switch [--terminal <handle>] [--json]
-  orca terminal close [--terminal <handle>] [--tab] [--json]
-  orca project list [--json]
-  orca project setups [--project <id>] [--host <host-id>] [--json]
-  orca project setup-existing-folder --project <id> --host <host-id> --path <path> [--kind git|folder] [--display-name <name>] [--json]
-  orca project setup-clone --project <id> --host <host-id> --url <clone-url> --destination <path> [--display-name <name>] [--json]
-  orca project setup-create --project <id> --host <host-id> [--setup-id <id>] [--path <path>] [--kind git|folder] [--display-name <name>] [--worktree-base-path <path>] [--git-username <name>] [--state ready|not-set-up|setting-up|error|unsupported] [--method imported-existing-folder|cloned|provisioned] [--json]
-  orca project setup-update --setup <setup-id> [--display-name <name>] [--path <path>] [--worktree-base-path <path>] [--git-username <name>] [--kind git|folder] [--state ready|not-set-up|setting-up|error|unsupported] [--method legacy-repo|imported-existing-folder|cloned|provisioned] [--json]
-  orca project setup-delete --setup <setup-id> [--json]
-  orca repo list [--json]
-  orca repo add --path <path> [--json]
-  orca repo show --repo <selector> [--json]
-  orca repo set-base-ref --repo <selector> --ref <ref> [--json]
-  orca repo search-refs --repo <selector> --query <text> [--limit <n>] [--json]
+  orcaw open [--json]
+  orcaw serve [--port <port>] [--pairing-address <host>] [--mobile-pairing] [--no-pairing] [--project-root <path>] [--recipe-json] [--json]
+  orcaw status [--json]
+  orcaw diagnostics memory [--json]
+  orcaw agent-context [--json]
+  orcaw account add [--agent claude|codex] [--json]
+  orcaw account list [--json]
+  orcaw environment add --name <name> --pairing-code <code> [--json]
+  orcaw environment list [--json]
+  orcaw environment show --environment <selector> [--json]
+  orcaw environment rm --environment <selector> [--json]
+  orcaw worktree list [--repo <selector>] [--limit <n>] [--json]
+  orcaw worktree create --name <name> [--repo <selector>|--project <id> [--host <host-id>]|--project-host-setup <id>] [--agent <id>] [--prompt <text>] [--setup run|skip|inherit] [--base-branch <ref>] [--issue <number>] [--linear-issue <identifier-or-url>] [--comment <text>] [--parent-worktree <selector>] [--no-parent] [--run-hooks] [--activate] [--json]
+  orcaw worktree show --worktree <selector> [--json]
+  orcaw worktree current [--json]
+  orcaw worktree set --worktree <selector> [--display-name <name>] [--issue <number|null>] [--linear-issue <identifier-or-url|null>] [--comment <text>] [--workspace-status <id>] [--parent-worktree <selector>|--no-parent] [--json]
+  orcaw worktree rm --worktree <selector> [--force] [--run-hooks] [--json]
+  orcaw worktree ps [--limit <n>] [--json]
+  orcaw file open <path> [--worktree <selector>] [--json]
+  orcaw file diff <path> [--staged] [--worktree <selector>] [--json]
+  orcaw file open-changed [--mode edit|diff|both] [--worktree <selector>] [--json]
+  orcaw terminal list [--worktree <selector>] [--limit <n>] [--json]
+  orcaw terminal show [--terminal <handle>] [--json]
+  orcaw terminal read [--terminal <handle>] [--cursor <n>] [--limit <n>] [--json]
+  orcaw terminal send [--terminal <handle>] [--text <text>] [--enter] [--interrupt] [--json]
+  orcaw terminal wait [--terminal <handle>] --for exit|tui-idle [--timeout-ms <ms>] [--json]
+  orcaw terminal stop --worktree <selector> [--json]
+  orcaw terminal create [--worktree <selector>] [--title <name>] [--command <text>] [--focus] [--json]
+  orcaw terminal split [--terminal <handle>] [--direction horizontal|vertical] [--json]
+  orcaw terminal switch [--terminal <handle>] [--json]
+  orcaw terminal close [--terminal <handle>] [--tab] [--json]
+  orcaw project list [--json]
+  orcaw project setups [--project <id>] [--host <host-id>] [--json]
+  orcaw project setup-existing-folder --project <id> --host <host-id> --path <path> [--kind git|folder] [--display-name <name>] [--json]
+  orcaw project setup-clone --project <id> --host <host-id> --url <clone-url> --destination <path> [--display-name <name>] [--json]
+  orcaw project setup-create --project <id> --host <host-id> [--setup-id <id>] [--path <path>] [--kind git|folder] [--display-name <name>] [--worktree-base-path <path>] [--git-username <name>] [--state ready|not-set-up|setting-up|error|unsupported] [--method imported-existing-folder|cloned|provisioned] [--json]
+  orcaw project setup-update --setup <setup-id> [--display-name <name>] [--path <path>] [--worktree-base-path <path>] [--git-username <name>] [--kind git|folder] [--state ready|not-set-up|setting-up|error|unsupported] [--method legacy-repo|imported-existing-folder|cloned|provisioned] [--json]
+  orcaw project setup-delete --setup <setup-id> [--json]
+  orcaw repo list [--json]
+  orcaw repo add --path <path> [--json]
+  orcaw repo show --repo <selector> [--json]
+  orcaw repo set-base-ref --repo <selector> --ref <ref> [--json]
+  orcaw repo search-refs --repo <selector> --query <text> [--limit <n>] [--json]
 
 Selectors:
   --repo <selector>         Registered repo selector such as id:<id>, name:<name>, or path:<path>
   --worktree <selector>     Worktree selector such as id:<repo-id>::<path>, name:<displayName>, branch:<branch>, issue:<number>, path:<path>, or active/current
-  --terminal <handle>       Runtime-issued terminal handle returned by \`orca terminal list --json\`
+  --terminal <handle>       Runtime-issued terminal handle returned by \`orcaw terminal list --json\`
   --parent-worktree <selector> Parent worktree selector such as id:<repo-id>::<path>, branch:<branch>, issue:<number>, path:<path>, or active/current
   --no-parent               Force no parent lineage for unrelated worktree creation/update
 
@@ -280,26 +280,26 @@ Output Options:
   --help                    Show this help message
 
 Behavior:
-  Most commands require a running Orca runtime. If Orca is not open yet, run \`orca open\` first.
+  Most commands require a running Orca runtime. If Orca is not open yet, run \`orcaw open\` first.
   Remote runtime access can also be supplied with ORCA_PAIRING_CODE or ORCA_ENVIRONMENT.
   Use selectors for discovery and handles for repeated live terminal operations.
 
 Agent Sessions And Worktrees:
   \`worktree create --agent\` creates a new checkout with an agent.
   To start a fresh agent in the current worktree, use:
-    orca terminal create --worktree active --command "codex"
+    orcaw terminal create --worktree active --command "codex"
 
 Browser Workflow:
-  1. Create or navigate:  orca tab create --url https://example.com
-                          orca goto --url https://example.com
-  2. Inspect the page:    orca snapshot
+  1. Create or navigate:  orcaw tab create --url https://example.com
+                          orcaw goto --url https://example.com
+  2. Inspect the page:    orcaw snapshot
      (Returns an accessibility tree with element refs like e1, e2, e3)
-     For concurrent workflows, prefer: orca tab list --json
+     For concurrent workflows, prefer: orcaw tab list --json
      then reuse tabs[].browserPageId with --page <id> on later commands.
-  3. Interact:            orca click --element e2
-                          orca fill --element e5 --value "search query"
-                          orca keypress --key Enter
-  4. Re-inspect:          orca snapshot
+  3. Interact:            orcaw click --element e2
+                          orcaw fill --element e5 --value "search query"
+                          orcaw keypress --key Enter
+  4. Re-inspect:          orcaw snapshot
      (Element refs change after navigation — always re-snapshot before interacting)
 
 Browser Options:
@@ -323,36 +323,36 @@ Browser Options:
   --worktree <selector>     Scope commands to a specific worktree's browser tabs
 
 Examples:
-  $ orca open
-  $ orca status --json
-  $ orca diagnostics memory --json
-  $ orca repo list
-  $ orca worktree create --name agent-task --agent codex --prompt "hi"
-  $ orca worktree create --repo name:orca --name cli-test-1 --issue 273
-  $ orca worktree create --repo name:orca --name linear-task --linear-issue https://linear.app/stably/issue/STA-335/test-issue
-  $ orca worktree create --name linear-task --linear-issue STA-335
-  $ orca worktree show --worktree branch:Jinwoo-H/cli
-  $ orca worktree current
-  $ orca worktree set --worktree active --comment "waiting on review"
-  $ orca worktree set --worktree active --linear-issue null
-  $ orca worktree ps --limit 10
-  $ orca file open-changed --mode diff
-  $ orca file open src/App.tsx
-  $ orca terminal create --worktree active --command "codex"
-  $ orca terminal list --worktree path:/Users/me/orca/workspaces/orca/cli-test-1 --json
-  $ orca terminal send --terminal term_123 --text "hi" --enter
-  $ orca terminal wait --terminal term_123 --for exit --timeout-ms 60000 --json
-  $ orca tab current --json
-  $ orca tab show --page page_123 --json
-  $ orca tab create --url https://example.com --profile work
-  $ orca tab profile clone --page page_123 --profile work --json
-  $ orca snapshot
-  $ orca click --element e3
-  $ orca fill --element e5 --value "hello"
-  $ orca goto --url https://example.com/login
-  $ orca keypress --key Enter
-  $ orca eval --expression "document.title"
-  $ orca tab list --json`
+  $ orcaw open
+  $ orcaw status --json
+  $ orcaw diagnostics memory --json
+  $ orcaw repo list
+  $ orcaw worktree create --name agent-task --agent codex --prompt "hi"
+  $ orcaw worktree create --repo name:orcaw --name cli-test-1 --issue 273
+  $ orcaw worktree create --repo name:orcaw --name linear-task --linear-issue https://linear.app/stably/issue/STA-335/test-issue
+  $ orcaw worktree create --name linear-task --linear-issue STA-335
+  $ orcaw worktree show --worktree branch:Jinwoo-H/cli
+  $ orcaw worktree current
+  $ orcaw worktree set --worktree active --comment "waiting on review"
+  $ orcaw worktree set --worktree active --linear-issue null
+  $ orcaw worktree ps --limit 10
+  $ orcaw file open-changed --mode diff
+  $ orcaw file open src/App.tsx
+  $ orcaw terminal create --worktree active --command "codex"
+  $ orcaw terminal list --worktree path:/Users/me/orcaw/workspaces/orcaw/cli-test-1 --json
+  $ orcaw terminal send --terminal term_123 --text "hi" --enter
+  $ orcaw terminal wait --terminal term_123 --for exit --timeout-ms 60000 --json
+  $ orcaw tab current --json
+  $ orcaw tab show --page page_123 --json
+  $ orcaw tab create --url https://example.com --profile work
+  $ orcaw tab profile clone --page page_123 --profile work --json
+  $ orcaw snapshot
+  $ orcaw click --element e3
+  $ orcaw fill --element e5 --value "hello"
+  $ orcaw goto --url https://example.com/login
+  $ orcaw keypress --key Enter
+  $ orcaw eval --expression "document.title"
+  $ orcaw tab list --json`
 
 export function printHelp(specs: CommandSpec[], commandPath: string[] = []): void {
   const exactSpec = findCommandSpec(specs, commandPath)
@@ -376,7 +376,7 @@ export function printHelp(specs: CommandSpec[], commandPath: string[] = []): voi
 }
 
 export function formatCommandHelp(spec: CommandSpec): string {
-  const lines = [`orca ${spec.path.join(' ')}`, '', `Usage: ${spec.usage}`, '', spec.summary]
+  const lines = [`orcaw ${spec.path.join(' ')}`, '', `Usage: ${spec.usage}`, '', spec.summary]
   const displayedFlags =
     spec.argumentMode === 'passthrough'
       ? []
@@ -410,11 +410,11 @@ export function formatCommandHelp(spec: CommandSpec): string {
 
 export function formatGroupHelp(specs: CommandSpec[], group: string): string {
   const groupSpecs = specs.filter((spec) => spec.path[0] === group)
-  const lines = [`orca ${group}`, '', `Usage: orca ${group} <command> [options]`, '', 'Commands:']
+  const lines = [`orcaw ${group}`, '', `Usage: orcaw ${group} <command> [options]`, '', 'Commands:']
   for (const spec of groupSpecs) {
     lines.push(`  ${spec.path.slice(1).join(' ').padEnd(18)} ${spec.summary}`)
   }
-  lines.push('', `Run \`orca ${group} <command> --help\` for command-specific usage.`)
+  lines.push('', `Run \`orcaw ${group} <command> --help\` for command-specific usage.`)
   return lines.join('\n')
 }
 
@@ -602,7 +602,7 @@ export function formatFlagHelp(flag: string): string {
     expression: '--expression <js>     JavaScript expression to evaluate',
     amount: '--amount <pixels>      Scroll distance in pixels',
     index: '--index <n>            Tab index to switch to',
-    page: '--page <id>            Stable browser page id from `orca tab list --json`',
+    page: '--page <id>            Stable browser page id from `orcaw tab list --json`',
     profile: '--profile <id>        Browser profile id',
     'show-profile': '--show-profile        Include tab profile in text output',
     format: '--format <png|jpeg>    Screenshot image format'

@@ -65,7 +65,7 @@ async function runBuiltCli(
   }
 }
 
-describeIfBuilt('orca orchestration check --wait subprocess (§3.4)', () => {
+describeIfBuilt('orcaw orchestration check --wait subprocess (§3.4)', () => {
   it('emits newline-flushed JSON keepalives to stderr while waiting', async () => {
     const userDataPath = mkdtempSync(join(tmpdir(), 'orca-cli-sub-'))
     const runtime = new OrcaRuntimeService()
@@ -192,7 +192,7 @@ describeIfBuilt('orca orchestration check --wait subprocess (§3.4)', () => {
   }, 30_000)
 })
 
-describeIfBuilt('orca orchestration reset subprocess', () => {
+describeIfBuilt('orcaw orchestration reset subprocess', () => {
   it('validates reset scopes against an isolated runtime through the built CLI', async () => {
     const userDataPath = mkdtempSync(join(tmpdir(), 'orca-cli-reset-'))
     const runtime = new OrcaRuntimeService()

@@ -99,20 +99,20 @@ type OrchestrationSendResult =
       lifecycle?: { action: 'completed' | 'failed' }
     }
 
-function resolveCompatibilityCliCommand(): 'orca' | 'orca-ide' | 'orca-dev' {
+function resolveCompatibilityCliCommand(): 'orcaw' | 'orcaw-ide' | 'orca-dev' {
   const configured = process.env.ORCA_CLI_COMMAND
-  if (configured === 'orca' || configured === 'orca-ide' || configured === 'orca-dev') {
+  if (configured === 'orcaw' || configured === 'orcaw-ide' || configured === 'orca-dev') {
     return configured
   }
-  return process.platform === 'linux' ? 'orca-ide' : 'orca'
+  return process.platform === 'linux' ? 'orcaw-ide' : 'orcaw'
 }
 
-function resolvePackagedWindowsCompatibilityCommand(): 'orca' | 'orca-ide' | undefined {
+function resolvePackagedWindowsCompatibilityCommand(): 'orcaw' | 'orcaw-ide' | undefined {
   if (process.env.ORCA_WINDOWS_PACKAGED_CLI_LAUNCHER !== '1') {
     return undefined
   }
   const command = process.env.ORCA_CLI_COMMAND
-  if (command === 'orca' || command === 'orca-ide') {
+  if (command === 'orcaw' || command === 'orcaw-ide') {
     return command
   }
   throw new RuntimeClientError(
