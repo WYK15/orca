@@ -79,6 +79,10 @@ export async function installManagedHooks(options?: {
   agents?: readonly AgentHookTarget[]
 }): Promise<ManagedHookInstallSummary> {
   options?.signal?.throwIfAborted()
+  const agents = options?.agents ?? []
+  if (agents.length === 0) {
+    return { installers: 0, errors: 0 }
+  }
   const home = homedir()
   const grokHomeDir = await resolveRelayGrokHome(home, options?.signal)
   options?.signal?.throwIfAborted()
@@ -96,7 +100,7 @@ export async function installManagedHooks(options?: {
         {
           grokHomeDir,
           signal: options?.signal,
-          agents: options?.agents
+          agents
         }
       )
       return {
