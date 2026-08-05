@@ -8,6 +8,7 @@ import {
   buildWindowsAgentHookPostCommand,
   getSharedManagedScriptPath,
   readHooksJson,
+  readHooksJsonWithRaw,
   removeManagedCommands,
   wrapPosixHookCommand,
   wrapWindowsHookCommand,
@@ -289,7 +290,11 @@ export class DroidHookService {
 
   remove(): AgentHookInstallStatus {
     const configPath = getConfigPath()
-    const config = readHooksJson(configPath)
+    const snapshot = readHooksJsonWithRaw(configPath)
+    if (snapshot.raw === null) {
+      return this.getStatus()
+    }
+    const config = snapshot.config
     if (!config) {
       return {
         agent: 'droid',

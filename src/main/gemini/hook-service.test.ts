@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type * as osModule from 'node:os'
@@ -47,6 +47,22 @@ describe('GeminiHookService', () => {
   afterAll(() => {
     rmSync(homeDir, { recursive: true, force: true })
     rmSync(userDataDir, { recursive: true, force: true })
+  })
+
+  it('does not create config state when removing missing managed hooks', () => {
+    const missingConfigHomeDir = mkdtempSync(join(tmpdir(), 'orca-gemini-missing-home-'))
+    const configDirectory = join(missingConfigHomeDir, '.gemini')
+    const configPath = join(configDirectory, 'settings.json')
+    homedirMock.mockReturnValue(missingConfigHomeDir)
+
+    try {
+      expect(new GeminiHookService().remove().state).toBe('not_installed')
+      expect(existsSync(configPath)).toBe(false)
+      expect(existsSync(configDirectory)).toBe(false)
+    } finally {
+      rmSync(missingConfigHomeDir, { recursive: true, force: true })
+      homedirMock.mockReturnValue(homeDir)
+    }
   })
 
   it('removes stale PreToolUse hooks when reinstalling managed Gemini hooks', () => {

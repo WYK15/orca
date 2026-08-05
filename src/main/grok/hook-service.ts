@@ -8,6 +8,7 @@ import {
   buildWindowsAgentHookPostCommand,
   getSharedManagedScriptPath,
   readHooksJson,
+  readHooksJsonWithRaw,
   removeManagedCommands,
   wrapPosixHookCommand,
   wrapWindowsHookCommand,
@@ -26,10 +27,8 @@ import {
   buildWindowsHookStdinDrainEpilogue
 } from '../agent-hooks/hook-stdin-contract'
 
-// Why: Grok's tool-event matcher is a real regex (see Grok hooks docs). Bare
-// `*` is not a valid "match all" pattern and can fail to load/match, so tool
-// lifecycle hooks never fire. `.*` matches every tool name (same as Command
-// Code's managed hooks).
+// Why: Grok's tool-event matcher is a real regex; bare `*` fails while `.*` matches all.
+// This keeps tool lifecycle hooks working, as Command Code's managed hooks do.
 const GROK_TOOL_EVENT_MATCHER = '.*'
 const GROK_HOME_ENVELOPE_MAX_LENGTH = 4096
 const WINDOWS_HOOK_PAYLOAD_FORM_LINE = '  --data-urlencode "payload@-" >nul 2>nul'
@@ -89,10 +88,7 @@ function getRemoteGrokHome(remoteHome: string, remoteGrokHome?: string): string 
 }
 
 function hasControlCharacter(value: string): boolean {
-  return Array.from(value).some((character) => {
-    const code = character.charCodeAt(0)
-    return code <= 0x1f || code === 0x7f
-  })
+  return Array.from(value).some((character) => character <= '\u001F' || character === '\u007F')
 }
 
 const WINDOWS_GROK_HOOK_POST_COMMAND = buildWindowsAgentHookPostCommand('grok').replace(
@@ -104,9 +100,7 @@ function getManagedScriptFileName(): string {
   return process.platform === 'win32' ? 'grok-hook.cmd' : 'grok-hook.sh'
 }
 
-function getManagedScriptPath(): string {
-  return getSharedManagedScriptPath(getManagedScriptFileName())
-}
+const getManagedScriptPath = (): string => getSharedManagedScriptPath(getManagedScriptFileName())
 
 function getManagedCommand(scriptPath: string): string {
   return process.platform === 'win32'
@@ -176,8 +170,7 @@ function buildInstalledConfig(
   const isManagedCommand = createManagedCommandMatcher(scriptFileName)
   const managedEvents = new Set<string>(GROK_EVENTS.map((event) => event.eventName))
 
-  // Why: Orca owns only grok-hook.* entries. Sweep stale managed commands out
-  // of retired events while preserving any user-authored hooks in this file.
+  // Why: Sweep stale Orca entries from retired events while preserving user-authored hooks.
   for (const [eventName, definitions] of Object.entries(nextHooks)) {
     if (managedEvents.has(eventName) || !Array.isArray(definitions)) {
       continue
@@ -317,7 +310,11 @@ export class GrokHookService {
 
   remove(): AgentHookInstallStatus {
     const configPath = getConfigPath()
-    const config = readHooksJson(configPath)
+    const snapshot = readHooksJsonWithRaw(configPath)
+    if (snapshot.raw === null) {
+      return this.getStatus()
+    }
+    const config = snapshot.config
     if (!config) {
       return {
         agent: 'grok',

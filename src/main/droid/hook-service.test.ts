@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -47,6 +47,15 @@ describe('DroidHookService', () => {
     vi.clearAllMocks()
     rmSync(homeDir, { recursive: true, force: true })
     rmSync(userDataDir, { recursive: true, force: true })
+  })
+
+  it('does not create config state when removing missing managed hooks', () => {
+    const configDirectory = join(homeDir, '.factory')
+    const configPath = join(configDirectory, 'settings.json')
+
+    expect(new DroidHookService().remove().state).toBe('not_installed')
+    expect(existsSync(configPath)).toBe(false)
+    expect(existsSync(configDirectory)).toBe(false)
   })
 
   it('installs the managed command for Droid status events', () => {

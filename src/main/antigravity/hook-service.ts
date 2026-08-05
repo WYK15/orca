@@ -12,6 +12,7 @@ import {
   hookDefinitionHasManagedCommand,
   MANAGED_HOOK_TIMEOUT_SECONDS,
   readHooksJson,
+  readHooksJsonWithRaw,
   removeManagedCommands,
   wrapPosixHookCommand,
   wrapWindowsCmdHookCommand,
@@ -431,7 +432,11 @@ export class AntigravityHookService {
 
   remove(): AgentHookInstallStatus {
     const configPath = getConfigPath()
-    const config = readHooksJson(configPath)
+    const snapshot = readHooksJsonWithRaw(configPath)
+    if (snapshot.raw === null) {
+      return this.getStatus()
+    }
+    const config = snapshot.config
     if (!config) {
       return {
         agent: 'antigravity',

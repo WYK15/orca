@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -33,6 +33,15 @@ describe('GrokHookService', () => {
   afterEach(() => {
     vi.clearAllMocks()
     rmSync(homeDir, { recursive: true, force: true })
+  })
+
+  it('does not create config state when removing missing managed hooks', () => {
+    const configDirectory = join(homeDir, '.grok', 'hooks')
+    const configPath = join(configDirectory, 'orca-status.json')
+
+    expect(new GrokHookService().remove().state).toBe('not_installed')
+    expect(existsSync(configPath)).toBe(false)
+    expect(existsSync(configDirectory)).toBe(false)
   })
 
   it('installs a dedicated global Grok hook config and managed script', () => {
