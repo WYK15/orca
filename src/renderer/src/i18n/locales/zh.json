@@ -5844,6 +5844,8 @@
           "f2d4f877b2": "打开 GitHub"
         },
         "GeneralUpdateSettingsSection": {
+          "openDownloadPage": "打开下载页面",
+          "manualDownloadDescription": "版本 {{value0}} 已发布。请从 Release 页面下载并手动安装。",
           "8a52ca1d02": "发行说明",
           "d89806cc89": "已准备好安装。",
           "a6b37929dc": "版本",

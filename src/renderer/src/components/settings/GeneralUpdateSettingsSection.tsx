@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { Download, Loader2, RefreshCw } from 'lucide-react'
+import { Download, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore } from '../../store'
 import { Button } from '../ui/button'
@@ -127,6 +127,12 @@ export function GeneralUpdateSettingsSection(): React.JSX.Element {
               variant="default"
               size="sm"
               onClick={() => {
+                if (updateStatus.delivery === 'manual') {
+                  void window.api.shell.openUrl(
+                    updateStatus.releaseUrl ?? getReleaseNotesUrlForVersion(updateStatus.version)
+                  )
+                  return
+                }
                 void window.api.updater.download().catch((error) => {
                   toast.error(
                     translate(
@@ -141,12 +147,24 @@ export function GeneralUpdateSettingsSection(): React.JSX.Element {
               }}
               className="gap-2"
             >
-              <Download className="size-3.5" />
-              {translate(
-                'auto.components.settings.GeneralUpdateSettingsSection.42717918f4',
-                'Install Update ('
+              {updateStatus.delivery === 'manual' ? (
+                <>
+                  <ExternalLink className="size-3.5" />
+                  {translate(
+                    'auto.components.settings.GeneralUpdateSettingsSection.openDownloadPage',
+                    'Open Download Page'
+                  )}
+                </>
+              ) : (
+                <>
+                  <Download className="size-3.5" />
+                  {translate(
+                    'auto.components.settings.GeneralUpdateSettingsSection.42717918f4',
+                    'Install Update ('
+                  )}
+                  {updateStatus.version})
+                </>
               )}
-              {updateStatus.version})
             </Button>
           ) : updateStatus.state === 'downloaded' ? (
             <Button variant="default" size="sm" onClick={handleRestartToUpdate} className="gap-2">
@@ -173,14 +191,24 @@ export function GeneralUpdateSettingsSection(): React.JSX.Element {
             )}
           {updateStatus.state === 'available' && (
             <>
-              {translate(
-                'auto.components.settings.GeneralUpdateSettingsSection.a6b37929dc',
-                'Version'
-              )}{' '}
-              {updateStatus.version}{' '}
-              {translate(
-                'auto.components.settings.GeneralUpdateSettingsSection.8311da27ba',
-                'is available. Click "Install Update" to download and install it.'
+              {updateStatus.delivery === 'manual' ? (
+                translate(
+                  'auto.components.settings.GeneralUpdateSettingsSection.manualDownloadDescription',
+                  'Version {{value0}} is available. Download and install it from the release page.',
+                  { value0: updateStatus.version }
+                )
+              ) : (
+                <>
+                  {translate(
+                    'auto.components.settings.GeneralUpdateSettingsSection.a6b37929dc',
+                    'Version'
+                  )}{' '}
+                  {updateStatus.version}{' '}
+                  {translate(
+                    'auto.components.settings.GeneralUpdateSettingsSection.8311da27ba',
+                    'is available. Click "Install Update" to download and install it.'
+                  )}
+                </>
               )}{' '}
               {updateStatus.source !== 'local' && (
                 <a
