@@ -45,6 +45,19 @@ describe('CommandCodeHookService', () => {
     expect(existsSync(configDirectory)).toBe(false)
   })
 
+  it('returns an error from an unreadable config snapshot without re-reading', async () => {
+    const installerUtils = await import('../agent-hooks/installer-utils')
+    const readSnapshot = vi
+      .spyOn(installerUtils, 'readHooksJsonWithRaw')
+      .mockReturnValue({ state: 'unreadable', raw: null, config: null })
+
+    try {
+      expect(new CommandCodeHookService().remove().state).toBe('error')
+    } finally {
+      readSnapshot.mockRestore()
+    }
+  })
+
   it('installs the managed command for Command Code status events', () => {
     const status = new CommandCodeHookService().install()
 

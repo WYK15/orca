@@ -65,6 +65,19 @@ describe('GeminiHookService', () => {
     }
   })
 
+  it('returns an error from an unreadable config snapshot without re-reading', async () => {
+    const installerUtils = await import('../agent-hooks/installer-utils')
+    const readSnapshot = vi
+      .spyOn(installerUtils, 'readHooksJsonWithRaw')
+      .mockReturnValue({ state: 'unreadable', raw: null, config: null })
+
+    try {
+      expect(new GeminiHookService().remove().state).toBe('error')
+    } finally {
+      readSnapshot.mockRestore()
+    }
+  })
+
   it('removes stale PreToolUse hooks when reinstalling managed Gemini hooks', () => {
     const managedHookFileName = process.platform === 'win32' ? 'gemini-hook.cmd' : 'gemini-hook.sh'
     const staleManagedHookPath =

@@ -291,7 +291,7 @@ export class DroidHookService {
   remove(): AgentHookInstallStatus {
     const configPath = getConfigPath()
     const snapshot = readHooksJsonWithRaw(configPath)
-    if (snapshot.raw === null) {
+    if (snapshot.state === 'missing') {
       return this.getStatus()
     }
     const config = snapshot.config

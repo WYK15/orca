@@ -58,6 +58,19 @@ describe('DroidHookService', () => {
     expect(existsSync(configDirectory)).toBe(false)
   })
 
+  it('returns an error from an unreadable config snapshot without re-reading', async () => {
+    const installerUtils = await import('../agent-hooks/installer-utils')
+    const readSnapshot = vi
+      .spyOn(installerUtils, 'readHooksJsonWithRaw')
+      .mockReturnValue({ state: 'unreadable', raw: null, config: null })
+
+    try {
+      expect(new DroidHookService().remove().state).toBe('error')
+    } finally {
+      readSnapshot.mockRestore()
+    }
+  })
+
   it('installs the managed command for Droid status events', () => {
     const status = new DroidHookService().install()
 

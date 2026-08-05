@@ -33,8 +33,11 @@ afterEach(() => {
 describe('managed hook runtime', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('returns before host probes when no agents are detected', async () => {
-    await expect(installManagedHooks({ agents: [] })).resolves.toEqual({
+  it.each([
+    ['omitted options', undefined],
+    ['an empty agent allowlist', { agents: [] }]
+  ])('returns before host probes with %s', async (_label, options) => {
+    await expect(installManagedHooks(options)).resolves.toEqual({
       installers: 0,
       errors: 0
     })
