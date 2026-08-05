@@ -205,6 +205,9 @@ jobs:
           fi
 
           if [[ -z "$draft" ]]; then
+            publication_kind="$(
+              node config/scripts/release-publication-kind.mjs "$TAG_NAME"
+            )"
             args=(
               release create "$TAG_NAME"
               --repo "$GITHUB_REPOSITORY"
@@ -212,7 +215,7 @@ jobs:
               --draft
               --generate-notes
             )
-            if [[ "$TAG_NAME" == *-* ]]; then
+            if [[ "$publication_kind" == "prerelease" ]]; then
               args+=(--prerelease --latest=false)
             fi
             gh "${args[@]}"
