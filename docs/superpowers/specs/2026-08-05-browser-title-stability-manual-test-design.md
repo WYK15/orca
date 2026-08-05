@@ -9,7 +9,7 @@ Provide a deterministic local page that reproduces the transient `page-title-upd
 Add a focused manual fixture under `tests/manual/browser-title-stability/`:
 
 - `index.html` renders the test status, event count, and start/stop control.
-- `serve.mjs` serves only that directory over loopback HTTP with no third-party dependencies.
+- `serve.mjs` serves an explicit allowlist of fixture files and the canonical Geist font over loopback HTTP with no third-party dependencies.
 - The page repeatedly sets a spinner title and immediately restores `Orcaw title stability test`.
 
 The rapid same-turn title pair is intentional: Electron may deliver the earlier spinner event after the WebView's current title has already returned to the stable value. The old app trusts the event payload and changes the tab label; the fixed app reads the current WebView title and remains stable.
