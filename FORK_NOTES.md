@@ -46,10 +46,11 @@ The workflow publishes the Release only after every platform succeeds. A tag
 such as `v1.4.165-wyk.1` records the upstream base, fork owner, and fork
 revision. Keep the `package.json` version equal to the tag without its leading
 `v`, increment the final revision for another fork build, and reset it to `1`
-after adopting a new upstream version. Fork tags are pre-releases. GitHub
-generates the release notes, and attached installers remain available until the
-Release or assets are deleted. A failed asset upload leaves an unpublished
-draft that can be retried.
+after adopting a new upstream version. Exact `vX.Y.Z-wyk.N` tags are normal
+GitHub Releases; other hyphenated versions such as RC, beta, hourly, and adhoc
+tags remain pre-releases. GitHub generates the release notes, and attached
+installers remain available until the Release or assets are deleted. A failed
+asset upload leaves an unpublished draft that can be retried.
 
 Release assets use Orcaw names such as `orcaw-windows-setup.exe`,
 `orcaw-linux.AppImage`, `orcaw-ide_<version>_amd64.deb`, and
