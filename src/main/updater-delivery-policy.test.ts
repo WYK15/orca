@@ -5,40 +5,57 @@ import { describe, expect, it } from 'vitest'
 import {
   createAvailableReleaseStatus,
   getReleaseUpdateDelivery,
-  readPackagedMacAutoUpdateEnabled
+  readPackagedReleaseAutoUpdateEnabled
 } from './updater-delivery-policy'
 
 describe('getReleaseUpdateDelivery', () => {
-  it.each(['win32', 'linux'] as const)('%s releases update automatically', (platform) => {
-    expect(getReleaseUpdateDelivery(platform, false)).toBe('automatic')
+  it('keeps Linux releases automatic without signing metadata', () => {
+    expect(getReleaseUpdateDelivery('linux', false)).toBe('automatic')
   })
 
-  it('uses manual delivery for unsigned macOS builds', () => {
-    expect(getReleaseUpdateDelivery('darwin', false)).toBe('manual')
-  })
+  it.each(['darwin', 'win32'] as const)(
+    'uses manual delivery for unsigned %s builds',
+    (platform) => {
+      expect(getReleaseUpdateDelivery(platform, false)).toBe('manual')
+    }
+  )
 
-  it('uses automatic delivery for signed macOS release builds', () => {
-    expect(getReleaseUpdateDelivery('darwin', true)).toBe('automatic')
-  })
+  it.each(['darwin', 'win32'] as const)(
+    'uses automatic delivery for signed %s builds',
+    (platform) => {
+      expect(getReleaseUpdateDelivery(platform, true)).toBe('automatic')
+    }
+  )
 })
 
-describe('readPackagedMacAutoUpdateEnabled', () => {
-  it('accepts only the literal boolean true from packaged metadata', () => {
-    const appPath = mkdtempSync(join(tmpdir(), 'orcaw-update-policy-'))
-    writeFileSync(join(appPath, 'package.json'), JSON.stringify({ orcawMacAutoUpdate: true }))
+function appPathWith(metadata: Record<string, unknown>): string {
+  const appPath = mkdtempSync(join(tmpdir(), 'orcaw-update-policy-'))
+  writeFileSync(join(appPath, 'package.json'), JSON.stringify(metadata))
+  return appPath
+}
 
-    expect(readPackagedMacAutoUpdateEnabled(appPath)).toBe(true)
+describe('readPackagedReleaseAutoUpdateEnabled', () => {
+  it('uses explicit packaged release metadata on Windows', () => {
+    expect(
+      readPackagedReleaseAutoUpdateEnabled(appPathWith({ orcawReleaseAutoUpdate: true }), 'win32')
+    ).toBe(true)
+    expect(
+      readPackagedReleaseAutoUpdateEnabled(appPathWith({ orcawReleaseAutoUpdate: false }), 'win32')
+    ).toBe(false)
   })
 
-  it.each([
-    ['missing field', {}],
-    ['false field', { orcawMacAutoUpdate: false }],
-    ['string field', { orcawMacAutoUpdate: 'true' }]
-  ])('rejects %s', (_label, metadata) => {
-    const appPath = mkdtempSync(join(tmpdir(), 'orcaw-update-policy-'))
-    writeFileSync(join(appPath, 'package.json'), JSON.stringify(metadata))
+  it('accepts legacy signed macOS metadata', () => {
+    expect(
+      readPackagedReleaseAutoUpdateEnabled(appPathWith({ orcawMacAutoUpdate: true }), 'darwin')
+    ).toBe(true)
+  })
 
-    expect(readPackagedMacAutoUpdateEnabled(appPath)).toBe(false)
+  it.each(['darwin', 'win32'] as const)('fails closed for missing %s metadata', (platform) => {
+    expect(readPackagedReleaseAutoUpdateEnabled(appPathWith({}), platform)).toBe(false)
+  })
+
+  it('keeps legacy Linux packages automatic', () => {
+    expect(readPackagedReleaseAutoUpdateEnabled(appPathWith({}), 'linux')).toBe(true)
   })
 
   it('rejects missing and malformed package metadata', () => {
@@ -49,8 +66,8 @@ describe('readPackagedMacAutoUpdateEnabled', () => {
     mkdirSync(malformedPath)
     writeFileSync(join(malformedPath, 'package.json'), '{')
 
-    expect(readPackagedMacAutoUpdateEnabled(missingPath)).toBe(false)
-    expect(readPackagedMacAutoUpdateEnabled(malformedPath)).toBe(false)
+    expect(readPackagedReleaseAutoUpdateEnabled(missingPath, 'win32')).toBe(false)
+    expect(readPackagedReleaseAutoUpdateEnabled(malformedPath, 'darwin')).toBe(false)
   })
 })
 

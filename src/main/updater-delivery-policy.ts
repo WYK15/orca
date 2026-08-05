@@ -7,17 +7,28 @@ export type ReleaseUpdateDelivery = 'automatic' | 'manual'
 
 export function getReleaseUpdateDelivery(
   platform: NodeJS.Platform,
-  macAutoUpdateEnabled: boolean
+  releaseAutoUpdateEnabled: boolean
 ): ReleaseUpdateDelivery {
-  return platform === 'darwin' && !macAutoUpdateEnabled ? 'manual' : 'automatic'
+  return platform === 'linux' || releaseAutoUpdateEnabled ? 'automatic' : 'manual'
 }
 
-export function readPackagedMacAutoUpdateEnabled(appPath: string): boolean {
+export function readPackagedReleaseAutoUpdateEnabled(
+  appPath: string,
+  platform: NodeJS.Platform
+): boolean {
+  if (platform === 'linux') {
+    return true
+  }
+
   try {
     const metadata = JSON.parse(readFileSync(join(appPath, 'package.json'), 'utf8')) as {
       orcawMacAutoUpdate?: unknown
+      orcawReleaseAutoUpdate?: unknown
     }
-    return metadata.orcawMacAutoUpdate === true
+    if (typeof metadata.orcawReleaseAutoUpdate === 'boolean') {
+      return metadata.orcawReleaseAutoUpdate
+    }
+    return platform === 'darwin' && metadata.orcawMacAutoUpdate === true
   } catch {
     return false
   }

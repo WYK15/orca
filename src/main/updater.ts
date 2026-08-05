@@ -50,7 +50,7 @@ import {
 } from './linux-package-update-recovery'
 import {
   getReleaseUpdateDelivery,
-  readPackagedMacAutoUpdateEnabled,
+  readPackagedReleaseAutoUpdateEnabled,
   type ReleaseUpdateDelivery
 } from './updater-delivery-policy'
 import {
@@ -2021,7 +2021,7 @@ export function setupAutoUpdater(
   }
   releaseUpdateDelivery = getReleaseUpdateDelivery(
     process.platform,
-    process.platform === 'darwin' && readPackagedMacAutoUpdateEnabled(app.getAppPath())
+    readPackagedReleaseAutoUpdateEnabled(app.getAppPath(), process.platform)
   )
 
   const autoUpdater = getAutoUpdater()

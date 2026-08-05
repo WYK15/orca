@@ -107,6 +107,15 @@ describe('fetchNewerReleaseTag', () => {
     expect(await fetchNewerReleaseTag('1.3.19-rc.4')).toBe('v1.3.19-rc.6')
   })
 
+  it('discovers the next Orcaw fork revision', async () => {
+    respondWithAtom(['v1.4.165-wyk.5', 'v1.4.165-wyk.4'])
+    const { fetchNewerReleaseTag } = await import('./updater-prerelease-feed')
+
+    expect(await fetchNewerReleaseTag('1.4.165-wyk.4', { includePrerelease: true })).toBe(
+      'v1.4.165-wyk.5'
+    )
+  })
+
   it('can exclude prerelease tags for stable-channel checks', async () => {
     respondWithAtom(['v1.4.1-rc.0', 'v1.4.0', 'v1.3.52-rc.3', 'v1.3.51'])
     const { fetchNewerReleaseTag } = await import('./updater-prerelease-feed')

@@ -10,7 +10,8 @@ const MUTABLE_BUILD_ENV = [
   'ORCA_HOURLY_BUILD_VERSION',
   'ORCA_ADHOC_BUILD_VERSION',
   'ORCA_LOCAL_BUILD_VERSION',
-  'ORCA_LINUX_ARM64_RELEASE'
+  'ORCA_LINUX_ARM64_RELEASE',
+  'ORCA_RELEASE_AUTO_UPDATE'
 ]
 
 function withEnv(env, assert) {
@@ -91,7 +92,8 @@ describe('electron-builder product identity', () => {
     withEnv({ ORCA_LOCAL_BUILD_VERSION: '1.4.159-rc.0.local.123.abc' }, (config) => {
       expect(config.extraMetadata).toEqual({
         version: '1.4.159-rc.0.local.123.abc',
-        orcawMacAutoUpdate: false
+        orcawMacAutoUpdate: false,
+        orcawReleaseAutoUpdate: false
       })
     })
   })
@@ -103,9 +105,18 @@ describe('electron-builder product identity', () => {
         ORCA_MAC_RELEASE: '1'
       },
       (config) => {
-        expect(config.extraMetadata).toEqual({ orcawMacAutoUpdate: true })
+        expect(config.extraMetadata).toEqual({
+          orcawMacAutoUpdate: true,
+          orcawReleaseAutoUpdate: true
+        })
       }
     )
+  })
+
+  it('stamps explicitly auto-updatable release packages', () => {
+    withEnv({ ORCA_RELEASE_AUTO_UPDATE: '1' }, (config) => {
+      expect(config.extraMetadata.orcawReleaseAutoUpdate).toBe(true)
+    })
   })
 
   it('uses the Orcaw signing identity for hourly builds', () => {
@@ -148,7 +159,8 @@ describe('electron-builder product identity', () => {
       (config) => {
         expect(config.extraMetadata).toEqual({
           version: '1.4.160-hourly.202607281400',
-          orcawMacAutoUpdate: true
+          orcawMacAutoUpdate: true,
+          orcawReleaseAutoUpdate: true
         })
       }
     )
@@ -164,7 +176,8 @@ describe('electron-builder product identity', () => {
         expect(config.forceCodeSigning).toBe(true)
         expect(config.extraMetadata).toEqual({
           version: '1.4.160-adhoc.20260728140533',
-          orcawMacAutoUpdate: true
+          orcawMacAutoUpdate: true,
+          orcawReleaseAutoUpdate: true
         })
       }
     )

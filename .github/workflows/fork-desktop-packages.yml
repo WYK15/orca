@@ -43,7 +43,8 @@ jobs:
             platform: linux-x64
             package_command: >-
               node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
-              pnpm exec electron-builder --config config/electron-builder.config.cjs
+              ORCA_RELEASE_AUTO_UPDATE=1 pnpm exec electron-builder
+              --config config/electron-builder.config.cjs
               --linux AppImage deb rpm --x64 --publish never
             artifact_paths: |-
               dist/*.AppImage
@@ -57,7 +58,8 @@ jobs:
             platform: linux-arm64
             package_command: >-
               node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
-              ORCA_LINUX_ARM64_RELEASE=1 pnpm exec electron-builder
+              ORCA_RELEASE_AUTO_UPDATE=1 ORCA_LINUX_ARM64_RELEASE=1
+              pnpm exec electron-builder
               --config config/electron-builder.config.cjs
               --linux AppImage deb rpm --arm64 --publish never
             artifact_paths: |-

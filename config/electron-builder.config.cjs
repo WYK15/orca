@@ -24,6 +24,7 @@ const isMacHourly = process.env.ORCA_MAC_HOURLY === '1'
 const isMacAdhoc = process.env.ORCA_MAC_ADHOC === '1'
 const isMacRelease = process.env.ORCA_MAC_RELEASE === '1' || isMacHourly || isMacAdhoc
 const isLinuxArm64Release = process.env.ORCA_LINUX_ARM64_RELEASE === '1'
+const releaseAutoUpdateEnabled = isMacRelease || process.env.ORCA_RELEASE_AUTO_UPDATE === '1'
 const localBuildVersion = isMacRelease ? undefined : process.env.ORCA_LOCAL_BUILD_VERSION
 const devChannelBuildVersion = isMacHourly
   ? process.env.ORCA_HOURLY_BUILD_VERSION
@@ -84,7 +85,8 @@ module.exports = {
       : localBuildVersion
         ? { version: localBuildVersion }
         : {}),
-    orcawMacAutoUpdate: isMacRelease
+    orcawMacAutoUpdate: isMacRelease,
+    orcawReleaseAutoUpdate: releaseAutoUpdateEnabled
   },
   directories: {
     buildResources: 'resources/build'
