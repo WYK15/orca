@@ -71,7 +71,10 @@ let handlerOptions: AiVaultHandlerOptions = {}
 // Shared by the IPC registration and the test internals; the multi-host
 // scan-result cache below is this module's private state (invalidateMultiHost
 // AiVaultListCache is a hoisted function declaration).
-const aiVaultDeleteDeps = { invalidateMultiHostListCache: invalidateMultiHostAiVaultListCache }
+const aiVaultDeleteDeps = {
+  invalidateMultiHostListCache: invalidateMultiHostAiVaultListCache,
+  getAdditionalCodexHomePaths: () => handlerOptions.getAdditionalCodexHomePaths?.() ?? []
+}
 
 async function listAiVaultSessions(args?: AiVaultListArgs): Promise<AiVaultListResult> {
   const executionHostScope = normalizeExecutionHostScope(

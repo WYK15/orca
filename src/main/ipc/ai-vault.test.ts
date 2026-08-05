@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   getActiveSshAiVaultHostInfos: vi.fn(),
   ipcHandle: vi.fn(),
   deleteAiVaultSessionFile: vi.fn(),
+  deleteCodexAiVaultSession: vi.fn(),
   invalidateAiVaultSessionListCache: vi.fn(),
   invalidateSessionParseCacheEntry: vi.fn()
 }))
@@ -41,6 +42,11 @@ vi.mock('../ai-vault/session-scanner-claude-subagents', () => ({
 
 vi.mock('../ai-vault/session-delete', () => ({
   deleteAiVaultSessionFile: mocks.deleteAiVaultSessionFile
+}))
+
+vi.mock('../ai-vault/codex-session-delete', () => ({
+  deleteCodexAiVaultSession: mocks.deleteCodexAiVaultSession,
+  codexHomesForAiVaultDeletion: vi.fn().mockReturnValue([])
 }))
 
 // Why: only the invalidation seam is replaced — everything else (cachedList,
@@ -406,6 +412,25 @@ describe('deleteAiVaultSession', () => {
     )
     expect(mocks.invalidateAiVaultSessionListCache).toHaveBeenCalledTimes(1)
     expect(mocks.invalidateSessionParseCacheEntry).toHaveBeenCalledWith(args.filePath)
+  })
+
+  it('routes Codex through its complete-session deleter', async () => {
+    mocks.deleteCodexAiVaultSession.mockResolvedValue({ outcome: 'deleted' })
+    const codexArgs = {
+      agent: 'codex' as const,
+      sessionId: 'session-a',
+      codexHome: null,
+      filePath: '/home/ada/.codex/sessions/2026/08/05/a.jsonl',
+      executionHostId: 'local' as const
+    }
+
+    await expect(_internals.deleteAiVaultSession(codexArgs)).resolves.toEqual({
+      outcome: 'deleted'
+    })
+
+    expect(mocks.deleteCodexAiVaultSession).toHaveBeenCalledWith(codexArgs, expect.any(Object))
+    expect(mocks.deleteAiVaultSessionFile).not.toHaveBeenCalled()
+    expect(mocks.invalidateSessionParseCacheEntry).toHaveBeenCalledWith(codexArgs.filePath)
   })
 
   it('does not invalidate any cache when the executor rejects (e.g. non-local host)', async () => {

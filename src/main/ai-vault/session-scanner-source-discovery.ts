@@ -14,7 +14,8 @@ import { sessionRootDirs } from './session-scanner-root-dirs'
 
 const CLAUDE_PROJECTS_DIR = join(homedir(), '.claude', 'projects')
 export const DEFAULT_CODEX_HOME_DIR = join(homedir(), '.codex')
-const CODEX_HOME_DIR = process.env.CODEX_HOME?.trim() || DEFAULT_CODEX_HOME_DIR
+export const CONFIGURED_CODEX_HOME_DIR = process.env.CODEX_HOME?.trim() || DEFAULT_CODEX_HOME_DIR
+const CODEX_HOME_DIR = CONFIGURED_CODEX_HOME_DIR
 const CODEX_SESSIONS_DIR = join(CODEX_HOME_DIR, 'sessions')
 // Exported (not just used internally): session-delete-target.ts reuses these
 // same per-agent roots for path-membership checks, so a deletion root can

@@ -23,6 +23,12 @@ export function resetCodexSessionIndexTitleCacheForTests(): void {
   codexSessionIndexTitleCache.clear()
 }
 
+export function invalidateCodexSessionIndexTitleCache(codexHomes: readonly string[]): void {
+  for (const codexHome of codexHomes) {
+    codexSessionIndexTitleCache.delete(codexHome)
+  }
+}
+
 export function _getCodexSessionIndexTitleCacheSizeForTest(): number {
   return codexSessionIndexTitleCache.size
 }

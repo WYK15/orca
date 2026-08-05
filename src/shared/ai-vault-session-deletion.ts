@@ -6,6 +6,9 @@ import type { ExecutionHostId } from './execution-host'
 export type AiVaultDeleteSessionArgs = {
   agent: AiVaultAgent
   filePath: string
+  // Codex uses this to locate and verify every transcript alias before delete.
+  sessionId?: string
+  codexHome?: string | null
   // The session's host; only a local session may be deleted.
   executionHostId?: ExecutionHostId
 }
@@ -53,6 +56,11 @@ export type AiVaultDeletableAgent = (typeof AI_VAULT_DELETABLE_AGENTS)[number]
 
 export function isAiVaultDeletableAgent(agent: AiVaultAgent): agent is AiVaultDeletableAgent {
   return (AI_VAULT_DELETABLE_AGENTS as readonly AiVaultAgent[]).includes(agent)
+}
+
+// Codex has a dedicated multi-file deleter, separate from the generic list above.
+export function isAiVaultSessionDeleteSupportedAgent(agent: AiVaultAgent): boolean {
+  return agent === 'codex' || isAiVaultDeletableAgent(agent)
 }
 
 // A '#' marker means an OpenCode 1.17.x SQLite row's synthetic

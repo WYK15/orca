@@ -4,7 +4,12 @@ import {
   invalidateAiVaultSessionListCache
 } from '../ai-vault/cached-session-list'
 import { deleteAiVaultSessionFile } from '../ai-vault/session-delete'
+import {
+  codexHomesForAiVaultDeletion,
+  deleteCodexAiVaultSession
+} from '../ai-vault/codex-session-delete'
 import { invalidateSessionParseCacheEntry } from '../ai-vault/session-scanner-parse-cache'
+import { invalidateCodexSessionIndexTitleCache } from '../ai-vault/session-scanner-codex-title-index'
 import type { AiVaultAgent } from '../../shared/ai-vault-types'
 import type {
   AiVaultDeleteSessionArgs,
@@ -15,6 +20,7 @@ import type {
 // its invalidation is injected rather than reached into from here.
 type AiVaultDeleteDeps = {
   invalidateMultiHostListCache: () => void
+  getAdditionalCodexHomePaths?: () => readonly string[]
 }
 
 // Registers the IPC channel, binding the delete orchestration to the caller's
@@ -36,13 +42,17 @@ export async function deleteAiVaultSession(
   // deleteAiVaultSessionFile's validator tolerates a malformed agent/filePath
   // (it never throws) but destructures `args`, so an entirely missing payload
   // is defaulted to an empty shape here to keep the never-throws boundary.
-  const wslHomeDirs = await getAiVaultWslHomeDirs()
-  const result = await deleteAiVaultSessionFile({
-    agent: args?.agent as AiVaultAgent,
-    filePath: args?.filePath ?? '',
-    executionHostId: args?.executionHostId,
-    wslHomeDirs
-  })
+  const result =
+    args?.agent === 'codex'
+      ? await deleteCodexAiVaultSession(args, {
+          additionalCodexHomePaths: deps.getAdditionalCodexHomePaths?.()
+        })
+      : await deleteAiVaultSessionFile({
+          agent: args?.agent as AiVaultAgent,
+          filePath: args?.filePath ?? '',
+          executionHostId: args?.executionHostId,
+          wslHomeDirs: await getAiVaultWslHomeDirs()
+        })
 
   if (result.outcome === 'deleted') {
     // Three caches can otherwise resurrect the deleted session for up to the
@@ -56,6 +66,13 @@ export async function deleteAiVaultSession(
     // what the renderer echoes back as filePath), so invalidate with that exact
     // key — resolve() could normalise it away from the stored key and miss.
     invalidateSessionParseCacheEntry(args?.filePath ?? '')
+    if (args?.agent === 'codex') {
+      invalidateCodexSessionIndexTitleCache(
+        codexHomesForAiVaultDeletion(args, {
+          additionalCodexHomePaths: deps.getAdditionalCodexHomePaths?.()
+        })
+      )
+    }
   }
 
   return result

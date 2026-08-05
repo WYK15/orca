@@ -1,4 +1,5 @@
-import { isAiVaultDeletableAgent } from '../../../../shared/ai-vault-session-deletion'
+import { isAiVaultSessionDeleteSupportedAgent } from '../../../../shared/ai-vault-session-deletion'
+import { isWslUncPath } from '../../../../shared/wsl-paths'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import type { AgentStatusState } from '../../../../shared/agent-status-types'
 import {
@@ -53,10 +54,13 @@ export function resolveAiVaultSessionDeletability(
   if (!canUseLocalAiVaultSessionPathActions(session.executionHostId)) {
     return { deletable: false, reason: 'non-local-host' }
   }
+  if (session.agent === 'codex' && isWslUncPath(session.filePath)) {
+    return { deletable: false, reason: 'non-local-host' }
+  }
   if (isSyntheticAiVaultSessionPath(session.filePath)) {
     return { deletable: false, reason: 'synthetic-path' }
   }
-  if (!isAiVaultDeletableAgent(session.agent)) {
+  if (!isAiVaultSessionDeleteSupportedAgent(session.agent)) {
     return { deletable: false, reason: 'unsupported-agent' }
   }
   // Last, so a session that is otherwise deletable but still running says "wait

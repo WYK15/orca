@@ -15,6 +15,8 @@ vi.mock('sonner', () => ({
 
 const session = {
   agent: 'gemini',
+  sessionId: 'session-a',
+  codexHome: null,
   filePath: '/home/a/.gemini/s.json',
   executionHostId: 'local'
 } as AiVaultSession
@@ -44,6 +46,8 @@ describe('useAiVaultSessionDeleteAction', () => {
 
     expect(deleteSession).toHaveBeenCalledWith({
       agent: 'gemini',
+      sessionId: 'session-a',
+      codexHome: null,
       filePath: '/home/a/.gemini/s.json',
       executionHostId: 'local'
     })

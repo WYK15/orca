@@ -36,15 +36,13 @@ describe('resolveAiVaultSessionDeletability', () => {
     })
   })
 
-  it('keeps the permanent reason over "running" for an unsupported live session', () => {
-    // A live but unsupported agent stays "unsupported" — it would never become
-    // deletable, so "wait for it to finish" would mislead.
+  it('keeps the live-session reason for a running Codex session', () => {
     expect(
       resolveAiVaultSessionDeletability(
         { agent: 'codex', executionHostId: 'local', filePath: '/home/user/.codex/x.jsonl' },
         'working'
       )
-    ).toEqual({ deletable: false, reason: 'unsupported-agent' })
+    ).toEqual({ deletable: false, reason: 'session-live' })
   })
 
   it('blocks an ssh-hosted session regardless of agent', () => {
@@ -103,17 +101,24 @@ describe('resolveAiVaultSessionDeletability', () => {
     })
   })
 
-  it('blocks a registry/hardlink-backed agent (codex)', () => {
+  it('allows a finished local Codex session for its dedicated deleter', () => {
     expect(
       resolveAiVaultSessionDeletability({
         agent: 'codex',
         executionHostId: 'local',
         filePath: '/home/user/.codex/sessions/log.jsonl'
       })
-    ).toEqual({
-      deletable: false,
-      reason: 'unsupported-agent'
-    })
+    ).toEqual({ deletable: true })
+  })
+
+  it('blocks a WSL UNC Codex session because its index must be edited in the distro', () => {
+    expect(
+      resolveAiVaultSessionDeletability({
+        agent: 'codex',
+        executionHostId: 'local',
+        filePath: '\\\\wsl$\\Ubuntu\\home\\user\\.codex\\sessions\\a.jsonl'
+      })
+    ).toEqual({ deletable: false, reason: 'non-local-host' })
   })
 
   it('blocks opencode on a non-synthetic path as an unsupported agent', () => {

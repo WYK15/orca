@@ -7,6 +7,7 @@ import {
   _hasCodexSessionIndexTitleCacheEntryForTest,
   _readCachedCodexSessionIndexTitlesForTest,
   _storeCodexSessionIndexTitleCacheEntryForTest,
+  invalidateCodexSessionIndexTitleCache,
   readCodexSessionIndexTitle,
   resetCodexSessionIndexTitleCacheForTests
 } from './session-scanner-codex-title-index'
@@ -71,6 +72,17 @@ describe('codex session index title cache', () => {
     expect(_getCodexSessionIndexTitleCacheSizeForTest()).toBe(CACHE_LIMIT)
     expect(_hasCodexSessionIndexTitleCacheEntryForTest(homes[0])).toBe(true)
     expect(_hasCodexSessionIndexTitleCacheEntryForTest(homes[1])).toBe(false)
+  })
+
+  it('evicts only the deleted Codex homes', async () => {
+    await readTitle(await createCodexHome(1), 1)
+    const deletedHome = await createCodexHome(2)
+    await readTitle(deletedHome, 2)
+
+    invalidateCodexSessionIndexTitleCache([deletedHome])
+
+    expect(_hasCodexSessionIndexTitleCacheEntryForTest(deletedHome)).toBe(false)
+    expect(_getCodexSessionIndexTitleCacheSizeForTest()).toBe(1)
   })
 
   it('does not resurrect a pending cache hit after that home is evicted', async () => {
