@@ -41,17 +41,42 @@ The first version supports complete removal for 12 providers:
   Droid, Pi, and OMP.
 - Directory-shaped sessions: Claude, Rovo, and Grok.
 
-Antigravity, Kimi, Codex, and OpenCode remain unsupported:
+The initial release excluded Antigravity, Kimi, Codex, and OpenCode:
 
 - Antigravity and Kimi retain external registry state that cannot be updated
   reliably from the discovered session path.
 - Codex can retain hard-linked aliases and multiple indexes, causing a removed
-  session to reappear.
+  session to reappear; the extension below adds the required complete plan.
 - Current OpenCode sessions are rows in a shared SQLite database rather than
   independent files.
 
 Unsupported providers must never fall back to deleting only the discovered
 `filePath`.
+
+## Codex Extension
+
+Codex becomes deletable for local native-home sessions. A Codex removal is
+identified by the transcript's parsed session id, not by its rollout filename.
+The main process derives every known local Codex home that can represent that
+session: the configured history source, the default `~/.codex` home when it is
+scanned, and Orca's managed runtime home. It removes only transcript files that
+parse to the selected id and are beneath those homes' `sessions` directories.
+
+Each affected home's `session_index.jsonl` is rewritten atomically with records
+for that id removed. Missing transcript aliases and missing index files are
+allowed. A hardlinked alias is removed once from the filesystem; independently
+copied aliases are both removed. A session is reported deleted only after all
+index rewrites and transcript removals succeed. On failure, caches remain intact
+and the row stays available for retry.
+
+SSH and runtime-host sessions remain rejected. WSL Codex deletion remains
+rejected until the index rewrite can be performed atomically inside the distro;
+the existing generic WSL file-delete path is not sufficient because it cannot
+maintain `session_index.jsonl`.
+
+Antigravity, Kimi, and OpenCode remain unsupported. Antigravity has no stable
+registry identity, Kimi needs its own index-aware plan, and OpenCode 1.17+
+stores sessions as SQLite rows.
 
 ## Removal Semantics
 
@@ -101,6 +126,7 @@ After a successful deletion, invalidate:
 - The shared cached session list.
 - The desktop multi-host cache.
 - The persisted path-keyed parse cache entry.
+- Every Codex index-title cache entry for a rewritten Codex home.
 
 List caches use a generation guard so a scan started before deletion cannot
 write its stale result after deletion and temporarily resurrect the row.
@@ -131,6 +157,8 @@ entry after a later upstream synchronization contains the equivalent change.
 - No remote deletion is attempted.
 - Existing parse and list caches cannot report success while continuing to
   serve a pre-delete result.
+- Codex index replacement uses a same-directory temporary file and rename; a
+  failed write or rename leaves the transcript row available for retry.
 
 ## Verification
 
@@ -143,6 +171,8 @@ Keep verification focused on the affected feature:
 - Renderer deletability, reason text, confirmation flow, and menu event tests.
 - The isolated-home AI Vault deletion E2E test when its local prerequisites are
   available.
+- Codex dual-root hardlink/copy, index rewrite, custom-home, missing-index,
+  failure, cache invalidation, and WSL-rejection tests.
 - Affected TypeScript type checking and changed-code lint checks.
 
 Do not run unrelated slow suites unless a focused failure indicates a broader
