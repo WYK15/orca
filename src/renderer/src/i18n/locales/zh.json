@@ -10159,7 +10159,7 @@
             "7ac885bd2f": "下载文件夹",
             "dd112c81d2": "在 Orca 浏览器中打开",
             "1bb9be455c": "添加为项目...",
-            "0fec99bfd7": "复制",
+            "0fec99bfd7": "创建副本",
             "f61af83316": "新建文件夹",
             "37c875d827": "新文件",
             "b3e288bf41": "无法下载“{{value0}}”。",
@@ -10174,7 +10174,7 @@
             "66a29dde82": "复制相对路径",
             "42e10cbf57": "复制相对路径",
             "b5d436aa30": "复制路径",
-            "98a79948b3": "复制",
+            "98a79948b3": "复制文件",
             "b234ab25b4": "无法将文件复制到剪贴板",
             "f9d7ca753d": "复制路径",
             "3161c4e425": "文件夹",
@@ -12974,6 +12974,14 @@
           "b05e14620d": "标题 4",
           "6bbf827ef5": "标题 5",
           "d1bbf9a835": "可折叠小节"
+        },
+        "RichMarkdownTableToolbar": {
+          "insertRowAbove": "在上方插入行",
+          "insertRowBelow": "在下方插入行",
+          "deleteRow": "删除当前行",
+          "insertColumnLeft": "在左侧插入列",
+          "insertColumnRight": "在右侧插入列",
+          "deleteColumn": "删除当前列"
         },
         "UntitledFileRenameDialog": {
           "a7dd27b0bc": "保存",
