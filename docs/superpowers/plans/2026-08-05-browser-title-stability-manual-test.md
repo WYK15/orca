@@ -24,8 +24,8 @@
 
 **Files:**
 - Create: `tests/manual/browser-title-stability/browser-title-cycle.mjs`
-- Create: `tests/manual/browser-title-stability/browser-title-cycle.test.mjs`
 - Create: `tests/manual/browser-title-stability/index.html`
+- Create: `tests/tools/browser-title-stability/browser-title-cycle.test.mjs`
 
 **Interfaces:**
 - Produces: `STABLE_TITLE: string`
@@ -39,7 +39,7 @@ import { describe, expect, it } from 'vitest'
 import {
   STABLE_TITLE,
   emitTransientTitlePair
-} from './browser-title-cycle.mjs'
+} from '../../manual/browser-title-stability/browser-title-cycle.mjs'
 
 describe('browser title cycle', () => {
   it('emits a transient spinner title before restoring the stable title', () => {
@@ -80,7 +80,7 @@ describe('browser title cycle', () => {
 Run:
 
 ```powershell
-corepack pnpm vitest run --config config/vitest.config.ts tests/manual/browser-title-stability/browser-title-cycle.test.mjs
+corepack pnpm vitest run --config config/vitest.config.ts tests/tools/browser-title-stability/browser-title-cycle.test.mjs
 ```
 
 Expected: FAIL because `browser-title-cycle.mjs` does not exist.
@@ -282,7 +282,7 @@ Expected: 1 file and 2 tests pass.
 - [ ] **Step 6: Commit the fixture**
 
 ```powershell
-git add -- tests/manual/browser-title-stability/browser-title-cycle.mjs tests/manual/browser-title-stability/browser-title-cycle.test.mjs tests/manual/browser-title-stability/index.html
+git add -- tests/manual/browser-title-stability/browser-title-cycle.mjs tests/manual/browser-title-stability/index.html tests/tools/browser-title-stability/browser-title-cycle.test.mjs
 git commit -m "test(browser): add title stability fixture"
 ```
 
@@ -290,7 +290,7 @@ git commit -m "test(browser): add title stability fixture"
 
 **Files:**
 - Create: `tests/manual/browser-title-stability/browser-title-stability-server.mjs`
-- Create: `tests/manual/browser-title-stability/browser-title-stability-server.test.mjs`
+- Create: `tests/tools/browser-title-stability/browser-title-stability-server.test.mjs`
 
 **Interfaces:**
 - Produces: `createBrowserTitleStabilityServer(): import('node:http').Server`
@@ -301,7 +301,7 @@ git commit -m "test(browser): add title stability fixture"
 
 ```js
 import { afterEach, describe, expect, it } from 'vitest'
-import { startBrowserTitleStabilityServer } from './browser-title-stability-server.mjs'
+import { startBrowserTitleStabilityServer } from '../../manual/browser-title-stability/browser-title-stability-server.mjs'
 
 describe('browser title stability server', () => {
   let server
@@ -338,7 +338,7 @@ describe('browser title stability server', () => {
 Run:
 
 ```powershell
-corepack pnpm vitest run --config config/vitest.config.ts tests/manual/browser-title-stability/browser-title-stability-server.test.mjs
+corepack pnpm vitest run --config config/vitest.config.ts tests/tools/browser-title-stability/browser-title-stability-server.test.mjs
 ```
 
 Expected: FAIL because `browser-title-stability-server.mjs` does not exist.
@@ -425,10 +425,10 @@ Keep the response behavior shown above. Expand the entry-point output with the s
 - [ ] **Step 4: Run both fixture tests and confirm GREEN**
 
 ```powershell
-corepack pnpm vitest run --config config/vitest.config.ts tests/manual/browser-title-stability/browser-title-cycle.test.mjs tests/manual/browser-title-stability/browser-title-stability-server.test.mjs
+corepack pnpm vitest run --config config/vitest.config.ts tests/tools/browser-title-stability/browser-title-cycle.test.mjs tests/tools/browser-title-stability/browser-title-stability-server.test.mjs
 ```
 
-Expected: 2 files and 4 tests pass.
+Expected: 2 files and 5 tests pass.
 
 - [ ] **Step 5: Start the service and smoke-test it**
 
@@ -437,7 +437,7 @@ Start the service in a hidden process, request `/`, `/browser-title-cycle.mjs`, 
 - [ ] **Step 6: Commit the server**
 
 ```powershell
-git add -- tests/manual/browser-title-stability/browser-title-stability-server.mjs tests/manual/browser-title-stability/browser-title-stability-server.test.mjs
+git add -- tests/manual/browser-title-stability/browser-title-stability-server.mjs tests/tools/browser-title-stability/browser-title-stability-server.test.mjs
 git commit -m "test(browser): serve title stability fixture"
 ```
 
@@ -455,7 +455,7 @@ git commit -m "test(browser): serve title stability fixture"
 - [ ] **Step 1: Run the fixture and browser-title regression tests**
 
 ```powershell
-corepack pnpm vitest run --config config/vitest.config.ts tests/manual/browser-title-stability/browser-title-cycle.test.mjs tests/manual/browser-title-stability/browser-title-stability-server.test.mjs src/renderer/src/components/browser-pane/browser-page-title-event.test.ts src/renderer/src/components/browser-pane/BrowserPane.webview-preferences.test.ts --pool=threads --maxWorkers=1
+corepack pnpm vitest run --config config/vitest.config.ts tests/tools/browser-title-stability/browser-title-cycle.test.mjs tests/tools/browser-title-stability/browser-title-stability-server.test.mjs src/renderer/src/components/browser-pane/browser-page-title-event.test.ts src/renderer/src/components/browser-pane/BrowserPane.webview-preferences.test.ts --pool=threads --maxWorkers=1
 ```
 
 Expected: all selected files pass.
@@ -463,7 +463,7 @@ Expected: all selected files pass.
 - [ ] **Step 2: Run static checks**
 
 ```powershell
-corepack pnpm exec oxfmt --check tests/manual/browser-title-stability
+corepack pnpm exec oxfmt --check tests/manual/browser-title-stability tests/tools/browser-title-stability
 corepack pnpm run typecheck:web
 git diff --check
 ```
