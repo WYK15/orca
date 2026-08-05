@@ -22,8 +22,8 @@ Remove an entry after an upstream sync contains its equivalent commits.
 - Desktop builds ship as Orcaw with the independent `com.wyk15.orcaw`
   application identity, isolated user data, `orcaw` / `orcaw-ide` commands,
   and updates sourced only from `WYK15/orca`. Preserve these seams during
-  upstream synchronization. Unsigned macOS builds open the matching Release
-  for manual installation; signed macOS and Windows/Linux builds retain
+  upstream synchronization. Unsigned macOS and Windows builds open the matching
+  Release for manual installation; Linux and explicitly signed builds retain
   automatic updates.
 - Inherited cron schedules are disabled in this fork. Tag pushes still build
   and publish desktop releases; manual, pull-request, and release event
@@ -57,6 +57,7 @@ Release assets use Orcaw names such as `orcaw-windows-setup.exe`,
 and updater manifests before publishing the draft.
 
 These personal Windows and macOS builds are unsigned, so SmartScreen or
-Gatekeeper can warn when opening them. Unsigned macOS builds do not replace the
-app automatically; use Orcaw's update prompt to open the Release, download the
-matching DMG, and replace the installed app manually.
+Gatekeeper can warn when opening them. They do not replace the app
+automatically; use Orcaw's update prompt to open the exact Release, download
+the matching installer, and install it manually. Linux packages retain the
+existing automatic update path.
