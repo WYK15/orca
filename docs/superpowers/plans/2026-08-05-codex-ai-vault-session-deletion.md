@@ -21,12 +21,13 @@
 
 ## File Map
 
-- `src/shared/ai-vault-session-deletion.ts`: delete payload and Codex allowlist.
+- `src/shared/ai-vault-session-deletion.ts`: delete payload and a Codex-specific supported-agent predicate; the generic file-deletion allowlist remains unchanged.
 - `src/main/ai-vault/codex-session-delete.ts`: plan, index rewrite, alias removal.
 - `src/main/ai-vault/codex-session-delete.test.ts`: filesystem safety regression coverage.
 - `src/main/ai-vault/session-scanner-codex-title-index.ts`: per-home cache invalidation.
 - `src/main/ipc/ai-vault-delete.ts`: Codex route and existing cache invalidation.
-- `src/renderer/src/lib/ai-vault-session-path-actions.ts`: include session identity in delete payload.
+- `src/renderer/src/components/right-sidebar/ai-vault-session-deletability.ts`: enable Delete only for eligible native-local Codex rows.
+- `src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.ts`: include session identity in delete IPC payload.
 - `tests/e2e/ai-vault-session-delete.spec.ts`: real local Codex deletion.
 
 ---
@@ -81,7 +82,7 @@ Derive and deduplicate configured/default/managed native homes. Discover only `.
 
 - [ ] **Step 4: Add contract and cache support**
 
-Add `sessionId?: string` and `codexHome?: string | null` to the shared args, add Codex to `AI_VAULT_DELETABLE_AGENTS`, and add per-home title-cache invalidation. Generic non-Codex validation/execution remains unchanged.
+Add `sessionId?: string` and `codexHome?: string | null` to the shared args. Keep Codex out of `AI_VAULT_DELETABLE_AGENTS`, which drives generic file deletion. Add a separate predicate for the renderer and dedicated IPC route, plus per-home title-cache invalidation. Generic non-Codex validation/execution remains unchanged.
 
 - [ ] **Step 5: Run GREEN**
 
@@ -105,8 +106,10 @@ git commit -m "fix(ai-vault): delete complete Codex sessions"
 
 - Modify: `src/main/ipc/ai-vault-delete.ts`
 - Modify: `src/main/ipc/ai-vault-delete.test.ts`
-- Modify: `src/renderer/src/lib/ai-vault-session-path-actions.ts`
-- Modify: `src/renderer/src/lib/ai-vault-session-path-actions.test.ts`
+- Modify: `src/renderer/src/components/right-sidebar/ai-vault-session-deletability.ts`
+- Modify: `src/renderer/src/components/right-sidebar/ai-vault-session-deletability.test.ts`
+- Modify: `src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.ts`
+- Modify: `src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.test.tsx`
 - Modify: `tests/e2e/ai-vault-session-delete.spec.ts`
 
 **Interfaces:**
@@ -127,14 +130,14 @@ Assert renderer IPC includes `sessionId` and `codexHome`; assert main routes Cod
 - [ ] **Step 2: Run RED**
 
 ```bash
-pnpm exec vitest run --config config/vitest.config.ts src/main/ipc/ai-vault-delete.test.ts src/renderer/src/lib/ai-vault-session-path-actions.test.ts
+pnpm exec vitest run --config config/vitest.config.ts src/main/ipc/ai-vault-delete.test.ts src/renderer/src/components/right-sidebar/ai-vault-session-deletability.test.ts src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.test.tsx
 ```
 
 Expected: payload fields are absent and Codex follows the unsupported generic path.
 
 - [ ] **Step 3: Implement narrow IPC wiring**
 
-Forward identity fields from the selected row. Branch only on `args?.agent === 'codex'`; call the new service with configured additional homes; retain the generic delete path for all other agents. Invalidate all caches only for `{ outcome: 'deleted' }`.
+Forward identity fields from the selected row. The renderer's Codex predicate must additionally reject WSL UNC paths, while every other provider continues to use `isAiVaultDeletableAgent`. In main, branch only on `args?.agent === 'codex'`; call the new service with configured additional homes; retain the generic delete path for all other agents. Invalidate all caches only for `{ outcome: 'deleted' }`.
 
 - [ ] **Step 4: Add local E2E**
 
@@ -143,8 +146,8 @@ Seed an isolated-home Codex transcript and index, list it through real IPC, dele
 - [ ] **Step 5: Run GREEN and commit**
 
 ```bash
-pnpm exec vitest run --config config/vitest.config.ts src/main/ipc/ai-vault-delete.test.ts src/renderer/src/lib/ai-vault-session-path-actions.test.ts tests/e2e/ai-vault-session-delete.spec.ts
-git add src/main/ipc/ai-vault-delete.ts src/main/ipc/ai-vault-delete.test.ts src/renderer/src/lib/ai-vault-session-path-actions.ts src/renderer/src/lib/ai-vault-session-path-actions.test.ts tests/e2e/ai-vault-session-delete.spec.ts
+pnpm exec vitest run --config config/vitest.config.ts src/main/ipc/ai-vault-delete.test.ts src/renderer/src/components/right-sidebar/ai-vault-session-deletability.test.ts src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.test.tsx tests/e2e/ai-vault-session-delete.spec.ts
+git add src/main/ipc/ai-vault-delete.ts src/main/ipc/ai-vault-delete.test.ts src/renderer/src/components/right-sidebar/ai-vault-session-deletability.ts src/renderer/src/components/right-sidebar/ai-vault-session-deletability.test.ts src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.ts src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.test.tsx tests/e2e/ai-vault-session-delete.spec.ts
 git commit -m "fix(ai-vault): route Codex session deletion"
 ```
 
@@ -155,13 +158,13 @@ git commit -m "fix(ai-vault): route Codex session deletion"
 - [ ] **Step 1: Format changed files only**
 
 ```bash
-pnpm exec oxfmt --write src/shared/ai-vault-session-deletion.ts src/main/ai-vault/codex-session-delete.ts src/main/ai-vault/codex-session-delete.test.ts src/main/ai-vault/session-scanner-codex-title-index.ts src/main/ipc/ai-vault-delete.ts src/main/ipc/ai-vault-delete.test.ts src/renderer/src/lib/ai-vault-session-path-actions.ts src/renderer/src/lib/ai-vault-session-path-actions.test.ts tests/e2e/ai-vault-session-delete.spec.ts
+pnpm exec oxfmt --write src/shared/ai-vault-session-deletion.ts src/main/ai-vault/codex-session-delete.ts src/main/ai-vault/codex-session-delete.test.ts src/main/ai-vault/session-scanner-codex-title-index.ts src/main/ipc/ai-vault-delete.ts src/main/ipc/ai-vault-delete.test.ts src/renderer/src/components/right-sidebar/ai-vault-session-deletability.ts src/renderer/src/components/right-sidebar/ai-vault-session-deletability.test.ts src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.ts src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.test.tsx tests/e2e/ai-vault-session-delete.spec.ts
 ```
 
 - [ ] **Step 2: Run focused verification**
 
 ```bash
-pnpm exec vitest run --config config/vitest.config.ts src/main/ai-vault/codex-session-delete.test.ts src/main/ai-vault/session-delete.test.ts src/main/ai-vault/session-scanner-codex-title-index.test.ts src/main/ai-vault/session-scanner-codex-dual-root.test.ts src/main/ipc/ai-vault-delete.test.ts src/renderer/src/lib/ai-vault-session-path-actions.test.ts tests/e2e/ai-vault-session-delete.spec.ts
+pnpm exec vitest run --config config/vitest.config.ts src/main/ai-vault/codex-session-delete.test.ts src/main/ai-vault/session-delete.test.ts src/main/ai-vault/session-scanner-codex-title-index.test.ts src/main/ai-vault/session-scanner-codex-dual-root.test.ts src/main/ipc/ai-vault-delete.test.ts src/renderer/src/components/right-sidebar/ai-vault-session-deletability.test.ts src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.test.tsx tests/e2e/ai-vault-session-delete.spec.ts
 pnpm run typecheck:node
 pnpm run check:max-lines-ratchet
 git diff --check origin/custom/main...HEAD
