@@ -91,6 +91,23 @@ describe('useAiVaultSessionDeleteAction', () => {
     expect(toastError).toHaveBeenCalledTimes(1)
   })
 
+  it('deletes selected sessions sequentially and refreshes once', async () => {
+    deleteSession.mockResolvedValue({ outcome: 'deleted' })
+    const refresh = vi.fn().mockResolvedValue(undefined)
+    const onDeleted = vi.fn()
+    const { result } = renderHook(() => useAiVaultSessionDeleteAction({ refresh, onDeleted }))
+    const secondSession = { ...session, id: 'second', sessionId: 'session-b' }
+
+    act(() => result.current.requestBulkDelete([session, secondSession]))
+    await act(async () => {
+      await result.current.handleConfirmDelete()
+    })
+
+    expect(deleteSession).toHaveBeenCalledTimes(2)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(onDeleted).toHaveBeenCalledWith([session, secondSession])
+  })
+
   it('toasts an error instead of throwing when the IPC invoke rejects', async () => {
     // The main handler never throws, but the invoke itself can reject on a
     // transport/serialization error; the caller fires this with `void`, so an

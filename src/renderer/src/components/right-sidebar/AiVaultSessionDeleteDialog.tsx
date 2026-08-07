@@ -15,43 +15,56 @@ import { agentLabel } from './ai-vault-session-filters'
 
 export function AiVaultSessionDeleteDialog({
   open,
-  session,
+  sessions,
   deleting,
   onOpenChange,
   onConfirm
 }: {
   open: boolean
-  session: AiVaultSession | null
+  sessions: readonly AiVaultSession[]
   deleting: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }): React.JSX.Element {
   // Why: Radix keeps DialogContent mounted during the close animation; once
   // the caller nulls `session` the copy would flash blank mid-fade-out.
-  const lastSessionRef = useRef<AiVaultSession | null>(session)
-  if (session) {
-    lastSessionRef.current = session
+  const lastSessionsRef = useRef<readonly AiVaultSession[]>(sessions)
+  if (sessions.length > 0) {
+    lastSessionsRef.current = sessions
   }
-  const displayedSession = session ?? lastSessionRef.current
+  const displayedSessions = sessions.length > 0 ? sessions : lastSessionsRef.current
+  const displayedSession = displayedSessions[0] ?? null
+  const multipleSessions = displayedSessions.length > 1
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
           <DialogTitle>
-            {translate(
-              'auto.components.right.sidebar.AiVaultSessionDeleteDialog.title',
-              'Delete this session?'
-            )}
+            {multipleSessions
+              ? translate(
+                  'auto.components.right.sidebar.AiVaultSessionDeleteDialog.bulkTitle',
+                  'Delete selected sessions?'
+                )
+              : translate(
+                  'auto.components.right.sidebar.AiVaultSessionDeleteDialog.title',
+                  'Delete this session?'
+                )}
           </DialogTitle>
           <DialogDescription>
-            {displayedSession
+            {multipleSessions
               ? translate(
-                  'auto.components.right.sidebar.AiVaultSessionDeleteDialog.description',
-                  '"{{value0}}" will be deleted. Once deleted, it will no longer be resumable from {{value1}}\'s own command line either.',
-                  { value0: displayedSession.title, value1: agentLabel(displayedSession.agent) }
+                  'auto.components.right.sidebar.AiVaultSessionDeleteDialog.bulkDescription',
+                  "{{count}} sessions will be deleted. They will no longer be resumable from their agents' own command lines either.",
+                  { count: displayedSessions.length }
                 )
-              : null}
+              : displayedSession
+                ? translate(
+                    'auto.components.right.sidebar.AiVaultSessionDeleteDialog.description',
+                    '"{{value0}}" will be deleted. Once deleted, it will no longer be resumable from {{value1}}\'s own command line either.',
+                    { value0: displayedSession.title, value1: agentLabel(displayedSession.agent) }
+                  )
+                : null}
           </DialogDescription>
         </DialogHeader>
 

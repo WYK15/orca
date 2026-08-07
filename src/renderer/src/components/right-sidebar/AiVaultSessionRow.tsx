@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import type React from 'react'
 import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import {
   AI_VAULT_SESSION_DRAG_END_EVENT,
@@ -53,7 +54,10 @@ export function VaultSessionRow({
   onOpenLog,
   onRevealLog,
   onOpenCwd,
-  onRequestDelete
+  onRequestDelete,
+  selectionMode,
+  selected,
+  onToggleSelection
 }: {
   session: AiVaultSession
   liveState: AgentStatusState | null
@@ -80,6 +84,9 @@ export function VaultSessionRow({
   onRevealLog?: () => void
   onOpenCwd?: () => void
   onRequestDelete: (session: AiVaultSession) => void
+  selectionMode?: boolean
+  selected?: boolean
+  onToggleSelection?: (session: AiVaultSession) => void
 }) {
   const updatedAt = session.updatedAt ?? session.modifiedAt
   const detailsId = getSessionDetailsId(session.id)
@@ -138,54 +145,69 @@ export function VaultSessionRow({
             onToggleDetails()
           }}
         >
-          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-1">
-            <div
-              className={cn(
-                'min-w-0 text-[13px] font-medium leading-5 text-foreground',
-                // Why: only the title is the resume drag handle — expanded
-                // details/preview need text selection and a normal pointer.
-                !resumeDisabled && 'cursor-grab active:cursor-grabbing',
-                detailsExpanded ? 'line-clamp-2 [overflow-wrap:anywhere]' : 'line-clamp-1'
-              )}
-              draggable={!resumeDisabled}
-              title={
-                resumeDisabled
-                  ? undefined
-                  : translate(
-                      'auto.components.right.sidebar.AiVaultSessionRow.dragToResume',
-                      'Drag to resume in a new tab'
-                    )
-              }
-              onDragStart={startResumeDrag}
-              onDragEnd={() => {
-                window.dispatchEvent(new Event(AI_VAULT_SESSION_DRAG_END_EVENT))
-              }}
-            >
-              {session.title}
+          <div className="flex min-w-0 items-center gap-2">
+            {selectionMode ? (
+              <Checkbox
+                checked={selected}
+                disabled={!deletability.deletable}
+                aria-label={translate(
+                  'auto.components.right.sidebar.AiVaultSessionRow.selectSession',
+                  'Select session "{{title}}"',
+                  { title: session.title }
+                )}
+                onClick={(event) => event.stopPropagation()}
+                onCheckedChange={() => onToggleSelection?.(session)}
+              />
+            ) : null}
+            <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-1">
+              <div
+                className={cn(
+                  'min-w-0 text-[13px] font-medium leading-5 text-foreground',
+                  // Why: only the title is the resume drag handle — expanded
+                  // details/preview need text selection and a normal pointer.
+                  !resumeDisabled && 'cursor-grab active:cursor-grabbing',
+                  detailsExpanded ? 'line-clamp-2 [overflow-wrap:anywhere]' : 'line-clamp-1'
+                )}
+                draggable={!resumeDisabled}
+                title={
+                  resumeDisabled
+                    ? undefined
+                    : translate(
+                        'auto.components.right.sidebar.AiVaultSessionRow.dragToResume',
+                        'Drag to resume in a new tab'
+                      )
+                }
+                onDragStart={startResumeDrag}
+                onDragEnd={() => {
+                  window.dispatchEvent(new Event(AI_VAULT_SESSION_DRAG_END_EVENT))
+                }}
+              >
+                {session.title}
+              </div>
+              <SessionRowTrailingActions
+                session={session}
+                detailsExpanded={detailsExpanded}
+                detailsId={detailsId}
+                detailsTooltip={detailsTooltip}
+                resumeDisabled={resumeDisabled}
+                resumeLabel={resumeLabel}
+                worktreeInfo={worktreeInfo}
+                onToggleDetails={onToggleDetails}
+                onJumpToOriginalPane={onJumpToOriginalPane}
+                showJumpToWorktree={showJumpToWorktree}
+                onJumpToWorktree={onJumpToWorktree}
+                onResume={onResume}
+                onContinueInNewSession={onContinueInNewSession}
+                onCopyResume={onCopyResume}
+                onCopyId={onCopyId}
+                onCopyPath={onCopyPath}
+                onOpenLog={onOpenLog}
+                onRevealLog={onRevealLog}
+                onOpenCwd={onOpenCwd}
+                deletability={deletability}
+                onRequestDelete={requestDelete}
+              />
             </div>
-            <SessionRowTrailingActions
-              session={session}
-              detailsExpanded={detailsExpanded}
-              detailsId={detailsId}
-              detailsTooltip={detailsTooltip}
-              resumeDisabled={resumeDisabled}
-              resumeLabel={resumeLabel}
-              worktreeInfo={worktreeInfo}
-              onToggleDetails={onToggleDetails}
-              onJumpToOriginalPane={onJumpToOriginalPane}
-              showJumpToWorktree={showJumpToWorktree}
-              onJumpToWorktree={onJumpToWorktree}
-              onResume={onResume}
-              onContinueInNewSession={onContinueInNewSession}
-              onCopyResume={onCopyResume}
-              onCopyId={onCopyId}
-              onCopyPath={onCopyPath}
-              onOpenLog={onOpenLog}
-              onRevealLog={onRevealLog}
-              onOpenCwd={onOpenCwd}
-              deletability={deletability}
-              onRequestDelete={requestDelete}
-            />
           </div>
           {detailsExpanded && shouldShowAiVaultSessionWorktreeLine(worktreeInfo, { vaultScope }) ? (
             <div className="mt-1">

@@ -48,8 +48,7 @@ import {
 } from './ai-vault-host-scope'
 import { usePersistedAiVaultViewOptions } from './use-persisted-ai-vault-view-options'
 import { AgentSessionContinuationDialog } from '@/components/agent-session-continuation/AgentSessionContinuationDialog'
-import { AiVaultSessionDeleteDialog } from './AiVaultSessionDeleteDialog'
-import { useAiVaultSessionDeleteAction } from './ai-vault-session-delete-action'
+import { useAiVaultBulkSessionDelete } from './use-ai-vault-bulk-session-delete'
 
 export default function AiVaultPanel(): React.JSX.Element {
   const activeWorktreeId = useActiveWorktreeId()
@@ -301,13 +300,7 @@ export default function AiVaultPanel(): React.JSX.Element {
     })
   }, [])
 
-  const {
-    sessionPendingDelete,
-    deletingSession,
-    requestDelete,
-    handleDialogOpenChange: handleDeleteDialogOpenChange,
-    handleConfirmDelete
-  } = useAiVaultSessionDeleteAction({ refresh })
+  const bulkDelete = useAiVaultBulkSessionDelete({ filteredSessions, getSessionLiveState, refresh })
 
   return (
     <div className="@container/ai-vault flex h-full min-h-0 flex-col bg-sidebar">
@@ -327,6 +320,7 @@ export default function AiVaultPanel(): React.JSX.Element {
         group={group}
         hideEmptySessions={hideEmptySessions}
         adjustmentCount={viewAdjustmentCount}
+        selectionMode={bulkDelete.selectionMode}
         onQueryChange={setQuery}
         onScopeChange={handleScopeChange}
         onExecutionHostScopeChange={onExecutionHostScopeChange}
@@ -337,7 +331,9 @@ export default function AiVaultPanel(): React.JSX.Element {
         onHideEmptySessionsChange={setHideEmptySessions}
         onReset={resetViewOptions}
         onRefresh={() => void refresh({ force: true })}
+        onEnterSelectionMode={bulkDelete.enterSelectionMode}
       />
+      {bulkDelete.controls}
 
       {error ? (
         <div className="border-b border-sidebar-border px-3 py-2 text-xs text-destructive">
@@ -397,7 +393,10 @@ export default function AiVaultPanel(): React.JSX.Element {
             void window.api.shell.openPath(session.cwd)
           }
         }}
-        onRequestDelete={requestDelete}
+        onRequestDelete={bulkDelete.requestDelete}
+        selectionMode={bulkDelete.selectionMode}
+        selectedSessionIds={bulkDelete.selectedSessionIds}
+        onToggleSelection={bulkDelete.toggleSession}
       />
       {launchActions.continuationRequest && (
         <AgentSessionContinuationDialog
@@ -406,13 +405,6 @@ export default function AiVaultPanel(): React.JSX.Element {
           onOpenChange={launchActions.handleContinuationDialogOpenChange}
         />
       )}
-      <AiVaultSessionDeleteDialog
-        open={Boolean(sessionPendingDelete)}
-        session={sessionPendingDelete}
-        deleting={deletingSession}
-        onOpenChange={handleDeleteDialogOpenChange}
-        onConfirm={() => void handleConfirmDelete()}
-      />
     </div>
   )
 }

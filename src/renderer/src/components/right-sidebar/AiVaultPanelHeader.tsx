@@ -10,6 +10,7 @@ import type {
 import type { ExecutionHostScope } from '../../../../shared/execution-host'
 import { VaultHostScopeMenu, VaultScopeSwitch, VaultViewMenu } from './AiVaultPanelControls'
 import type { AiVaultHostScopeOption } from './ai-vault-host-scope'
+import { AiVaultSessionSelectionButton } from './AiVaultSessionSelectionToolbar'
 
 type AiVaultPanelHeaderProps = {
   query: string
@@ -27,6 +28,7 @@ type AiVaultPanelHeaderProps = {
   group: AiVaultGroup
   hideEmptySessions: boolean
   adjustmentCount: number
+  selectionMode: boolean
   onQueryChange: (query: string) => void
   onScopeChange: (scope: AiVaultScope) => void
   onExecutionHostScopeChange: (scope: ExecutionHostScope) => void
@@ -37,6 +39,7 @@ type AiVaultPanelHeaderProps = {
   onHideEmptySessionsChange: (hideEmptySessions: boolean) => void
   onReset: () => void
   onRefresh: () => void
+  onEnterSelectionMode: () => void
 }
 
 export function AiVaultPanelHeader({
@@ -55,6 +58,7 @@ export function AiVaultPanelHeader({
   group,
   hideEmptySessions,
   adjustmentCount,
+  selectionMode,
   onQueryChange,
   onScopeChange,
   onExecutionHostScopeChange,
@@ -64,7 +68,8 @@ export function AiVaultPanelHeader({
   onGroupChange,
   onHideEmptySessionsChange,
   onReset,
-  onRefresh
+  onRefresh,
+  onEnterSelectionMode
 }: AiVaultPanelHeaderProps): React.JSX.Element {
   return (
     <div className="shrink-0 border-b border-sidebar-border px-2.5 py-2">
@@ -127,6 +132,7 @@ export function AiVaultPanelHeader({
             onHideEmptySessionsChange={onHideEmptySessionsChange}
             onReset={onReset}
           />
+          {!selectionMode ? <AiVaultSessionSelectionButton onClick={onEnterSelectionMode} /> : null}
           <Button
             type="button"
             variant="ghost"

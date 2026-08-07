@@ -9,17 +9,21 @@ import { translate } from '@/i18n/i18n'
  * settle. Extracted from AiVaultPanel to keep it under the file's line budget.
  */
 export function useAiVaultSessionDeleteAction({
-  refresh
+  refresh,
+  onDeleted
 }: {
   refresh: (options: { force: boolean }) => Promise<void>
+  onDeleted?: (sessions: readonly AiVaultSession[]) => void
 }): {
   sessionPendingDelete: AiVaultSession | null
+  sessionsPendingDelete: readonly AiVaultSession[]
   deletingSession: boolean
   requestDelete: (session: AiVaultSession) => void
+  requestBulkDelete: (sessions: readonly AiVaultSession[]) => void
   handleDialogOpenChange: (open: boolean) => void
   handleConfirmDelete: () => Promise<void>
 } {
-  const [sessionPendingDelete, setSessionPendingDelete] = useState<AiVaultSession | null>(null)
+  const [sessionsPendingDelete, setSessionsPendingDelete] = useState<readonly AiVaultSession[]>([])
   const [deletingSession, setDeletingSession] = useState(false)
 
   const handleDialogOpenChange = useCallback(
@@ -31,33 +35,50 @@ export function useAiVaultSessionDeleteAction({
         return
       }
       if (!open) {
-        setSessionPendingDelete(null)
+        setSessionsPendingDelete([])
       }
     },
     [deletingSession]
   )
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!sessionPendingDelete) {
+    if (sessionsPendingDelete.length === 0) {
       return
     }
     setDeletingSession(true)
     try {
-      const result = await window.api.aiVault.deleteSession({
-        agent: sessionPendingDelete.agent,
-        sessionId: sessionPendingDelete.sessionId,
-        codexHome: sessionPendingDelete.codexHome,
-        filePath: sessionPendingDelete.filePath,
-        executionHostId: sessionPendingDelete.executionHostId
-      })
-      if (result.outcome === 'deleted') {
+      const deletedSessions: AiVaultSession[] = []
+      for (const session of sessionsPendingDelete) {
+        const result = await window.api.aiVault.deleteSession({
+          agent: session.agent,
+          sessionId: session.sessionId,
+          codexHome: session.codexHome,
+          filePath: session.filePath,
+          executionHostId: session.executionHostId
+        })
+        if (result.outcome === 'deleted') {
+          deletedSessions.push(session)
+        }
+      }
+      if (deletedSessions.length > 0) {
         toast.success(
-          translate('auto.components.right.sidebar.AiVaultPanel.sessionDeleted', 'Session deleted')
+          sessionsPendingDelete.length === 1
+            ? translate(
+                'auto.components.right.sidebar.AiVaultPanel.sessionDeleted',
+                'Session deleted'
+              )
+            : translate(
+                'auto.components.right.sidebar.AiVaultPanel.sessionsDeleted',
+                '{{count}} sessions deleted',
+                { count: deletedSessions.length }
+              )
         )
         // Belt to the main side's braces: caches are already invalidated there,
         // this force refresh is only for immediate UX.
         void refresh({ force: true })
-      } else {
+        onDeleted?.(deletedSessions)
+      }
+      if (deletedSessions.length !== sessionsPendingDelete.length) {
         // 'rejected' and 'failed' share one generic, translated message — the
         // specific reason is a main-side detail, not something to surface raw.
         toast.error(
@@ -81,14 +102,16 @@ export function useAiVaultSessionDeleteAction({
       )
     } finally {
       setDeletingSession(false)
-      setSessionPendingDelete(null)
+      setSessionsPendingDelete([])
     }
-  }, [refresh, sessionPendingDelete])
+  }, [onDeleted, refresh, sessionsPendingDelete])
 
   return {
-    sessionPendingDelete,
+    sessionPendingDelete: sessionsPendingDelete[0] ?? null,
+    sessionsPendingDelete,
     deletingSession,
-    requestDelete: setSessionPendingDelete,
+    requestDelete: (session) => setSessionsPendingDelete([session]),
+    requestBulkDelete: setSessionsPendingDelete,
     handleDialogOpenChange,
     handleConfirmDelete
   }
