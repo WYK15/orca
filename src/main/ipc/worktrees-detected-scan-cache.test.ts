@@ -150,6 +150,48 @@ describe('registerWorktreeHandlers', () => {
     })
   })
 
+  it('keeps a WSL timeout non-authoritative and does not cache it as an empty scan', async () => {
+    setPlatform('win32')
+    store.getProjects.mockReturnValue([
+      {
+        id: 'project-1',
+        displayName: 'repo',
+        badgeColor: '#000',
+        sourceRepoIds: ['repo-1'],
+        localWindowsRuntimePreference: { kind: 'wsl', distro: 'Ubuntu' },
+        createdAt: 0,
+        updatedAt: 0
+      }
+    ])
+    listWorktreesMock.mockRejectedValueOnce(new Error('wsl.exe timed out')).mockResolvedValueOnce([
+      {
+        path: '/workspace/repo',
+        head: 'def456',
+        branch: 'refs/heads/main',
+        isBare: false,
+        isMainWorktree: true
+      }
+    ])
+
+    const failed = await handlers['worktrees:listDetected'](null, { repoId: 'repo-1' })
+    const recovered = await handlers['worktrees:listDetected'](null, { repoId: 'repo-1' })
+
+    expect(failed).toMatchObject({
+      authoritative: false,
+      source: 'metadata-fallback',
+      worktrees: []
+    })
+    expect(recovered).toMatchObject({
+      authoritative: true,
+      source: 'git',
+      worktrees: [expect.objectContaining({ path: '/workspace/repo' })]
+    })
+    expect(listWorktreesMock).toHaveBeenCalledTimes(2)
+    expect(listWorktreesMock).toHaveBeenNthCalledWith(1, '/workspace/repo', {
+      wslDistro: 'Ubuntu'
+    })
+  })
+
   it('reuses a recent authoritative detected worktree scan', async () => {
     listWorktreesMock.mockResolvedValue([
       {

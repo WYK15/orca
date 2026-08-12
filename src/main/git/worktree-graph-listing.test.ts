@@ -158,7 +158,7 @@ branch refs/heads/main
     ])
   })
 
-  it('does not retry without -z for non-usage Git failures', async () => {
+  it('rejects non-usage Git failures instead of reporting an empty graph', async () => {
     // A fatal error (exit 128) is not an unsupported-flag signal, so the -z
     // command must not be silently re-run without it.
     gitExecFileAsyncMock.mockRejectedValueOnce(
@@ -168,7 +168,7 @@ branch refs/heads/main
       })
     )
 
-    await expect(listWorktreeGraph('/repo')).resolves.toEqual([])
+    await expect(listWorktreeGraph('/repo')).rejects.toMatchObject({ code: 128 })
 
     expect(gitExecFileAsyncMock.mock.calls).toEqual([
       [
