@@ -18,6 +18,7 @@ import type { RemoteScannerContext, RemoteSessionCandidate } from './remote-sess
 import { sessionSortTime } from './session-scanner-accumulator'
 import { createAntigravityWorkspaceResolver } from './session-scanner-antigravity-history'
 import { errorMessage } from './session-scanner-values'
+import { parseRemoteSessionCandidateCached } from './remote-session-parse-cache'
 
 const DEFAULT_REMOTE_SCAN_LIMIT = 1000
 const REMOTE_SCAN_CONCURRENCY = 8
@@ -161,19 +162,21 @@ async function parseRemoteSessionCandidate(
   issues: AiVaultScanIssue[]
 ): Promise<AiVaultSession | null> {
   try {
-    const read = await context.provider.readFile(candidate.file.path)
-    if (read.isBinary) {
-      return null
-    }
-    const session = await candidate.source.parse(candidate.file, read.content, context)
-    // Mirror the local rule: every session carries its sibling subagent
-    // transcript count (row badge; recoverable signal at zero turns). The
-    // walk listing supplies it — the parser can't readdir a remote disk.
-    const subagentTranscriptCount = candidate.subagentTranscriptCount ?? 0
-    if (session && subagentTranscriptCount > 0) {
-      return { ...session, subagentTranscriptCount }
-    }
-    return session
+    return await parseRemoteSessionCandidateCached({
+      candidate,
+      executionHostId: context.executionHostId,
+      parse: async () => {
+        const read = await context.provider.readFile(candidate.file.path)
+        if (read.isBinary) {
+          return null
+        }
+        const session = await candidate.source.parse(candidate.file, read.content, context)
+        const subagentTranscriptCount = candidate.subagentTranscriptCount ?? 0
+        return session && subagentTranscriptCount > 0
+          ? { ...session, subagentTranscriptCount }
+          : session
+      }
+    })
   } catch (err) {
     issues.push({
       executionHostId: context.executionHostId,

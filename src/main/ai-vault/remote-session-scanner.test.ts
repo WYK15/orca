@@ -1,14 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import type { DirEntry } from '../../shared/types'
 import type { FileReadResult, FileStat, IFilesystemProvider } from '../providers/types'
 import { getRemoteHostPlatform } from '../ssh/ssh-remote-platform'
 import { scanRemoteAiVaultSessions } from './remote-session-scanner'
+import { resetRemoteSessionParseCacheForTests } from './remote-session-parse-cache'
 
 class MemoryRemoteProvider implements IFilesystemProvider {
   private readonly files = new Map<string, { content: string; mtimeMs: number }>()
   private readonly readDirErrors = new Map<string, Error>()
   private readonly statErrors = new Map<string, Error>()
   readonly readDirPaths: string[] = []
+  readonly readFilePaths: string[] = []
 
   addFile(path: string, content: string, mtimeMs: number): void {
     this.files.set(normalize(path), { content, mtimeMs })
@@ -53,6 +55,7 @@ class MemoryRemoteProvider implements IFilesystemProvider {
   }
 
   async readFile(filePath: string): Promise<FileReadResult> {
+    this.readFilePaths.push(normalize(filePath))
     const file = this.files.get(normalize(filePath))
     if (!file) {
       throw new Error(`ENOENT: ${filePath}`)
@@ -92,6 +95,10 @@ async function unsupported(): Promise<never> {
   throw new Error('unsupported')
 }
 
+beforeEach(() => {
+  resetRemoteSessionParseCacheForTests()
+})
+
 function normalize(path: string): string {
   return path.replace(/\\/g, '/').replace(/\/+$/, '')
 }
@@ -101,6 +108,75 @@ function jsonLines(records: unknown[]): string {
 }
 
 describe('scanRemoteAiVaultSessions', () => {
+  it('reuses unchanged remote transcripts without reading them again', async () => {
+    const provider = new MemoryRemoteProvider()
+    const transcriptPath = '/home/ada/.claude/projects/repo/session.jsonl'
+    provider.addFile(
+      transcriptPath,
+      jsonLines([
+        {
+          sessionId: 'session',
+          timestamp: '2026-07-04T04:00:00.000Z',
+          type: 'user',
+          message: { content: [{ type: 'text', text: 'Keep the relay cool' }] }
+        }
+      ]),
+      40
+    )
+    const args = {
+      provider,
+      executionHostId: 'ssh:dev-box' as const,
+      remoteHome: '/home/ada',
+      hostPlatform: getRemoteHostPlatform('linux-x64')
+    }
+
+    await scanRemoteAiVaultSessions(args)
+    await scanRemoteAiVaultSessions(args)
+
+    expect(provider.readFilePaths.filter((path) => path === transcriptPath)).toHaveLength(1)
+  })
+
+  it('re-reads a remote transcript after its metadata changes', async () => {
+    const provider = new MemoryRemoteProvider()
+    const transcriptPath = '/home/ada/.claude/projects/repo/session.jsonl'
+    provider.addFile(
+      transcriptPath,
+      jsonLines([
+        {
+          sessionId: 'session',
+          timestamp: '2026-07-04T04:00:00.000Z',
+          type: 'user',
+          message: { content: [{ type: 'text', text: 'First title' }] }
+        }
+      ]),
+      40
+    )
+    const args = {
+      provider,
+      executionHostId: 'ssh:dev-box' as const,
+      remoteHome: '/home/ada',
+      hostPlatform: getRemoteHostPlatform('linux-x64')
+    }
+
+    await scanRemoteAiVaultSessions(args)
+    provider.addFile(
+      transcriptPath,
+      jsonLines([
+        {
+          sessionId: 'session',
+          timestamp: '2026-07-04T04:00:00.000Z',
+          type: 'user',
+          message: { content: [{ type: 'text', text: 'Updated title' }] }
+        }
+      ]),
+      41
+    )
+    const refreshed = await scanRemoteAiVaultSessions(args)
+
+    expect(provider.readFilePaths.filter((path) => path === transcriptPath)).toHaveLength(2)
+    expect(refreshed.sessions[0]?.title).toBe('Updated title')
+  })
+
   it('parses remote default and Orca-managed Codex homes with SSH host ids', async () => {
     const provider = new MemoryRemoteProvider()
     provider.addFile(
