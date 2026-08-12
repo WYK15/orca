@@ -15,6 +15,7 @@ import { resetProcessTableSnapshotForTests } from '../shared/process-table-snaps
 import {
   getForegroundProcessName,
   isProcessAlive,
+  processHasChildren,
   resolveDefaultCwd,
   resolveWindowsDefaultShell
 } from './pty-shell-utils'
@@ -277,6 +278,31 @@ describe('resolveDefaultCwd', () => {
 
   it('keeps POSIX HOME fallback behavior', () => {
     expect(resolveDefaultCwd({ HOME: '/home/alice' }, 'linux', '/fallback')).toBe('/home/alice')
+  })
+})
+
+describe('processHasChildren', () => {
+  it('reads Linux direct children from procfs without spawning pgrep', async () => {
+    const readChildrenFile = vi.fn(() => '321 654\n')
+
+    await expect(processHasChildren(123, readChildrenFile, 'linux')).resolves.toBe(true)
+
+    expect(readChildrenFile).toHaveBeenCalledWith('/proc/123/task/123/children', 'utf-8')
+    expect(execFileMock).not.toHaveBeenCalled()
+  })
+
+  it('treats a missing Linux children entry as no child process', async () => {
+    await expect(
+      processHasChildren(
+        123,
+        () => {
+          throw new Error('process exited')
+        },
+        'linux'
+      )
+    ).resolves.toBe(false)
+
+    expect(execFileMock).not.toHaveBeenCalled()
   })
 })
 

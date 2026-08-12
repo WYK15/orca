@@ -165,10 +165,19 @@ export async function resolveProcessCwd(pid: number, fallbackCwd: string): Promi
   return fallbackCwd
 }
 
-/**
- * Check whether a process has child processes (via pgrep).
- */
-export async function processHasChildren(pid: number): Promise<boolean> {
+/** Check whether a process has child processes. */
+export async function processHasChildren(
+  pid: number,
+  readChildrenFile: (path: string, encoding: BufferEncoding) => string = readFileSync,
+  platform: NodeJS.Platform = process.platform
+): Promise<boolean> {
+  if (platform === 'linux') {
+    try {
+      return readChildrenFile(`/proc/${pid}/task/${pid}/children`, 'utf-8').trim().length > 0
+    } catch {
+      return false
+    }
+  }
   try {
     const { stdout } = await execFile('pgrep', ['-P', String(pid)], {
       encoding: 'utf-8',
