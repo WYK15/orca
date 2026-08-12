@@ -63,6 +63,7 @@ const {
   return {
     appMock: {
       isPackaged: true,
+      getAppPath: vi.fn(() => '/Applications/Orcaw.app/Contents/Resources/app.asar'),
       getVersion: vi.fn(() => '1.0.51'),
       on: appOn,
       emit: appEmit,

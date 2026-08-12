@@ -97,7 +97,7 @@ vi.mock('./ipc/pty', () => ({
 }))
 vi.mock('./updater-delivery-policy', async (importOriginal) => ({
   ...(await importOriginal<typeof UpdaterDeliveryPolicy>()),
-  readPackagedMacAutoUpdateEnabled: () => true
+  readPackagedReleaseAutoUpdateEnabled: () => true
 }))
 
 vi.mock('./updater-nudge', () => ({

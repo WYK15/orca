@@ -191,7 +191,7 @@ vi.mock('./updater-prerelease-feed', () => ({
 
 vi.mock('./updater-delivery-policy', async (importOriginal) => ({
   ...(await importOriginal<typeof UpdaterDeliveryPolicy>()),
-  readPackagedMacAutoUpdateEnabled: () => true
+  readPackagedReleaseAutoUpdateEnabled: () => true
 }))
 
 vi.mock('./local-builds/local-build-switch', () => ({
@@ -251,6 +251,19 @@ describe('updater', () => {
     expect(autoUpdaterMock.checkForUpdates).not.toHaveBeenCalled()
     expect(powerMonitorOnMock).not.toHaveBeenCalled()
   })
+
+  it.runIf(process.platform === 'darwin')(
+    'automatically downloads updates for signed macOS releases',
+    async () => {
+      const { setupAutoUpdater } = await import('./updater')
+
+      setupAutoUpdater({ webContents: { send: vi.fn() } } as never, {
+        getLastUpdateCheckAt: () => Date.now()
+      })
+
+      expect(autoUpdaterMock.autoDownload).toBe(true)
+    }
+  )
 
   it.each([
     ['hourly', 'v1.4.160-hourly.202607281400', 'Hourly builds are produced only for macOS.'],

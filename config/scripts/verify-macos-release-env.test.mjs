@@ -39,6 +39,8 @@ describe('macOS release environment', () => {
       "APPLE_API_KEY_BASE64: ${{ matrix.platform == 'macos' && secrets.APPLE_API_KEY || '' }}"
     )
     expect(workflow).toContain('APPLE_API_KEY=$api_key_path')
+    expect(workflow).toContain('ORCA_MACOS_SIGNING_KEYCHAIN=$keychain_path')
+    expect(workflow).toContain('security import "$certificate_path" -k "$keychain_path"')
     for (const key of ['CSC_LINK', 'CSC_KEY_PASSWORD', 'APPLE_API_KEY_ID', 'APPLE_API_ISSUER']) {
       expect(workflow).toContain(
         `${key}: \${{ matrix.platform == 'macos' && secrets.${key} || '' }}`

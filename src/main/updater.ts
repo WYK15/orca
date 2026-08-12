@@ -2025,7 +2025,7 @@ export function setupAutoUpdater(
   )
 
   const autoUpdater = getAutoUpdater()
-  autoUpdater.autoDownload = false
+  autoUpdater.autoDownload = process.platform === 'darwin' && releaseUpdateDelivery === 'automatic'
   if (activeUpdateSource === 'release') {
     autoUpdater.allowDowngrade = false
     autoUpdater.disableDifferentialDownload = false
