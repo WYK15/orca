@@ -718,7 +718,7 @@ export async function listWorktreeGraph(
       return []
     }
     console.warn(`[git/worktree] listWorktreeGraph failed for ${repoPath}:`, err)
-    return []
+    throw err
   }
 }
 
@@ -819,9 +819,9 @@ async function listWorktreesUnshared(
     if (isNotGitRepositoryError(err)) {
       return []
     }
-    // Why: don't swallow git-compat/repo-state failures — else they resurface as opaque "created but not found in listing" errors.
+    // Why: an operational failure is unknown state, never proof that every worktree is gone.
     console.warn(`[git/worktree] listWorktrees failed for ${repoPath}:`, err)
-    return []
+    throw err
   }
 }
 
