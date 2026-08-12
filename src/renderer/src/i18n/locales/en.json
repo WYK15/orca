@@ -11258,7 +11258,13 @@
             "localSessionSshWorkspaceUnsupported": "This session's history is stored on this machine, so it can't resume in an SSH workspace. Open a local workspace instead.",
             "prepareSessionResumeFailed": "Could not prepare this session for resume.",
             "sessionDeleted": "Session deleted",
-            "sessionDeleteFailed": "Couldn't delete the session"
+            "sessionDeleteFailed": "Couldn't delete the session",
+            "selectAllSessions": "Select all sessions",
+            "sessionsSelected": "{{count}} selected",
+            "cancelSelection": "Cancel",
+            "deleteSelected": "Delete",
+            "selectSessions": "Select",
+            "sessionsDeleted": "{{count}} sessions deleted"
           },
           "AiVaultPanelControls": {
             "scanningSessions": "Scanning sessions",
@@ -11395,13 +11401,16 @@
             "deleteReasonNonLocalHost": "Only sessions on this device can be deleted.",
             "deleteReasonSyntheticPath": "This session can't be deleted from Orca.",
             "deleteReasonUnsupportedAgent": "{{value0}} sessions can't be deleted from Orca.",
-            "deleteReasonSessionLive": "This session is still running — wait for it to finish before deleting."
+            "deleteReasonSessionLive": "This session is still running — wait for it to finish before deleting.",
+            "selectSession": "Select session \"{{title}}\""
           },
           "AiVaultSessionDeleteDialog": {
             "title": "Delete this session?",
             "description": "\"{{value0}}\" will be deleted. Once deleted, it will no longer be resumable from {{value1}}'s own command line either.",
             "cancel": "Cancel",
-            "confirm": "Delete"
+            "confirm": "Delete",
+            "bulkTitle": "Delete selected sessions?",
+            "bulkDescription": "{{count}} sessions will be deleted. They will no longer be resumable from their agents' own command lines either."
           },
           "FileExplorerNameFilter": {
             "26fb73c6e3": "Find files",

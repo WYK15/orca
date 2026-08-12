@@ -99,7 +99,7 @@ describe('listWorktrees in-flight sharing', () => {
     expect(gitExecFileAsyncMock).toHaveBeenCalledTimes(2)
   })
 
-  it('runs a fresh scan after a timed-out shared scan settles', async () => {
+  it('rejects a timed-out shared scan and runs a fresh scan afterward', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     try {
       gitExecFileAsyncMock
@@ -108,7 +108,7 @@ describe('listWorktrees in-flight sharing', () => {
           stdout: 'worktree /repo\nHEAD abc123\nbranch refs/heads/main\n'
         })
 
-      await expect(listWorktrees('/repo')).resolves.toEqual([])
+      await expect(listWorktrees('/repo')).rejects.toThrow('git timed out.')
       await expect(listWorktrees('/repo')).resolves.toEqual([
         expect.objectContaining({ path: '/repo', head: 'abc123' })
       ])
@@ -677,7 +677,7 @@ branch refs/heads/main
     ])
   })
 
-  it('does not retry without -z for non-usage Git failures', async () => {
+  it('rejects non-usage Git failures instead of reporting an empty graph', async () => {
     // A fatal error (exit 128) is not an unsupported-flag signal, so the -z
     // command must not be silently re-run without it.
     gitExecFileAsyncMock.mockRejectedValueOnce(
@@ -687,7 +687,7 @@ branch refs/heads/main
       })
     )
 
-    await expect(listWorktreeGraph('/repo')).resolves.toEqual([])
+    await expect(listWorktreeGraph('/repo')).rejects.toMatchObject({ code: 128 })
 
     expect(gitExecFileAsyncMock.mock.calls).toEqual([
       [
