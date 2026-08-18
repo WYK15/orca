@@ -1987,6 +1987,55 @@ describe('TabsSlice', () => {
   })
 
   describe('reconcileWorktreeTabModel', () => {
+    it('preserves the active editor tab across equivalent Windows path spellings', () => {
+      const worktreeId = 'repo1::C:\\Repo'
+      const groupId = 'g-windows'
+      const firstFileId = 'C:\\Repo\\src\\a.ts'
+      const activeFileId = 'c:/repo/src/b.ts'
+
+      store.setState({
+        openFiles: [
+          makeOpenFile({ id: firstFileId, filePath: firstFileId, worktreeId }),
+          makeOpenFile({ id: activeFileId, filePath: activeFileId, worktreeId })
+        ],
+        unifiedTabsByWorktree: {
+          [worktreeId]: [
+            makeUnifiedTab({
+              id: 'tab-a',
+              entityId: firstFileId,
+              groupId,
+              worktreeId,
+              contentType: 'editor'
+            }),
+            makeUnifiedTab({
+              id: 'tab-b',
+              entityId: 'C:\\Repo\\src\\b.ts',
+              groupId,
+              worktreeId,
+              contentType: 'editor'
+            })
+          ]
+        },
+        groupsByWorktree: {
+          [worktreeId]: [
+            makeTabGroup({
+              id: groupId,
+              worktreeId,
+              activeTabId: 'tab-b',
+              tabOrder: ['tab-a', 'tab-b']
+            })
+          ]
+        },
+        activeGroupIdByWorktree: { [worktreeId]: groupId }
+      })
+
+      const result = store.getState().reconcileWorktreeTabModel(worktreeId)
+
+      expect(result.activeRenderableTabId).toBe('tab-b')
+      expect(store.getState().groupsByWorktree[worktreeId][0].activeTabId).toBe('tab-b')
+      expect(store.getState().unifiedTabsByWorktree[worktreeId][1].entityId).toBe(activeFileId)
+    })
+
     it('drops unified tabs whose backing content no longer exists', () => {
       const groupId = 'g-1'
       store.setState({

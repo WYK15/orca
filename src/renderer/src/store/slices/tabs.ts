@@ -44,6 +44,7 @@ import {
   buildValidWorktreeIdsForSessionHydration,
   collectPersistedWorktreeIdsForSessionHydration
 } from './degraded-repo-worktree-validity'
+import { resolveLiveEditorTabEntityId } from './editor-tab-file-identity'
 
 export type TabSplitDirection = 'left' | 'right' | 'up' | 'down'
 
@@ -1879,27 +1880,33 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
     const liveTerminalIds = new Set(
       runtimeTerminalTabs.filter((tab) => !orphanTerminalIds.has(tab.id)).map((tab) => tab.id)
     )
-    const liveEditorIds = new Set(
-      state.openFiles.filter((file) => file.worktreeId === worktreeId).map((file) => file.id)
-    )
     const liveBrowserIds = new Set(
       (state.browserTabsByWorktree[worktreeId] ?? []).map((browserTab) => browserTab.id)
     )
 
-    const isRenderableTab = (tab: Tab): boolean => {
+    const reconcileRenderableTab = (tab: Tab): Tab | null => {
       if (tab.contentType === 'terminal') {
-        return liveTerminalIds.has(tab.entityId)
+        return liveTerminalIds.has(tab.entityId) ? tab : null
       }
       if (tab.contentType === 'browser') {
-        return liveBrowserIds.has(tab.entityId)
+        return liveBrowserIds.has(tab.entityId) ? tab : null
       }
       if (tab.contentType === 'simulator') {
-        return true
+        return tab
       }
-      return liveEditorIds.has(tab.entityId)
+      const entityId = resolveLiveEditorTabEntityId(
+        state.openFiles,
+        worktreeId,
+        tab.contentType,
+        tab.entityId
+      )
+      return entityId ? (entityId === tab.entityId ? tab : { ...tab, entityId }) : null
     }
 
-    const validTabs = reconciledUnifiedTabs.filter(isRenderableTab)
+    const validTabs = reconciledUnifiedTabs.flatMap((tab) => {
+      const reconciled = reconcileRenderableTab(tab)
+      return reconciled ? [reconciled] : []
+    })
     const validTabIds = new Set(validTabs.map((tab) => tab.id))
 
     const nextGroupsWithEmpty = reconciledGroups.map((group) => {
@@ -1938,7 +1945,10 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
     const groupsChanged =
       nextGroups.length !== groups.length ||
       nextGroups.some((group, index) => group !== groups[index])
-    const tabsChanged = validTabs.length !== unifiedTabs.length || restoredLegacyTabs.length > 0
+    const tabsChanged =
+      validTabs.length !== unifiedTabs.length ||
+      restoredLegacyTabs.length > 0 ||
+      validTabs.some((tab, index) => tab !== unifiedTabs[index])
     const activeGroupChanged = nextActiveGroupId !== currentActiveGroupId
 
     const baseNextLayout =
