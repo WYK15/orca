@@ -18,26 +18,31 @@ describe('markdown table of contents', () => {
       {
         id: 'intro',
         level: 1,
+        line: 1,
         title: 'Intro',
         children: [
           {
             id: 'setup',
             level: 2,
+            line: 3,
             title: 'Setup',
             children: [
               {
                 id: 'install',
                 level: 3,
+                line: 5,
                 title: 'Install',
                 children: [
                   {
                     id: 'configure',
                     level: 4,
+                    line: 7,
                     title: 'Configure',
                     children: [
                       {
                         id: 'options',
                         level: 5,
+                        line: 9,
                         title: 'Options',
                         children: []
                       }
@@ -50,6 +55,7 @@ describe('markdown table of contents', () => {
           {
             id: 'usage',
             level: 2,
+            line: 11,
             title: 'Usage',
             children: []
           }
@@ -62,6 +68,13 @@ describe('markdown table of contents', () => {
     const toc = buildMarkdownTableOfContents('---\ntitle: Doc\n---\n# Visible\n###### Hidden')
 
     expect(toc.map((item) => item.title)).toEqual(['Visible'])
+  })
+
+  it('records source lines for ATX and setext headings', () => {
+    const toc = buildMarkdownTableOfContents('---\ntitle: Doc\n---\n# Intro\n\nSetext heading\n---')
+
+    expect(toc[0]).toMatchObject({ title: 'Intro', line: 4 })
+    expect(toc[0].children[0]).toMatchObject({ title: 'Setext heading', line: 6 })
   })
 
   it('skips headings inside fenced code blocks', () => {
@@ -79,17 +92,20 @@ describe('markdown table of contents', () => {
       {
         id: 'indented',
         level: 2,
+        line: 3,
         title: 'Indented',
         children: []
       },
       {
         id: 'setext-title',
         level: 2,
+        line: 5,
         title: 'Setext Title',
         children: [
           {
             id: 'httpsexamplecom',
             level: 3,
+            line: 8,
             title: 'https://example.com',
             children: []
           }

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { OpenFile } from '@/store/slices/editor'
 
@@ -25,7 +25,8 @@ const lifecycle = vi.hoisted(() => ({
     readOnly?: boolean
     liveTail?: boolean
     viewStateId?: string
-  }[]
+  }[],
+  setPendingEditorReveal: vi.fn()
 }))
 
 vi.mock('@/lib/lazy-with-retry', async () => {
@@ -131,7 +132,7 @@ vi.mock('@/store', () => ({
         openConflictReview: vi.fn(),
         closeFile: vi.fn(),
         setRightSidebarTab: vi.fn(),
-        setPendingEditorReveal: vi.fn(),
+        setPendingEditorReveal: lifecycle.setPendingEditorReveal,
         reloadOpenCheckRunDetailsTab: vi.fn()
       }),
     {
@@ -147,7 +148,7 @@ vi.mock('@/store', () => ({
         openConflictReview: vi.fn(),
         closeFile: vi.fn(),
         setRightSidebarTab: vi.fn(),
-        setPendingEditorReveal: vi.fn(),
+        setPendingEditorReveal: lifecycle.setPendingEditorReveal,
         reloadOpenCheckRunDetailsTab: vi.fn()
       })
     }
@@ -219,6 +220,7 @@ afterEach(() => {
   lifecycle.mountedProps.length = 0
   lifecycle.notebookProps.length = 0
   lifecycle.richMarkdownProps.length = 0
+  lifecycle.setPendingEditorReveal.mockReset()
 })
 
 describe('EditorContent Monaco lifecycle boundary', () => {
@@ -310,6 +312,33 @@ describe('EditorContent Monaco lifecycle boundary', () => {
       scrollCacheKey: `${notebook.filePath}::same-pane:notebook`,
       onContentChange: notebookProps.handleContentChange,
       onSave: notebookProps.handleSave
+    })
+  })
+
+  it('updates source headings from drafts and reveals the selected line in Monaco', () => {
+    const markdown = file('/repo/README.md', { language: 'markdown' })
+    const sourceProps = {
+      ...props(markdown, '# Saved heading'),
+      resolvedLanguage: 'markdown',
+      isMarkdown: true,
+      mdViewMode: 'source' as const,
+      showMarkdownTableOfContents: true
+    }
+    const view = render(<EditorContent {...sourceProps} />)
+
+    expect(screen.getByRole('button', { name: 'Saved heading' })).toBeTruthy()
+
+    view.rerender(
+      <EditorContent {...sourceProps} editBuffers={{ [markdown.id]: '\n\n# Draft heading' }} />
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Draft heading' }))
+
+    expect(lifecycle.setPendingEditorReveal).toHaveBeenCalledWith({
+      fileId: markdown.id,
+      filePath: markdown.filePath,
+      line: 3,
+      column: 1,
+      matchLength: 0
     })
   })
 

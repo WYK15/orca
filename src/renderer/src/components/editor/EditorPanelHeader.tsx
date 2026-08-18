@@ -303,15 +303,10 @@ export function EditorPanelHeader({
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom" sideOffset={4}>
-              {isMarkdownTableOfContentsDisabled
-                ? translate(
-                    'auto.components.editor.EditorPanelHeader.146cb5473c',
-                    'Table of Contents is available in rich or preview mode'
-                  )
-                : translate(
-                    'auto.components.editor.EditorPanelHeader.5447c4f68f',
-                    'Table of Contents'
-                  )}
+              {translate(
+                'auto.components.editor.EditorPanelHeader.5447c4f68f',
+                'Table of Contents'
+              )}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

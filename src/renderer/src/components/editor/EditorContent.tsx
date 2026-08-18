@@ -8,6 +8,7 @@ import { EditorConflictReviewSurface } from './EditorConflictReviewSurface'
 import { EditorDiffFileSurface } from './EditorDiffFileSurface'
 import { EditorEditFileSurface } from './EditorEditFileSurface'
 import { EditorFileLoadErrorView } from './EditorFileLoadErrorView'
+import { MarkdownSourceEditorSurface } from './MarkdownSourceEditorSurface'
 import type { FileContent } from './editor-panel-content-types'
 import { translate } from '@/i18n/i18n'
 import { useEditorConflictNavigation } from './useEditorConflictNavigation'
@@ -105,6 +106,7 @@ export function EditorContent({
       : `${activeFile.filePath}::${viewStateScopeId}:pdf`
   const monacoLanguage = resolvedLanguage === 'notebook' ? 'json' : resolvedLanguage
   const reloadOpenCheckRunDetailsTab = useAppStore((state) => state.reloadOpenCheckRunDetailsTab)
+  const setPendingEditorReveal = useAppStore((state) => state.setPendingEditorReveal)
   const markdownDocuments = useMarkdownDocuments(activeFile, isMarkdown, mdViewMode, handleSave)
   const getConflictNavigation = useEditorConflictNavigation()
   const activeConflictEntry =
@@ -221,14 +223,15 @@ export function EditorContent({
   }
 
   if (activeFile.mode === 'edit') {
-    return (
+    const fileContent = fileContents[activeFile.id]
+    const editFileSurface = (
       <EditorEditFileSurface
         activeFile={activeFile}
         viewStateScopeId={viewStateScopeId}
         editorViewStateKey={editorViewStateKey}
         diffViewStateKey={diffViewStateKey}
         pdfViewStateKey={pdfViewStateKey}
-        fileContent={fileContents[activeFile.id]}
+        fileContent={fileContent}
         diffContent={diffContents[activeFile.id]}
         editBuffer={editBuffers[activeFile.id]}
         activeConflictEntry={activeConflictEntry}
@@ -254,6 +257,38 @@ export function EditorContent({
         reloadContent={reloadContent}
       />
     )
+    const markdownSourceContent = editBuffers[activeFile.id] ?? fileContent?.content
+    const shouldShowMarkdownSourceTableOfContents =
+      isMarkdown &&
+      mdViewMode === 'source' &&
+      !isChangesMode &&
+      activeFile.conflict?.kind !== 'conflict-placeholder' &&
+      fileContent?.isBinary === false &&
+      fileContent.loadError === undefined &&
+      markdownSourceContent !== undefined
+
+    if (shouldShowMarkdownSourceTableOfContents) {
+      return (
+        <MarkdownSourceEditorSurface
+          content={markdownSourceContent}
+          showTableOfContents={showMarkdownTableOfContents}
+          onCloseTableOfContents={onCloseMarkdownTableOfContents}
+          onNavigateLine={(line) =>
+            setPendingEditorReveal({
+              fileId: activeFile.id,
+              filePath: activeFile.filePath,
+              line,
+              column: 1,
+              matchLength: 0
+            })
+          }
+        >
+          {editFileSurface}
+        </MarkdownSourceEditorSurface>
+      )
+    }
+
+    return editFileSurface
   }
 
   return (

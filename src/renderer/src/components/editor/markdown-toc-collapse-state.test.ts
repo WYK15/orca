@@ -12,26 +12,31 @@ const sampleToc: MarkdownTocItem[] = [
   {
     id: 'intro',
     level: 1,
+    line: 1,
     title: 'Intro',
     children: [
       {
         id: 'setup',
         level: 2,
+        line: 2,
         title: 'Setup',
         children: [
           {
             id: 'install',
             level: 3,
+            line: 3,
             title: 'Install',
             children: [
               {
                 id: 'configure',
                 level: 4,
+                line: 4,
                 title: 'Configure',
                 children: [
                   {
                     id: 'options',
                     level: 5,
+                    line: 5,
                     title: 'Options',
                     children: []
                   }
@@ -44,6 +49,7 @@ const sampleToc: MarkdownTocItem[] = [
       {
         id: 'usage',
         level: 2,
+        line: 6,
         title: 'Usage',
         children: []
       }
