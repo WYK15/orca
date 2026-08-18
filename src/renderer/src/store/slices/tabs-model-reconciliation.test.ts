@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type * as AgentStatusModule from '@/lib/agent-status'
 import { createTabsSliceMockApi } from './tabs-slice-test-harness'
+import { resolveLiveEditorTabEntityId } from './editor-tab-file-identity'
 import { createTestStore } from './store-test-helpers'
 
 // Mock sonner (imported by repos.ts)
@@ -473,6 +474,90 @@ describe('TabsSlice', () => {
       const result = store.getState().reconcileWorktreeTabModel(WT)
       expect(result.renderableTabCount).toBe(1)
       expect(result.activeRenderableTabId).toBe(tab.id)
+    })
+
+    it('preserves the active editor tab across equivalent Windows path spellings', () => {
+      const worktreeId = 'repo1::C:\\Repo'
+      const groupId = 'g-windows'
+      const firstFileId = 'C:\\Repo\\src\\a.ts'
+      const activeFileId = 'c:/repo/src/b.ts'
+
+      store.setState({
+        openFiles: [
+          {
+            id: firstFileId,
+            filePath: firstFileId,
+            relativePath: 'src/a.ts',
+            worktreeId,
+            language: 'typescript',
+            isDirty: false,
+            mode: 'edit'
+          },
+          {
+            id: activeFileId,
+            filePath: activeFileId,
+            relativePath: 'src/b.ts',
+            worktreeId,
+            language: 'typescript',
+            isDirty: false,
+            mode: 'edit'
+          }
+        ],
+        unifiedTabsByWorktree: {
+          [worktreeId]: [
+            {
+              id: 'tab-a',
+              entityId: firstFileId,
+              groupId,
+              worktreeId,
+              contentType: 'editor',
+              label: 'a.ts',
+              customLabel: null,
+              color: null,
+              sortOrder: 0,
+              createdAt: 1
+            },
+            {
+              id: 'tab-b',
+              entityId: 'C:\\Repo\\src\\b.ts',
+              groupId,
+              worktreeId,
+              contentType: 'editor',
+              label: 'b.ts',
+              customLabel: null,
+              color: null,
+              sortOrder: 1,
+              createdAt: 2
+            }
+          ]
+        },
+        groupsByWorktree: {
+          [worktreeId]: [
+            {
+              id: groupId,
+              worktreeId,
+              activeTabId: 'tab-b',
+              tabOrder: ['tab-a', 'tab-b']
+            }
+          ]
+        },
+        activeGroupIdByWorktree: { [worktreeId]: groupId }
+      })
+
+      expect(
+        resolveLiveEditorTabEntityId(
+          store.getState().openFiles,
+          worktreeId,
+          'editor',
+          'C:\\Repo\\src\\b.ts'
+        )
+      ).toBe(activeFileId)
+
+      const result = store.getState().reconcileWorktreeTabModel(worktreeId)
+
+      expect(result.activeRenderableTabId).toBe('tab-b')
+      expect(store.getState().groupsByWorktree[worktreeId][0].activeTabId).toBe('tab-b')
+      expect(store.getState().unifiedTabsByWorktree[worktreeId][1].entityId).toBe(activeFileId)
     })
   })
 })
