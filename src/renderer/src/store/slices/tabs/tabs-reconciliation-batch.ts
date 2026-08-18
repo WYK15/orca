@@ -1,4 +1,8 @@
 import type { AppState } from '../../types'
+import {
+  indexLiveEditorTabFile,
+  type LiveEditorTabFileIdentityIndex
+} from '../editor-tab-file-identity'
 
 /**
  * Scratch shared by one multi-workspace reconciliation fold.
@@ -13,6 +17,7 @@ export type WorktreeTabModelReconciliationBatch = {
   /** Top-level `AppState` keys this fold already cloned and therefore owns. */
   readonly ownedStateKeys: Set<string>
   readonly liveEditorIdsByWorktree: ReadonlyMap<string, Set<string>>
+  readonly liveEditorIdentityByWorktree: ReadonlyMap<string, LiveEditorTabFileIdentityIndex>
 }
 
 export const EMPTY_LIVE_EDITOR_IDS: ReadonlySet<string> = new Set<string>()
@@ -21,6 +26,7 @@ export function createWorktreeTabModelReconciliationBatch(
   state: Pick<AppState, 'openFiles'>
 ): WorktreeTabModelReconciliationBatch {
   const liveEditorIdsByWorktree = new Map<string, Set<string>>()
+  const liveEditorIdentityByWorktree = new Map<string, LiveEditorTabFileIdentityIndex>()
   for (const file of state.openFiles) {
     let ids = liveEditorIdsByWorktree.get(file.worktreeId)
     if (!ids) {
@@ -28,8 +34,18 @@ export function createWorktreeTabModelReconciliationBatch(
       liveEditorIdsByWorktree.set(file.worktreeId, ids)
     }
     ids.add(file.id)
+    let identities = liveEditorIdentityByWorktree.get(file.worktreeId)
+    if (!identities) {
+      identities = new Map()
+      liveEditorIdentityByWorktree.set(file.worktreeId, identities)
+    }
+    indexLiveEditorTabFile(identities, file)
   }
-  return { ownedStateKeys: new Set<string>(), liveEditorIdsByWorktree }
+  return {
+    ownedStateKeys: new Set<string>(),
+    liveEditorIdsByWorktree,
+    liveEditorIdentityByWorktree
+  }
 }
 
 /**

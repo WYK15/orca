@@ -8,10 +8,11 @@ import {
   terminalTabHasReconnectablePty
 } from '../terminal-orphan-helpers'
 import {
-  EMPTY_LIVE_EDITOR_IDS,
+  createWorktreeTabModelReconciliationBatch,
   writeBatchedWorkspaceRecordEntry,
   type WorktreeTabModelReconciliationBatch
 } from './tabs-reconciliation-batch'
+import { resolveIndexedLiveEditorTabEntityId } from '../editor-tab-file-identity'
 
 export type WorktreeTabModelReconciliation = {
   patch: Partial<AppState>
@@ -106,33 +107,42 @@ export function projectWorktreeTabModelReconciliation(
   )
   // Why batched: the unbatched scan is O(openFiles) per workspace, so a
   // whole-session reconcile is O(workspaces x openFiles).
-  const liveEditorIds: ReadonlySet<string> = batch
-    ? (batch.liveEditorIdsByWorktree.get(worktreeId) ?? EMPTY_LIVE_EDITOR_IDS)
-    : new Set(
-        state.openFiles.filter((file) => file.worktreeId === worktreeId).map((file) => file.id)
-      )
+  const editorIdentities = (
+    batch ?? createWorktreeTabModelReconciliationBatch(state)
+  ).liveEditorIdentityByWorktree.get(worktreeId)
   const liveBrowserIds = new Set(
     (state.browserTabsByWorktree[worktreeId] ?? []).map((browserTab) => browserTab.id)
   )
 
-  const isRenderableTab = (tab: Tab): boolean => {
+  const reconcileRenderableTab = (tab: Tab): Tab | null => {
     if (tab.contentType === 'terminal') {
-      return liveTerminalIds.has(tab.entityId)
+      return liveTerminalIds.has(tab.entityId) ? tab : null
     }
     if (tab.contentType === 'browser') {
-      return liveBrowserIds.has(tab.entityId)
+      return liveBrowserIds.has(tab.entityId) ? tab : null
     }
     if (tab.contentType === 'simulator' || tab.contentType === 'agent-session') {
-      return true
+      return tab
     }
-    return liveEditorIds.has(tab.entityId)
+    const entityId = resolveIndexedLiveEditorTabEntityId(
+      editorIdentities,
+      tab.contentType,
+      tab.entityId
+    )
+    return entityId ? (entityId === tab.entityId ? tab : { ...tab, entityId }) : null
   }
 
-  const renderableTabs = reconciledUnifiedTabs.filter(isRenderableTab)
+  const renderableTabs = reconciledUnifiedTabs.flatMap((tab) => {
+    const reconciled = reconcileRenderableTab(tab)
+    return reconciled ? [reconciled] : []
+  })
   // Why: hand the stored array back when nothing was filtered, so an unrelated
   // change (orphans, layout) does not give `unifiedTabsByWorktree` a new identity.
   const validTabs =
-    renderableTabs.length === reconciledUnifiedTabs.length ? reconciledUnifiedTabs : renderableTabs
+    renderableTabs.length === reconciledUnifiedTabs.length &&
+    renderableTabs.every((tab, index) => tab === reconciledUnifiedTabs[index])
+      ? reconciledUnifiedTabs
+      : renderableTabs
   const validTabIds = new Set(validTabs.map((tab) => tab.id))
   const nextGroupsWithEmpty = reconciledGroups.map((group) => {
     const tabOrder = group.tabOrder.filter((tabId) => validTabIds.has(tabId))
