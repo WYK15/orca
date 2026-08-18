@@ -148,6 +148,12 @@ describe('getEditorPanelRenderModel read-only raw rendering (AI Vault View Log)'
 })
 
 describe('getEditorPanelRenderModel markdown export affordance', () => {
+  it('keeps the table of contents enabled in source mode', () => {
+    const model = renderModel({ markdownViewMode: { '/repo/README.md': 'source' } })
+
+    expect(model.isMarkdownTableOfContentsDisabled).toBe(false)
+  })
+
   it('enables export for rendered markdown edit tabs', () => {
     expect(renderModel({}).canExportMarkdownToPdf).toBe(true)
   })

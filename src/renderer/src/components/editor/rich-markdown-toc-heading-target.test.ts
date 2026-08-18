@@ -10,7 +10,7 @@ function makeTocItem(
   title: string,
   children: MarkdownTocItem[] = []
 ): MarkdownTocItem {
-  return { id, level, title, children }
+  return { id, level, line: 1, title, children }
 }
 
 describe('findRichMarkdownTocHeadingTarget', () => {

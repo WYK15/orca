@@ -30,6 +30,7 @@ import { getDiffContentSignature } from './diff-content-signature'
 import { translate } from '@/i18n/i18n'
 import { CheckRunDetailsPanel } from './CheckRunDetailsPanel'
 import { ExternalFileChangeBanner } from './ExternalFileChangeBanner'
+import { MarkdownSourceEditorSurface } from './MarkdownSourceEditorSurface'
 
 const MonacoEditor = lazy(() => import('./MonacoEditor'))
 const DiffViewer = lazy(() => import('./DiffViewer'))
@@ -356,9 +357,33 @@ export function EditorContent({
       viewMode: mdViewMode
     })
 
+    const renderMarkdownSource = (headerSlot?: React.ReactNode): React.JSX.Element => (
+      <div className="flex h-full min-h-0 flex-col">
+        {headerSlot}
+        <div className="min-h-0 flex-1">
+          <MarkdownSourceEditorSurface
+            content={currentContent}
+            showTableOfContents={showMarkdownTableOfContents}
+            onCloseTableOfContents={onCloseMarkdownTableOfContents}
+            onNavigateLine={(line) =>
+              setPendingEditorReveal({
+                fileId: activeFile.id,
+                filePath: activeFile.filePath,
+                line,
+                column: 1,
+                matchLength: 0
+              })
+            }
+          >
+            {renderMonacoEditor(fc)}
+          </MarkdownSourceEditorSurface>
+        </div>
+      </div>
+    )
+
     if (activeFile.conflict?.conflictStatus === 'unresolved') {
       // Why: rich/preview modes hide the conflict-marker source text the user must edit directly.
-      return <div className="h-full min-h-0">{renderMonacoEditor(fc)}</div>
+      return renderMarkdownSource()
     }
 
     // Why: banner explains why the "rich" view is showing Monaco source (size forced a source-mode fallback).
@@ -366,12 +391,9 @@ export function EditorContent({
       const richFallbackMessage =
         richModeUnsupportedMessage ??
         'File is too large for rich editing. Showing source mode instead.'
-      return (
-        <div className="flex h-full min-h-0 flex-col">
-          <div className="border-b border-border/60 bg-blue-500/10 px-3 py-2 text-xs text-blue-950 dark:text-blue-100">
-            {richFallbackMessage}
-          </div>
-          <div className="min-h-0 flex-1 h-full">{renderMonacoEditor(fc)}</div>
+      return renderMarkdownSource(
+        <div className="border-b border-border/60 bg-blue-500/10 px-3 py-2 text-xs text-blue-950 dark:text-blue-100">
+          {richFallbackMessage}
         </div>
       )
     }
@@ -455,7 +477,7 @@ export function EditorContent({
     }
 
     // Why: Monaco with height="100%" sizes to its immediate parent, so the wrapper needs an explicit height or it collapses.
-    return <div className="h-full min-h-0">{renderMonacoEditor(fc)}</div>
+    return renderMarkdownSource()
   }
 
   const renderConflictReviewEditorContent = ({

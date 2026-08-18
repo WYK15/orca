@@ -173,7 +173,7 @@ export function getEditorPanelRenderModel({
     availableEditorToggleModes,
     hasEditorToggle: availableEditorToggleModes.length > 1,
     effectiveToggleValue,
-    isMarkdownTableOfContentsDisabled: hasViewModeToggle && mdViewMode === 'source',
+    isMarkdownTableOfContentsDisabled: false,
     shouldShowMarkdownExportAction,
     canExportMarkdownToPdf,
     canShowMarkdownTableOfContents:
