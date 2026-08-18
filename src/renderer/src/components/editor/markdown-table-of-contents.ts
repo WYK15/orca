@@ -11,6 +11,7 @@ export type MarkdownTocItem = {
   children: MarkdownTocItem[]
   id: string
   level: MarkdownTocLevel
+  line: number
   title: string
 }
 
@@ -116,6 +117,7 @@ type MarkdownAstNode = {
   alt?: string | null
   children?: MarkdownAstNode[]
   depth?: number
+  position?: { start?: { line?: number } }
   type?: string
   value?: string
 }
@@ -135,7 +137,7 @@ function markdownAstNodeToText(node: MarkdownAstNode): string {
 
 export function buildMarkdownTableOfContents(markdown: string): MarkdownTocItem[] {
   const slugger = new MarkdownHeadingSlugger()
-  const root = { id: 'toc-root', level: 1 as const, title: '', children: [] }
+  const root = { id: 'toc-root', level: 1 as const, line: 0, title: '', children: [] }
   const stack: MarkdownTocItem[] = [root]
 
   // Why: parsing Markdown keeps the TOC aligned with rendered setext/GFM/entity
@@ -154,11 +156,13 @@ export function buildMarkdownTableOfContents(markdown: string): MarkdownTocItem[
       isMarkdownTocLevel(node.depth)
     ) {
       const title = foldMarkdownTocWhitespace(markdownAstNodeToText(node))
-      if (title) {
+      const line = node.position?.start?.line
+      if (title && typeof line === 'number') {
         appendTocItem(stack, {
           children: [],
           id: slugger.slug(title),
           level: node.depth,
+          line,
           title
         })
       }

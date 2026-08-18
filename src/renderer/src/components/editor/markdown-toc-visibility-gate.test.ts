@@ -20,7 +20,7 @@ describe('selectMarkdownTableOfContents', () => {
   })
 
   it('parses the document when the panel is open', () => {
-    const build = vi.fn(() => [{ id: 'x', level: 1 as const, title: 'X', children: [] }])
+    const build = vi.fn(() => [{ id: 'x', level: 1 as const, line: 1, title: 'X', children: [] }])
     const result = selectMarkdownTableOfContents(true, SAMPLE, build)
     expect(build).toHaveBeenCalledExactlyOnceWith(SAMPLE)
     expect(result).toHaveLength(1)

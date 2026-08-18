@@ -1,4 +1,12 @@
 import type { MarkdownToken } from '@tiptap/core'
+import {
+  markdownFenceRanges,
+  isInsideMarkdownFence as isInsideRange,
+  transformOutsideMarkdownFences,
+  hasOnlySupportedDetailsBodyHtml,
+  type MarkdownFenceRanges
+} from './details-markdown-fences'
+export type { MarkdownFenceRanges } from './details-markdown-fences'
 
 // Toggle summaries can render at heading scales 1–5, mirroring the plain
 // heading levels the slash menu / toolbar dropdown offer (h1–h5).
@@ -36,10 +44,6 @@ export type DetailsHtmlBlock = {
   inner: string
 }
 
-// Fence ranges depend only on the scanned string, so callers scanning one body
-// repeatedly compute them once and share them across sibling matches.
-export type MarkdownFenceRanges = readonly (readonly [number, number])[]
-
 export type DetailsSummaryHtml = {
   attributes: string
   content: string
@@ -69,11 +73,12 @@ export function parseDetailsAttributes(rawAttributes: string): Record<string, un
 }
 
 export function detailsBodyHtmlToMarkdown(body: string): string {
-  return body
-    .replace(/<p\b[^>]*>/gi, '')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .trim()
+  return transformOutsideMarkdownFences(body, (content) =>
+    content
+      .replace(/<p\b[^>]*>/gi, '')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+  ).trim()
 }
 
 export function renderDetailsAttributes(attrs: Record<string, unknown> | undefined): string {
@@ -91,48 +96,12 @@ export function renderDetailsAttributes(attrs: Record<string, unknown> | undefin
   return attributes.join(' ')
 }
 
-function markdownFenceRanges(content: string): MarkdownFenceRanges {
-  const ranges: [number, number][] = []
-  let offset = 0
-  let openFence: { closingPattern: RegExp; start: number } | null = null
-
-  for (const lineMatch of content.matchAll(/[^\r\n]*(?:\r\n|\n|\r|$)/g)) {
-    const line = lineMatch[0]
-    if (line === '') {
-      break
-    }
-
-    const lineText = line.replace(/(?:\r\n|\n|\r)$/u, '')
-    if (openFence) {
-      // Built once per fence: rebuilding it per line recompiled the same regex for every fenced line.
-      if (openFence.closingPattern.test(lineText)) {
-        ranges.push([openFence.start, offset + line.length])
-        openFence = null
-      }
-    } else {
-      const openingFenceMatch = lineText.match(/^ {0,3}(`{3,}|~{3,})/u)
-      if (openingFenceMatch?.[1]) {
-        openFence = {
-          closingPattern: new RegExp(
-            `^ {0,3}${openingFenceMatch[1][0]}{${openingFenceMatch[1].length},}\\s*$`
-          ),
-          start: offset
-        }
-      }
-    }
-
-    offset += line.length
-  }
-
-  if (openFence) {
-    ranges.push([openFence.start, content.length])
-  }
-
-  return ranges
-}
-
-function isInsideRange(index: number, ranges: MarkdownFenceRanges): boolean {
-  return ranges.some(([start, end]) => index >= start && index < end)
+export function createDetailsHtmlBlockMatcher(
+  content: string
+): (start: number) => DetailsHtmlBlock | null {
+  const fenceRanges = markdownFenceRanges(content)
+  return (start) =>
+    isInsideRange(start, fenceRanges) ? null : matchDetailsHtmlBlock(content, start, fenceRanges)
 }
 
 export function matchDetailsHtmlBlock(
@@ -204,10 +173,6 @@ export function normalizeDetailsOpeningTag(fragment: string): string {
     return fragment
   }
   return `<details ${renderDetailsAttributes(parseDetailsAttributes(attributes))}>`
-}
-
-function hasOnlyPlainParagraphAndBreakTags(content: string): boolean {
-  return !/<p\b(?!\s*>)[^>]*>|<br\b(?!\s*\/?>)[^>]*>/iu.test(content)
 }
 
 export function extractDetailsSummaryHtml(inner: string): DetailsSummaryHtml | null {
@@ -298,11 +263,16 @@ function stripEditableNestedDetails(bodyHtml: string, nestingLevel: number): str
       return result + bodyHtml.slice(index)
     }
 
+    fenceRanges ??= markdownFenceRanges(bodyHtml)
+    if (isInsideRange(nestedStart, fenceRanges)) {
+      result += bodyHtml.slice(index, nestedStart + 1)
+      index = nestedStart + 1
+      continue
+    }
     if (nestingLevel >= MAX_DETAILS_NESTING_LEVELS) {
       return null
     }
 
-    fenceRanges ??= markdownFenceRanges(bodyHtml)
     const nested = matchDetailsHtmlBlock(bodyHtml, nestedStart, fenceRanges)
     if (!nested || !isEditableDetailsHtmlBlock(nested, nestingLevel + 1)) {
       return null
@@ -336,11 +306,5 @@ export function isEditableDetailsHtmlBlock(block: DetailsHtmlBlock, nestingLevel
     return false
   }
 
-  if (!hasOnlyPlainParagraphAndBreakTags(bodyHtml)) {
-    return false
-  }
-
-  const allowedHtmlRemoved = bodyHtml.replace(/<\/?p\b[^>]*>/gi, '').replace(/<br\s*\/?>/gi, '')
-
-  return !/<\/?[A-Za-z][\w.:-]*(?:\s[^<>]*?)?\/?>/.test(allowedHtmlRemoved)
+  return hasOnlySupportedDetailsBodyHtml(bodyHtml)
 }

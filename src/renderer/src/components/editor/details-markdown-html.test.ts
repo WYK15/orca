@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  createDetailsHtmlBlockMatcher,
   extractDetailsSummaryHtml,
   isEditableDetailsHtmlBlock,
   matchDetailsHtmlBlock,
@@ -27,6 +28,21 @@ afterEach(() => {
 })
 
 describe('details markdown html', () => {
+  it('reuses one fence scan across sibling matches', () => {
+    const matchAll = vi.spyOn(String.prototype, 'matchAll')
+    const first = '<details><summary>One</summary>Body</details>'
+    const second = '<details><summary>Two</summary>Body</details>'
+    const content = `${first}\n\n${second}\n`
+    const matchDetails = createDetailsHtmlBlockMatcher(content)
+    expect(matchDetails(0)?.raw).toBe(first)
+    expect(matchDetails(content.indexOf(second))?.raw).toBe(second)
+    expect(
+      matchAll.mock.calls.filter(
+        ([pattern]) => pattern instanceof RegExp && pattern.source.startsWith('[^\\r\\n]*')
+      )
+    ).toHaveLength(1)
+  })
+
   it.each([
     ['<details>', '<details class="orca-details">'],
     ['<details open="open">', '<details class="orca-details" open>'],

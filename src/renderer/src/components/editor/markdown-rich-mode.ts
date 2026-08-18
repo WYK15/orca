@@ -4,6 +4,9 @@ import { getRichMarkdownRoundTripOutput } from './markdown-round-trip'
 import { extractFrontMatter } from './markdown-frontmatter'
 import { exceedsMarkdownRichModeSizeLimit } from './markdown-rich-size-limit'
 import { translate } from '@/i18n/i18n'
+import { stripEditableDetailsHtml } from './markdown-editable-details'
+import { stripMarkdownCode } from './markdown-rich-code-scanning'
+import { RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS } from './rich-markdown-source-reconcile'
 
 export type MarkdownRichModeUnsupportedReason =
   | 'html-or-jsx'
@@ -59,7 +62,7 @@ const UNSUPPORTED_PATTERNS: UnsupportedMatch[] = [
         'Editable only in code mode because this file contains reference-style links.'
       )
     },
-    pattern: /^\[[^\]]+\]:\s+\S+/m
+    pattern: /^\[(?!\^)[^\]]+\]:\s+\S+/m
   },
   {
     reason: 'footnotes',
@@ -100,6 +103,8 @@ export function getMarkdownRichModeUnsupportedReason(
   const body = fm ? fm.body : content
 
   const contentWithoutCode = stripMarkdownCode(body)
+  const supportedDetails = stripEditableDetailsHtml(body)
+  const contentWithoutDetailsOrCode = stripMarkdownCode(supportedDetails.content)
 
   // Why: run cheap regex checks first. If no unsupported syntax is detected,
   // rich mode is safe — no need for the expensive round-trip check. The
@@ -108,7 +113,7 @@ export function getMarkdownRichModeUnsupportedReason(
   // opinion when HTML is detected, to verify the HTML survives the round-trip
   // before blocking the user from rich mode.
   const htmlMatcher = UNSUPPORTED_PATTERNS.find((m) => m.reason === 'html-or-jsx')
-  const hasHtml = htmlMatcher && hasHtmlOrJsx(contentWithoutCode, htmlMatcher.pattern)
+  const hasHtml = htmlMatcher && hasHtmlOrJsx(contentWithoutDetailsOrCode, htmlMatcher.pattern)
 
   for (const matcher of UNSUPPORTED_PATTERNS) {
     if (matcher.reason === 'html-or-jsx') {
@@ -119,12 +124,20 @@ export function getMarkdownRichModeUnsupportedReason(
     }
   }
 
-  if (hasHtml) {
-    // Why: the round-trip check creates a throwaway TipTap Editor synchronously
-    // on the main thread. For large files this blocks for seconds, so we skip it and conservatively block rich mode for HTML files
-    // above this threshold.
-    const roundTripOutput = body.length <= 50_000 ? getRichMarkdownRoundTripOutput(body) : null
-    if (roundTripOutput && preservesEmbeddedHtml(contentWithoutCode, roundTripOutput)) {
+  if (hasHtml || supportedDetails.didStrip) {
+    // Unknown HTML stays bounded at 50k; editable details share the source-preservation cap.
+    const limit =
+      supportedDetails.didStrip && !hasHtml ? RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS : 50_000
+    const roundTripOutput = body.length <= limit ? getRichMarkdownRoundTripOutput(body) : null
+    if (
+      roundTripOutput &&
+      (!supportedDetails.didStrip ||
+        roundTripOutput.length <= RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS) &&
+      preservesEmbeddedHtml(
+        stripMarkdownCode(supportedDetails.preservationContent),
+        roundTripOutput
+      )
+    ) {
       return null
     }
     return htmlMatcher!.reason
@@ -184,33 +197,6 @@ function isHtmlOrJsxFragment(fragment: string): boolean {
 
   const suffix = fragment.slice(tagName.length + 1, -1)
   return suffix.length > 0 || KNOWN_MARKDOWN_HTML_TAG_NAMES.has(tagName.toLowerCase())
-}
-
-function stripMarkdownCode(content: string): string {
-  let sanitized = ''
-  let activeFence: '`' | '~' | null = null
-  let lineStart = 0
-
-  while (lineStart <= content.length) {
-    const newlineIndex = content.indexOf('\n', lineStart)
-    const index = newlineIndex === -1 ? content.length : newlineIndex
-    const lineEnd = index > lineStart && content.charCodeAt(index - 1) === 13 ? index - 1 : index
-    const line = content.slice(lineStart, lineEnd)
-    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/)
-    if (fenceMatch) {
-      const fenceMarker = fenceMatch[1][0] as '`' | '~'
-      activeFence = activeFence === fenceMarker ? null : fenceMarker
-    } else if (!activeFence) {
-      sanitized += line.replace(/`+[^`\n]*`+/g, '')
-    }
-
-    if (index < content.length) {
-      sanitized += '\n'
-    }
-    lineStart = index + 1
-  }
-
-  return sanitized
 }
 
 function preservesEmbeddedHtml(contentWithoutCode: string, roundTripOutput: string): boolean {

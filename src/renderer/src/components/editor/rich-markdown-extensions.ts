@@ -44,6 +44,7 @@ import { RichMarkdownCodeBlockLowlight } from './rich-markdown-lowlight'
 import { RichMarkdownTaskList } from './rich-markdown-task-list'
 import { createCachedLowlight } from './rich-markdown-lowlight-cache'
 import { createRichMarkdownSafeHtmlExtensions } from './rich-markdown-safe-html'
+import { RichMarkdownInlineInput } from './rich-markdown-inline-input'
 
 const lowlight = createCachedLowlight(createLowlight(common))
 
@@ -259,6 +260,7 @@ export function createRichMarkdownExtensions({
     createRawMarkdownHtmlInline(codec.transport),
     createRawMarkdownHtmlBlock(codec.transport),
     createMarkdownDocLink(codec.transport),
+    RichMarkdownInlineInput,
     DragSelectionGuard,
     createRichMarkdownExtension(codec, htmlSuperscriptLinks).configure({
       marked: codec.marked,

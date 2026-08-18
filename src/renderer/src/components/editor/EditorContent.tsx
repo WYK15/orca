@@ -8,6 +8,7 @@ import { EditorConflictReviewSurface } from './EditorConflictReviewSurface'
 import { EditorDiffFileSurface } from './EditorDiffFileSurface'
 import { EditorEditFileSurface } from './EditorEditFileSurface'
 import { EditorFileLoadErrorView } from './EditorFileLoadErrorView'
+import { EditorMarkdownSourceOutline } from './EditorMarkdownSourceOutline'
 import type { FileContent } from './editor-panel-content-types'
 import { buildPdfScalePreferenceKey } from './pdf-scale-preference-storage'
 import { translate } from '@/i18n/i18n'
@@ -230,39 +231,50 @@ export function EditorContent({
 
   if (activeFile.mode === 'edit') {
     return (
-      <EditorEditFileSurface
+      <EditorMarkdownSourceOutline
         activeFile={activeFile}
-        viewStateScopeId={viewStateScopeId}
-        editorViewStateKey={editorViewStateKey}
-        diffViewStateKey={diffViewStateKey}
-        pdfViewStateKey={pdfViewStateKey}
-        pdfPreferenceKey={pdfPreferenceKey}
         fileContent={fileContents[activeFile.id]}
-        diffContent={diffContents[activeFile.id]}
         editBuffer={editBuffers[activeFile.id]}
-        activeConflictEntry={activeConflictEntry}
-        monacoLanguage={monacoLanguage}
         isMarkdown={isMarkdown}
-        isMermaid={isMermaid}
-        isCsv={isCsv}
-        isNotebook={isNotebook}
         mdViewMode={mdViewMode}
-        inlineMarkdownRenderState={inlineMarkdownRenderState}
         isChangesMode={isChangesMode}
-        sideBySide={sideBySide}
-        showMarkdownTableOfContents={showMarkdownTableOfContents}
-        showMarkdownFrontmatter={showMarkdownFrontmatter}
-        onCloseMarkdownTableOfContents={onCloseMarkdownTableOfContents}
-        markdownAnnotationsEnabled={markdownAnnotationsEnabled}
-        pendingEditorReveal={pendingEditorReveal}
-        markdownDocuments={markdownDocuments}
-        getConflictNavigation={getConflictNavigation}
-        getMarkdownSourceLineOffset={getMarkdownSourceLineOffset}
-        handleContentChange={handleContentChange}
-        handleDirtyStateHint={handleDirtyStateHint}
-        handleSave={handleSave}
-        reloadContent={reloadContent}
-      />
+        showTableOfContents={showMarkdownTableOfContents}
+        onCloseTableOfContents={onCloseMarkdownTableOfContents}
+      >
+        <EditorEditFileSurface
+          activeFile={activeFile}
+          viewStateScopeId={viewStateScopeId}
+          editorViewStateKey={editorViewStateKey}
+          diffViewStateKey={diffViewStateKey}
+          pdfViewStateKey={pdfViewStateKey}
+          pdfPreferenceKey={pdfPreferenceKey}
+          fileContent={fileContents[activeFile.id]}
+          diffContent={diffContents[activeFile.id]}
+          editBuffer={editBuffers[activeFile.id]}
+          activeConflictEntry={activeConflictEntry}
+          monacoLanguage={monacoLanguage}
+          isMarkdown={isMarkdown}
+          isMermaid={isMermaid}
+          isCsv={isCsv}
+          isNotebook={isNotebook}
+          mdViewMode={mdViewMode}
+          inlineMarkdownRenderState={inlineMarkdownRenderState}
+          isChangesMode={isChangesMode}
+          sideBySide={sideBySide}
+          showMarkdownTableOfContents={showMarkdownTableOfContents}
+          showMarkdownFrontmatter={showMarkdownFrontmatter}
+          onCloseMarkdownTableOfContents={onCloseMarkdownTableOfContents}
+          markdownAnnotationsEnabled={markdownAnnotationsEnabled}
+          pendingEditorReveal={pendingEditorReveal}
+          markdownDocuments={markdownDocuments}
+          getConflictNavigation={getConflictNavigation}
+          getMarkdownSourceLineOffset={getMarkdownSourceLineOffset}
+          handleContentChange={handleContentChange}
+          handleDirtyStateHint={handleDirtyStateHint}
+          handleSave={handleSave}
+          reloadContent={reloadContent}
+        />
+      </EditorMarkdownSourceOutline>
     )
   }
 
