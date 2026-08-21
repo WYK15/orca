@@ -1,0 +1,59 @@
+name: Fork Upstream Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: Stable upstream tag, for example v1.4.187
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: sync stable upstream
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPSTREAM_TAG: ${{ inputs.upstream_tag }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate stable upstream tag
+        run: node config/scripts/fork-release-contract.mjs --stable-tag "$UPSTREAM_TAG"
+
+      - name: Fetch and validate upstream release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git remote remove upstream 2>/dev/null || true
+          git remote add upstream https://github.com/stablyai/orca.git
+          git fetch upstream "refs/tags/$UPSTREAM_TAG:refs/tags/$UPSTREAM_TAG"
+          git show "$UPSTREAM_TAG:package.json" > /tmp/upstream-package.json
+          UPSTREAM_VERSION="$(node -p "require('/tmp/upstream-package.json').version")"
+          node config/scripts/fork-release-contract.mjs --release \
+            "$UPSTREAM_TAG" "$UPSTREAM_VERSION" \
+            "$UPSTREAM_VERSION-wyk.1" "v$UPSTREAM_VERSION-wyk.1"
+
+      - name: Require a fast-forward update
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin upstream-sync >/dev/null 2>&1; then
+            git fetch origin refs/heads/upstream-sync:refs/remotes/origin/upstream-sync
+            git merge-base --is-ancestor origin/upstream-sync "$UPSTREAM_TAG"
+          fi
+
+      - name: Update upstream-sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          git branch --force upstream-sync-candidate "$UPSTREAM_TAG"
+          git diff --quiet upstream-sync-candidate "$UPSTREAM_TAG"
+          gh auth setup-git
+          git push origin upstream-sync-candidate:refs/heads/upstream-sync
