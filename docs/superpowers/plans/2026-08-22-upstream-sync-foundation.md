@@ -17,6 +17,7 @@
 - `main` may be rewritten only during an approved adoption and only with `--force-with-lease`; this foundation plan uses a fast-forward promotion and does not rewrite it.
 - No persistent customization may be retired automatically; `upstream-candidate` remains replay-required until explicit confirmation.
 - Every downstream behavior that must survive a future adoption needs a stable `ORCAW-NNN` record.
+- Treat the upstream-sync and customization-replay governance itself as active customization `ORCAW-015`; consolidate its foundation commits during the first curated replay.
 - Existing release tags remain immutable.
 - Preserve the `v<upstream>-wyk.<revision>` version format and reset the revision to `1` only after adopting a new upstream base.
 - Do not add scheduled workflow triggers; the fork intentionally disables inherited cron schedules.
@@ -218,8 +219,9 @@ Keep the existing backport and desktop-package sections. Replace `## Persistent 
 | ORCAW-012 | Remote transcript parse cache | upstream-candidate | 1.4.165-wyk.8 | Reuse unchanged remote AI Vault transcript parses | `src/main/ai-vault/remote-session-parse-cache.ts`, `src/main/ai-vault/remote-session-scanner.ts` | `src/main/ai-vault/remote-session-scanner.test.ts` | pending upstream review |
 | ORCAW-013 | Windows editor tab identity | upstream-candidate | 1.4.165-wyk.10 | Preserve active-file tabs across Windows path identity variants | `src/renderer/src/store/slices/editor-tab-file-identity.ts`, `src/renderer/src/store/slices/tabs.ts` | `src/renderer/src/store/slices/tabs.test.ts` | pending upstream review |
 | ORCAW-014 | Markdown editing and source outline | upstream-candidate | 1.4.165-wyk.11 | Preserve source editing, Markdown table of contents, and inline editing behavior | `src/renderer/src/components/editor/MarkdownSourceEditorSurface.tsx`, `src/renderer/src/components/editor/markdown-table-of-contents.ts`, `src/renderer/src/components/editor/rich-markdown-inline-input.ts` | `src/renderer/src/components/editor/EditorContent.monaco-lifecycle.test.tsx`, `src/renderer/src/components/editor/MarkdownTableOfContentsPanel.test.tsx`, `src/renderer/src/components/editor/rich-markdown-inline-input.test.ts` | pending upstream review |
+| ORCAW-015 | Upstream sync and customization replay governance | active | unreleased | Preserve stable-only upstream tracking, customization registration, replay coverage, version alignment, and explicit retirement approval | `FORK_NOTES.md`, `AGENTS.md`, `.github/workflows/fork-upstream-sync.yml`, `config/scripts/fork-customization-registry.mjs`, `config/scripts/fork-customization-commit-coverage.mjs`, `config/scripts/fork-release-contract.mjs` | `config/scripts/fork-customization-registry.test.mjs`, `config/scripts/fork-customization-commit-coverage.test.mjs`, `config/scripts/fork-release-contract.test.mjs`, `config/scripts/fork-upstream-sync-workflow.test.mjs` | none |
 
-Do not mark any candidate retired in this task.
+Do not mark any candidate retired in this task. Replace `unreleased` with the first published Orcaw version that contains ORCAW-015.
 
 - [ ] **Step 5: Run registry verification**
 
@@ -230,7 +232,7 @@ pnpm exec vitest run --config config/vitest.config.ts config/scripts/fork-custom
 node config/scripts/fork-customization-registry.mjs FORK_NOTES.md
 ```
 
-Expected: tests PASS and CLI prints `Validated 14 fork customizations`.
+Expected: tests PASS and CLI prints `Validated 15 fork customizations`.
 
 - [ ] **Step 6: Commit the registry**
 
@@ -626,18 +628,19 @@ Add to `package.json`:
 
 Add `pnpm run verify:fork-customizations` to the existing `lint` command after the generated-skill checks. Do not add the history coverage check to ordinary lint because pre-migration history does not yet contain trailers and shallow CI checkouts may not have adoption tags.
 
-- [ ] **Step 2: Strengthen the agent fork-maintenance rules**
+- [ ] **Step 2: Complete the agent fork-maintenance rules**
 
-Replace the branch-model-neutral sentence in `AGENTS.md` with concise rules:
+Verify that `AGENTS.md` already contains these approved project rules:
 
 ```markdown
 - Keep `upstream-sync` identical to a selected stable `stablyai/orca` release; never add downstream commits to it.
 - Keep persistent downstream behavior in isolated commits on `main` with a registered `Fork-Customization: ORCAW-NNN` trailer.
+- Treat upstream-sync and customization-replay governance as persistent customization `ORCAW-015`.
 - Treat `upstream-candidate` as replay-required until behavioral equivalence is explicitly confirmed; never retire a customization automatically.
 - Rewrite `main` only during an approved upstream adoption, preserve a recovery tag, and push only with `--force-with-lease`.
 ```
 
-Retain the existing requirements for small changes, upstreamable fixes, tests, and `FORK_NOTES.md`.
+Add a concise pointer to `docs/reference/fork-upstream-sync.md` once that file exists. Retain the existing requirements for small changes, upstreamable fixes, tests, and `FORK_NOTES.md`.
 
 - [ ] **Step 3: Write the operator reference**
 
@@ -818,7 +821,8 @@ Do not create `upstream-base/v1.4.187` yet: that tag is created only after `main
 
 This plan deliberately stops before replaying the 134 legacy fork-only commits onto `v1.4.187`. After Tasks 1–6 pass, write a separate adoption plan that:
 
-- uses ORCAW-001 through ORCAW-014 as the review units;
+- uses ORCAW-001 through ORCAW-015 as the review units;
+- consolidates the foundation implementation commits into one replayable commit carrying `Fork-Customization: ORCAW-015`;
 - confirms each current `upstream-candidate` against `v1.4.187` before dropping anything;
 - omits the 13 historical release commits and confirmed included upstream backports;
 - rewrites conflicts by domain rather than resolving a single 97-file merge;

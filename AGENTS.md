@@ -67,5 +67,9 @@ Treat this repository as a long-lived downstream Orca fork.
 - Keep generally useful fixes and personal customizations clearly separated in code and commits.
 - Add tests proportionate to each change, and consider regressions when later upstream updates are integrated.
 - Preserve upstream and user changes; do not rewrite, discard, or overwrite them without explicit instruction.
-- Retain a practical way to synchronize upstream changes, but do not assume specific remote names or branch layouts.
+- Keep `upstream-sync` identical to a selected stable `stablyai/orca` release; never add downstream commits to it.
+- Keep persistent downstream behavior in isolated commits on `main` with a registered `Fork-Customization: ORCAW-NNN` trailer.
+- Treat upstream-sync and customization-replay governance as persistent customization `ORCAW-015`.
+- Treat `upstream-candidate` as replay-required until behavioral equivalence is explicitly confirmed; never retire a customization automatically.
+- Rewrite `main` only during an approved upstream adoption, preserve a recovery tag, and push only with `--force-with-lease`.
 - Record material, persistent differences from upstream in `FORK_NOTES.md`. Create or update it only when such differences exist; do not log routine fixes that remain easy to upstream or remove.
