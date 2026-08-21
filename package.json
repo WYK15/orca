@@ -1,12 +1,12 @@
 {
-  "name": "orca",
+  "name": "orcaw",
   "version": "1.4.187",
   "description": "Next-gen IDE for parallel agentic development",
-  "homepage": "https://github.com/stablyai/orca",
+  "homepage": "https://github.com/WYK15/orca",
   "author": "stablyai",
   "bin": {
-    "orca": "./out/cli/index.js",
-    "orca-dev": "./config/scripts/orca-dev.mjs"
+    "orca-dev": "./config/scripts/orca-dev.mjs",
+    "orcaw": "./out/cli/index.js"
   },
   "main": "./out/main/index.js",
   "scripts": {

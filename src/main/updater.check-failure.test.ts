@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { publishingIncident } from './updater-prerelease-feed-reproduction.fixture'
+import type * as UpdaterDeliveryPolicy from './updater-delivery-policy'
 
 const { netFetchMock } = vi.hoisted(() => ({ netFetchMock: vi.fn() }))
 
@@ -55,6 +56,7 @@ const { appMock, browserWindowMock, nativeUpdaterMock, autoUpdaterMock, isMock, 
       appMock: {
         isPackaged: true,
         getVersion: vi.fn(() => '1.0.51'),
+        getAppPath: vi.fn(() => '/Applications/Orcaw.app/Contents/Resources/app.asar'),
         on: appOn,
         quit: vi.fn()
       },
@@ -93,6 +95,10 @@ vi.mock('@electron-toolkit/utils', () => ({
 vi.mock('./ipc/pty', () => ({
   killAllPty: killAllPtyMock
 }))
+vi.mock('./updater-delivery-policy', async (importOriginal) => ({
+  ...(await importOriginal<typeof UpdaterDeliveryPolicy>()),
+  readPackagedMacAutoUpdateEnabled: () => true
+}))
 
 vi.mock('./updater-nudge', () => ({
   fetchNudge: vi.fn().mockResolvedValue(null),
@@ -120,11 +126,11 @@ function respondWithNotReadyRelease({
   const atom = `<feed>${publishingIncident.atomTags
     .map(
       (tag) =>
-        `<entry><link rel="alternate" type="text/html" href="https://github.com/stablyai/orca/releases/tag/${tag}"/><title>${tag}</title></entry>`
+        `<entry><link rel="alternate" type="text/html" href="https://github.com/WYK15/orca/releases/tag/${tag}"/><title>${tag}</title></entry>`
     )
     .join('')}</feed>`
   netFetchMock.mockImplementation((url: string, init?: { method?: string }) => {
-    if (url === 'https://github.com/stablyai/orca/releases.atom') {
+    if (url === 'https://github.com/WYK15/orca/releases.atom') {
       return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(atom) })
     }
     if (init?.method === 'HEAD' && assetStatus !== undefined) {
