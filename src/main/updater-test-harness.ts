@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { vi } from 'vitest'
 import type { Mock } from 'vitest'
 
@@ -24,6 +25,7 @@ type AutoUpdaterMock = {
 
 type AppMock = {
   isPackaged: boolean
+  getAppPath: Mock<() => string>
   getVersion: Mock<() => string>
   on: Mock<(event: string, handler: (...args: unknown[]) => void) => AppMock>
   emit: (event: string, ...args: unknown[]) => void
@@ -162,6 +164,7 @@ export function createUpdaterMocks(): UpdaterMocks {
 
   const appMock: AppMock = {
     isPackaged: true,
+    getAppPath: vi.fn(() => resolve(import.meta.dirname, '__fixtures__/updater-signed-app')),
     getVersion: vi.fn(() => '1.0.51'),
     on: appOn,
     emit: appEmit,
@@ -219,7 +222,7 @@ export function createUpdaterMocks(): UpdaterMocks {
           : result
       },
       getReleaseDownloadUrl: (tag: string) =>
-        `https://github.com/stablyai/orca/releases/download/${tag}`
+        `https://github.com/WYK15/orca/releases/download/${tag}`
     }),
     localBuildSwitch: () => ({ chooseLocalBuild: chooseLocalBuildMock }),
     localBuildFeedServer: () => ({ startLocalBuildFeed: startLocalBuildFeedMock })
@@ -232,6 +235,10 @@ export function createUpdaterMocks(): UpdaterMocks {
     nativeUpdaterMock.on.mockReset()
     browserWindowMock.getAllWindows.mockReset()
     browserWindowMock.getAllWindows.mockReturnValue([])
+    appMock.getAppPath.mockReset()
+    appMock.getAppPath.mockReturnValue(
+      resolve(import.meta.dirname, '__fixtures__/updater-signed-app')
+    )
     appMock.getVersion.mockReset()
     appMock.getVersion.mockReturnValue('1.0.51')
     appMock.quit.mockReset()

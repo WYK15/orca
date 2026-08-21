@@ -25,6 +25,7 @@ const {
 
   const appMock = {
     isPackaged: true,
+    getAppPath: vi.fn(() => 'src/main/__fixtures__/updater-signed-app'),
     getVersion: vi.fn(() => '1.0.51'),
     on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
       appHandlers.set(event, [...(appHandlers.get(event) ?? []), handler])

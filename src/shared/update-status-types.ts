@@ -59,11 +59,9 @@ export type UpdateStatus = (
       state: 'available'
       version: string
       activeNudgeId?: string
-      // Why: releaseUrl is not currently populated by the update-available handler
-      // (it always sends undefined). Kept on the type for the Settings page's
-      // release-notes link fallback and for potential future use if the main
-      // process starts extracting release URLs from electron-updater metadata.
+      // Manual delivery links unsigned desktop builds to the exact fork release.
       releaseUrl?: string
+      delivery?: 'automatic' | 'manual'
       // Why: changelog is always explicitly set by the main process — null means
       // the fetch failed or the version wasn't in the JSON (simple mode), and a
       // populated object means rich mode. Using `| null` (not `?`) avoids a

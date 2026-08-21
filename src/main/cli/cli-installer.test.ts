@@ -20,10 +20,12 @@ vi.mock('node:child_process', () => ({
 import { CliInstaller } from './cli-installer'
 import { buildAppImageCliWrapper } from './appimage-cli-wrapper'
 import { makeFixture } from './cli-installer-test-fixtures'
+import { installFakeAppEnvironment } from '../../../config/scripts/vitest-host-ports-setup'
 
 describe('CliInstaller', () => {
   beforeEach(() => {
     execFileMock.mockReset()
+    installFakeAppEnvironment()
   })
 
   afterEach(() => {
@@ -71,12 +73,12 @@ describe('CliInstaller', () => {
     'creates a linux symlink under the requested path and warns when PATH is missing',
     async () => {
       const fixture = await makeFixture()
-      const installPath = join(fixture.root, '.local', 'bin', 'orca-ide')
+      const installPath = join(fixture.root, '.local', 'bin', 'orcaw-ide')
       const installer = new CliInstaller({
         platform: 'linux',
         isPackaged: false,
         userDataPath: fixture.userDataPath,
-        execPath: '/opt/Orca/orca-ide',
+        execPath: '/opt/Orcaw/orcaw-ide',
         appPath: fixture.appPath,
         commandPathOverride: installPath,
         processPathEnv: '/usr/bin'
@@ -84,7 +86,7 @@ describe('CliInstaller', () => {
 
       const installed = await installer.install()
       expect(installed.state).toBe('installed')
-      expect(installed.commandName).toBe('orca-ide')
+      expect(installed.commandName).toBe('orcaw-ide')
       expect(installed.pathConfigured).toBe(false)
       expect(installed.detail).toContain('.local')
 
@@ -98,7 +100,7 @@ describe('CliInstaller', () => {
   )
 
   // Why: dev installs are useful for validation, but they must not replace the
-  // packaged `orca` / `orca-ide` commands developers rely on day to day.
+  // packaged `orcaw` / `orcaw-ide` commands developers rely on day to day.
   it.skipIf(process.platform === 'win32')(
     'uses a separate orca-dev command for default development installs',
     async () => {
@@ -109,7 +111,7 @@ describe('CliInstaller', () => {
         platform: 'linux',
         isPackaged: false,
         userDataPath: fixture.userDataPath,
-        execPath: '/opt/Orca/orca-ide',
+        execPath: '/opt/Orcaw/orcaw-ide',
         appPath: fixture.appPath,
         homePath,
         processPathEnv: commandDir
@@ -122,7 +124,7 @@ describe('CliInstaller', () => {
       expect(installed.launcherPath).toBe(join(fixture.userDataPath, 'cli', 'bin', 'orca-dev'))
       await expect(readlink(installed.commandPath as string)).resolves.toBe(installed.launcherPath)
       await expect(
-        readFile(join(fixture.userDataPath, 'cli', 'bin', 'orca'), 'utf8')
+        readFile(join(fixture.userDataPath, 'cli', 'bin', 'orcaw'), 'utf8')
       ).resolves.toBe(await readFile(installed.launcherPath as string, 'utf8'))
     }
   )
@@ -134,8 +136,8 @@ describe('CliInstaller', () => {
     async () => {
       const fixture = await makeFixture()
       const commandDir = join(fixture.root, '.local', 'bin')
-      const installPath = join(commandDir, 'orca-ide')
-      const appImagePath = join(fixture.root, 'Orca.AppImage')
+      const installPath = join(commandDir, 'orcaw-ide')
+      const appImagePath = join(fixture.root, 'Orcaw.AppImage')
       await writeFile(appImagePath, '#!/usr/bin/env bash\n', {
         encoding: 'utf8',
         mode: 0o755
@@ -159,7 +161,7 @@ describe('CliInstaller', () => {
       const installed = await installer.install()
       expect(installed).toMatchObject({
         state: 'installed',
-        commandName: 'orca-ide',
+        commandName: 'orcaw-ide',
         installMethod: 'wrapper',
         launcherPath: appImagePath,
         currentTarget: appImagePath,
@@ -184,9 +186,9 @@ describe('CliInstaller', () => {
     async () => {
       const fixture = await makeFixture()
       const commandDir = join(fixture.root, '.local', 'bin')
-      const installPath = join(commandDir, 'orca-ide')
-      const oldAppImagePath = join(fixture.root, 'Old-Orca.AppImage')
-      const newAppImagePath = join(fixture.root, 'Orca.AppImage')
+      const installPath = join(commandDir, 'orcaw-ide')
+      const oldAppImagePath = join(fixture.root, 'Old-Orcaw.AppImage')
+      const newAppImagePath = join(fixture.root, 'Orcaw.AppImage')
       await mkdir(commandDir, { recursive: true })
       await writeFile(installPath, buildAppImageCliWrapper(oldAppImagePath), {
         encoding: 'utf8',
@@ -218,16 +220,15 @@ describe('CliInstaller', () => {
     }
   )
 
-  // Why: Linux renamed the public command to avoid shadowing GNOME Orca, so
-  // upgrading must clean up only the old symlink owned by prior Orca installs.
+  // Why: Orcaw owns only its names and must not remove an official Orca command.
   it.skipIf(process.platform === 'win32')(
-    'removes the old managed linux orca symlink when installing orca-ide',
+    'leaves a legacy linux orca symlink when installing orcaw-ide',
     async () => {
       const fixture = await makeFixture()
       const homePath = join(fixture.root, 'home')
       const commandDir = join(homePath, '.local', 'bin')
       const resourcesPath = join(fixture.root, 'resources')
-      const launcherPath = join(resourcesPath, 'bin', 'orca-ide')
+      const launcherPath = join(resourcesPath, 'bin', 'orcaw-ide')
       const oldLauncherPath = join(resourcesPath, 'bin', 'orca')
       const legacyCommandPath = join(commandDir, 'orca')
       await mkdir(commandDir, { recursive: true })
@@ -245,19 +246,19 @@ describe('CliInstaller', () => {
       })
 
       const installed = await installer.install()
-      expect(installed.commandPath).toBe(join(commandDir, 'orca-ide'))
-      await expect(lstat(legacyCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(installed.commandPath).toBe(join(commandDir, 'orcaw-ide'))
+      expect((await lstat(legacyCommandPath)).isSymbolicLink()).toBe(true)
     }
   )
 
   it.skipIf(process.platform === 'win32')(
-    'removes a legacy linux orca symlink when installing an AppImage wrapper',
+    'leaves a legacy linux orca symlink when installing an AppImage wrapper',
     async () => {
       const fixture = await makeFixture()
       const homePath = join(fixture.root, 'home')
       const commandDir = join(homePath, '.local', 'bin')
       const legacyCommandPath = join(commandDir, 'orca')
-      const appImagePath = join(fixture.root, 'Orca.AppImage')
+      const appImagePath = join(fixture.root, 'Orcaw.AppImage')
       await mkdir(commandDir, { recursive: true })
       await writeFile(appImagePath, '#!/usr/bin/env bash\n', {
         encoding: 'utf8',
@@ -274,8 +275,8 @@ describe('CliInstaller', () => {
       })
 
       const installed = await installer.install()
-      expect(installed.commandPath).toBe(join(commandDir, 'orca-ide'))
-      await expect(lstat(legacyCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(installed.commandPath).toBe(join(commandDir, 'orcaw-ide'))
+      expect((await lstat(legacyCommandPath)).isSymbolicLink()).toBe(true)
     }
   )
 

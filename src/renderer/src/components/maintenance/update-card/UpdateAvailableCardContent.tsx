@@ -97,11 +97,13 @@ export function UpdateAvailableRichContent({
 export function UpdateAvailableSimpleContent({
   version,
   releaseUrl,
+  manualDelivery,
   onUpdate,
   onClose
 }: {
   version: string
   releaseUrl?: string
+  manualDelivery: boolean
   onUpdate: () => void
   onClose: () => void
 }): React.JSX.Element {
@@ -122,12 +124,17 @@ export function UpdateAvailableSimpleContent({
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        {translate('auto.components.UpdateCard.05ad78a6d1', 'Orca v{{value0}} is ready.', {
+        {translate('auto.components.UpdateCard.orcawReady', 'Orcaw v{{value0}} is available.', {
           value0: version
         })}
       </p>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        {translate('auto.components.UpdateCard.fdd4a364fa', "Sessions won't be interrupted.")}
+        {manualDelivery
+          ? translate(
+              'auto.components.UpdateCard.manualInstall',
+              'Download the release and install it manually.'
+            )
+          : translate('auto.components.UpdateCard.fdd4a364fa', "Sessions won't be interrupted.")}
       </p>
       {releaseUrl && (
         <button
@@ -144,7 +151,9 @@ export function UpdateAvailableSimpleContent({
         onClick={onUpdate}
         className="mt-0.5 w-full cursor-pointer"
       >
-        {translate('auto.components.UpdateCard.ec8fe71cfc', 'Update')}
+        {manualDelivery
+          ? translate('auto.components.UpdateCard.downloadOrcaw', 'Download Orcaw')
+          : translate('auto.components.UpdateCard.ec8fe71cfc', 'Update')}
       </Button>
     </div>
   )

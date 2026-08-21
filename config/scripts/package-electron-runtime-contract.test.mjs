@@ -370,10 +370,20 @@ describe('Electron runtime package contract', () => {
       join(projectDir, 'resources/linux/packaging/after-install.sh'),
       'utf8'
     )
+    const afterRemoveScript = readFileSync(
+      join(projectDir, 'resources/linux/packaging/after-remove.sh'),
+      'utf8'
+    )
 
     expect(afterInstallScript).toContain('chrome-sandbox')
     expect(afterInstallScript).toContain('chmod 4755 "$sandbox"')
     expect(afterInstallScript).not.toContain('chmod 0755 "$sandbox"')
+    expect(afterInstallScript).toContain('link="/usr/bin/orcaw-ide"')
+    expect(afterInstallScript).toContain('for dir in /opt/Orcaw /opt/orcaw-ide')
+    expect(afterInstallScript).not.toContain('/opt/Orca/*')
+    expect(afterRemoveScript).toContain('link="/usr/bin/orcaw-ide"')
+    expect(afterRemoveScript).toContain('/opt/Orcaw/* | /opt/orcaw-ide/*')
+    expect(afterRemoveScript).not.toContain('/opt/Orca/*')
   })
 
   it('advances only the skill release ledger in a taggable release-cut commit', () => {

@@ -2282,7 +2282,16 @@
         "a4650b0dc4": "Could Not Use Local Build",
         "b1e390250d": "Could not complete the local build switch.",
         "d29740d175": "The selected build could not be used.",
-        "37d45c9ec1": "Choose Another Build"
+        "37d45c9ec1": "Choose Another Build",
+        "orcawHttp1Retry": "Orcaw can retry through HTTP/1.1 compatibility mode.",
+        "orcawPublisherMismatch": "The installer's publisher doesn't match Orcaw, so we stopped the update. Don't install this download; check Orcaw releases for a corrected version.",
+        "checkOrcawReleases": "Check Orcaw releases",
+        "orcawSignatureCheckBlocked": "The signature check couldn't run — usually because antivirus software blocked it. Retry the download, or get the installer from Orcaw releases.",
+        "downloadOrcaw": "Download Orcaw",
+        "orcawReady": "Orcaw v{{value0}} is available.",
+        "manualInstall": "Download the release and install it manually.",
+        "orcawDownloading": "Orcaw v{{value0}} is downloading.",
+        "orcawDownloaded": "Orcaw v{{value0}} is downloaded. Restart when you're ready."
       },
       "WorktreeJumpPalette": {
         "ac037cfac2": "Move",

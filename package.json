@@ -1,12 +1,12 @@
 {
-  "name": "orca",
+  "name": "orcaw",
   "version": "1.4.192",
   "description": "Next-gen IDE for parallel agentic development",
-  "homepage": "https://github.com/stablyai/orca",
+  "homepage": "https://github.com/WYK15/orca",
   "author": "stablyai",
   "bin": {
-    "orca": "./out/cli/index.js",
-    "orca-dev": "./config/scripts/orca-dev.mjs"
+    "orca-dev": "./config/scripts/orca-dev.mjs",
+    "orcaw": "./out/cli/index.js"
   },
   "main": "./out/main/index.js",
   "scripts": {
@@ -59,7 +59,7 @@
     "dev": "pnpm run ensure:electron-runtime && node config/scripts/run-electron-vite-dev.mjs",
     "dev-stable-name": "pnpm run ensure:electron-runtime && node config/scripts/run-electron-vite-dev.mjs --stable-name",
     "dev:web": "vite --config vite.web.config.ts --host 127.0.0.1",
-    "build:relay": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/build-relay.mjs",
+    "build:relay": "node config/scripts/build-relay.mjs",
     "build:computer-macos": "node config/scripts/build-computer-macos.mjs",
     "build:keyboard-layout-macos": "node config/scripts/build-keyboard-layout-macos.mjs",
     "build:notification-status-macos": "node config/scripts/build-notification-status-macos.mjs",

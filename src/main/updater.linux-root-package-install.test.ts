@@ -374,10 +374,11 @@ describe('updater', () => {
       updater.quitAndInstall()
       await settleQuitAndInstall()
 
-      expect(send).toHaveBeenCalledWith('updater:status', {
+      expect(lastStatus(send)).toMatchObject({
         state: 'error',
-        message: `${PRE_COMMIT_FAILURE_MESSAGE} (${EXIT_127})`
+        message: expect.stringContaining(PRE_COMMIT_FAILURE_MESSAGE)
       })
+      expect(lastStatus(send)).not.toHaveProperty('recovery')
       expect(recordUpdaterLifecycleMock).not.toHaveBeenCalledWith(
         'linux_package_install_failed',
         expect.anything(),

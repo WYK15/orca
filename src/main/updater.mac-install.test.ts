@@ -63,6 +63,7 @@ const {
   return {
     appMock: {
       isPackaged: true,
+      getAppPath: vi.fn(() => 'src/main/__fixtures__/updater-signed-app'),
       getVersion: vi.fn(() => '1.0.51'),
       on: appOn,
       emit: appEmit,

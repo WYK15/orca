@@ -33,6 +33,11 @@ import {
   armUpdateInstallExitWatchdog,
   disarmUpdateInstallExitWatchdog
 } from './update-install-exit-watchdog'
+import {
+  getReleaseUpdateDelivery,
+  readPackagedReleaseAutoUpdateEnabled,
+  type ReleaseUpdateDelivery
+} from './updater-delivery-policy'
 import { registerAutoUpdaterHandlers } from './updater-events'
 import { recordUpdaterLifecycle } from './updater-lifecycle-diagnostics'
 import { getLinuxRootPackageType } from './linux-update-package-type'
@@ -79,11 +84,14 @@ import {
   getVersionChannel,
   hasDedicatedReleaseRepo,
   isChannelSupportedOnPlatform,
+  MAIN_RELEASE_REPO,
   RELEASE_CHANNEL_LABELS,
   requiresManualDevChannelInstall,
   type ReleaseBuild,
   type ReleaseChannel
 } from '../shared/release-channel'
+
+const MAIN_RELEASE_DOWNLOAD_URL = `https://github.com/${MAIN_RELEASE_REPO}/releases/latest/download`
 
 type CheckFailureSource = 'event' | 'promise' | 'fallback-promise'
 type MissingManifestPrereleaseFallbackResult = { userInitiated: boolean }
@@ -186,6 +194,7 @@ let downloadInFlight = false
 let quittingForUpdate = false
 let autoUpdater: ElectronAutoUpdater | null = null
 let activeUpdateSource: 'release' | UpdateSource = 'release'
+let releaseUpdateDelivery: ReleaseUpdateDelivery = 'automatic'
 let activeLocalBuildFeed: LocalBuildFeed | null = null
 let localBuildSelectionInProgress = false
 // Why: a dev channel/tag jump may target an older build, so it needs allowDowngrade
@@ -1443,7 +1452,7 @@ async function pinDefaultReleaseFeed(
   } else {
     clearPrereleaseFallbackContext()
     clearPublishingWindowLastGoodCheck()
-    const url = 'https://github.com/stablyai/orca/releases/latest/download'
+    const url = MAIN_RELEASE_DOWNLOAD_URL
     console.info(
       `[updater] release feed fallback: current=${currentVersion} includePrerelease=${includePrerelease} → ${url}`
     )
@@ -2185,6 +2194,10 @@ export function setupAutoUpdater(
   getReleaseChannelOverride = opts?.getReleaseChannelOverride ?? null
   updateInstallMode = opts?.installMode ?? 'interactive'
   lastInstallDeferralVersion = { download: null, install: null }
+  releaseUpdateDelivery = getReleaseUpdateDelivery(
+    process.platform,
+    readPackagedReleaseAutoUpdateEnabled(app.getAppPath(), process.platform)
+  )
 
   const serveHandoffFailure = getServeUpdateHandoffFailure()
   if (serveHandoffFailure) {
@@ -2226,7 +2239,7 @@ export function setupAutoUpdater(
   if (activeUpdateSource === 'release') {
     autoUpdater.setFeedURL({
       provider: 'generic',
-      url: 'https://github.com/stablyai/orca/releases/latest/download'
+      url: MAIN_RELEASE_DOWNLOAD_URL
     })
   }
 
@@ -2245,6 +2258,8 @@ export function setupAutoUpdater(
     getCurrentStatus: () => currentStatus,
     getKnownReleaseUrl,
     getPendingInstallVersion,
+    getReleaseUpdateDelivery: () =>
+      activeUpdateSource === 'release' ? releaseUpdateDelivery : 'automatic',
     getUserInitiatedCheck: () => userInitiatedCheck,
     handleQuitAndInstallFailure,
     isQuitAndInstallHandoffActive,
@@ -2318,6 +2333,9 @@ export function setupAutoUpdater(
 
 export function downloadUpdate(): void {
   if (localBuildSelectionInProgress || pinnedBuildSelectionInProgress || downloadInFlight) {
+    return
+  }
+  if (activeUpdateSource === 'release' && releaseUpdateDelivery === 'manual') {
     return
   }
   // Why: allow retry from 'error' (availableVersion stays cached) so the error card's Retry Download button works.

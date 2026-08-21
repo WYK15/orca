@@ -111,8 +111,8 @@ describe('electron-builder config', () => {
     expect(electronBuilderConfig.mac.extraResources).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          from: 'native/computer-use-macos/.build/release/Orca Computer Use.app',
-          to: 'Orca Computer Use.app'
+          from: 'native/computer-use-macos/.build/release/Orcaw Computer Use.app',
+          to: 'Orcaw Computer Use.app'
         })
       ])
     )
@@ -132,17 +132,17 @@ describe('electron-builder config', () => {
         }),
         expect.objectContaining({
           from: 'native/windows-cli-launcher/.build/orca.exe',
-          to: 'bin/orca.exe'
+          to: 'bin/orcaw.exe'
         })
       ])
     )
   })
 
   // Why: the Windows CLI shim is delivered only via extraResources to
-  // resources/bin/orca.cmd (beside the native resources/bin/orca.exe). If the
+  // resources/bin/orcaw.cmd (beside the native resources/bin/orcaw.exe). If the
   // source tree is also packed into app.asar it gets extracted by
-  // asarUnpack:['resources/**'] to app.asar.unpacked/resources/win32/bin/orca.cmd,
-  // a duplicate with no adjacent orca.exe that fails to launch (#7351).
+  // asarUnpack:['resources/**'] to app.asar.unpacked/resources/win32/bin/orcaw.cmd,
+  // a duplicate with no adjacent orcaw.exe that fails to launch (#7351).
   it('keeps the Windows CLI shim source tree out of app.asar', () => {
     expect(electronBuilderConfig.files).toEqual(
       expect.arrayContaining(['!resources/win32{,/**/*}'])
@@ -151,8 +151,8 @@ describe('electron-builder config', () => {
     expect(electronBuilderConfig.win.extraResources).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          from: 'resources/win32/bin/orca.cmd',
-          to: 'bin/orca.cmd'
+          from: 'resources/win32/bin/orcaw.cmd',
+          to: 'bin/orcaw.cmd'
         })
       ])
     )
@@ -248,17 +248,19 @@ describe('electron-builder config', () => {
     expect(electronBuilderConfig.linux.icon).toBe('resources/build/icon.icns')
   })
 
-  it('matches the Linux desktop entry to Electron window class', () => {
-    expect(electronBuilderConfig.linux.desktop.entry.StartupWMClass).toBe('orca')
+  it('matches the Linux desktop entry to the packaged window class', () => {
+    expect(electronBuilderConfig.linux.desktop.entry.StartupWMClass).toBe(
+      electronBuilderConfig.linux.executableName
+    )
   })
 
-  it('uses AppImage and deb as local Linux targets without changing existing artifact names', () => {
+  it('uses AppImage and deb as local Linux targets with the product identity', () => {
     expect(electronBuilderConfig.linux.target).toEqual(['AppImage', 'deb'])
-    expect(electronBuilderConfig.appImage.artifactName).toBe('orca-linux.${ext}')
-    expect(electronBuilderConfig.deb.artifactName).toBe('orca-ide_${version}_${arch}.${ext}')
+    expect(electronBuilderConfig.appImage.artifactName).toBe('orcaw-linux.${ext}')
+    expect(electronBuilderConfig.deb.artifactName).toBe('orcaw-ide_${version}_${arch}.${ext}')
     expect(electronBuilderConfig.rpm).toMatchObject({
-      packageName: 'orca-ide',
-      artifactName: 'orca-ide-${version}.${arch}.${ext}'
+      packageName: 'orcaw-ide',
+      artifactName: 'orcaw-ide-${version}.${arch}.${ext}'
     })
   })
 
@@ -269,7 +271,7 @@ describe('electron-builder config', () => {
       delete require.cache[configPath]
       process.env.ORCA_LINUX_ARM64_RELEASE = '1'
       expect(require('../electron-builder.config.cjs').appImage.artifactName).toBe(
-        'orca-linux-arm64.${ext}'
+        'orcaw-linux-arm64.${ext}'
       )
     } finally {
       if (original === undefined) {
@@ -291,7 +293,9 @@ describe('electron-builder config', () => {
       delete process.env.ORCA_MAC_RELEASE
       process.env.ORCA_LOCAL_BUILD_VERSION = '1.4.159-rc.0.local.123.abc'
       expect(require('../electron-builder.config.cjs').extraMetadata).toEqual({
-        version: '1.4.159-rc.0.local.123.abc'
+        version: '1.4.159-rc.0.local.123.abc',
+        orcawMacAutoUpdate: false,
+        orcawReleaseAutoUpdate: false
       })
     } finally {
       if (originalMacRelease === undefined) {
@@ -317,7 +321,10 @@ describe('electron-builder config', () => {
       delete require.cache[configPath]
       process.env.ORCA_LOCAL_BUILD_VERSION = '1.4.159-local.123.abc'
       process.env.ORCA_MAC_RELEASE = '1'
-      expect(require('../electron-builder.config.cjs').extraMetadata).toBeUndefined()
+      expect(require('../electron-builder.config.cjs').extraMetadata).toEqual({
+        orcawMacAutoUpdate: true,
+        orcawReleaseAutoUpdate: true
+      })
     } finally {
       if (originalLocalVersion === undefined) {
         delete process.env.ORCA_LOCAL_BUILD_VERSION
@@ -571,7 +578,7 @@ describe('electron-builder config', () => {
       const root = await mkdtemp(join(tmpdir(), 'orca-electron-builder-config-'))
       try {
         const resourcesDir = join(root, 'linux-unpacked', 'resources')
-        const launcherPath = join(resourcesDir, 'bin', 'orca-ide')
+        const launcherPath = join(resourcesDir, 'bin', 'orcaw-ide')
         await mkdir(join(resourcesDir, 'bin'), { recursive: true })
         await cp(
           join(process.cwd(), 'resources', 'plugins', 'launch'),

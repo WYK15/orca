@@ -134,6 +134,7 @@ export function UpdateCardStateContent({
     <UpdateAvailableSimpleContent
       version={status.version}
       releaseUrl={releaseUrl}
+      manualDelivery={status.delivery === 'manual'}
       onUpdate={onUpdate}
       onClose={onDismiss}
     />

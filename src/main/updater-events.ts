@@ -8,8 +8,9 @@ import {
   isMacQuitAndInstallInFlight,
   resetMacInstallState
 } from './updater-mac-install'
+import type { ReleaseUpdateDelivery } from './updater-delivery-policy'
 import { compareVersions } from './updater-fallback'
-import { fetchChangelog } from './updater-changelog'
+import { registerUpdateAvailableHandler } from './updater-available-event'
 import type { ElectronAutoUpdater } from './electron-updater-loader'
 import { recordUpdaterLifecycle } from './updater-lifecycle-diagnostics'
 import {
@@ -21,7 +22,7 @@ import {
 const AUTO_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
 const AUTO_UPDATE_RETRY_INTERVAL_MS = 60 * 60 * 1000
 
-type UpdaterHandlerContext = {
+export type UpdaterHandlerContext = {
   autoUpdater: ElectronAutoUpdater
   clearBackgroundCheckLaunchPending: () => void
   clearAvailableUpdateContext: () => void
@@ -32,6 +33,7 @@ type UpdaterHandlerContext = {
   getActiveUpdateCheckEventAttemptId: () => number | null
   getKnownReleaseUrl: () => string | undefined
   getPendingInstallVersion: () => string
+  getReleaseUpdateDelivery: () => ReleaseUpdateDelivery
   getUserInitiatedCheck: () => boolean
   handleQuitAndInstallFailure: (error?: unknown) => boolean
   isQuitAndInstallHandoffActive: () => boolean
@@ -64,43 +66,39 @@ type UpdaterHandlerContext = {
   setUserInitiatedCheck: (value: boolean) => void
 }
 
-export function registerAutoUpdaterHandlers({
-  autoUpdater,
-  clearBackgroundCheckLaunchPending,
-  clearAvailableUpdateContext,
-  consumeMissingManifestPrereleaseFallbackResult,
-  getPublishingWindowLastGoodCheck,
-  getMissingManifestPrereleaseFallbackUserInitiated,
-  getCurrentStatus,
-  getActiveUpdateCheckEventAttemptId,
-  getKnownReleaseUrl,
-  getPendingInstallVersion,
-  getUserInitiatedCheck,
-  handleQuitAndInstallFailure,
-  isQuitAndInstallHandoffActive,
-  hasInstallableDownloadedVersion,
-  isLocalBuildCheck,
-  isPinnedBuildCheck,
-  shouldHandleUpdaterErrorEvent,
-  clearUpdateAvailableEventPending,
-  isActiveUpdateCheckAttempt,
-  markUpdateCheckEventAttempt,
-  markUpdateAvailableEventPending,
-  markMissingManifestPrereleaseFallbackChecking,
-  performQuitAndInstall,
-  shouldDeferMacQuitForInstall,
-  recordCompletedUpdateCheck,
-  restoreReleaseUpdateSource,
-  sendCheckFailureStatus,
-  sendErrorStatus,
-  sendStatus,
-  scheduleAutomaticUpdateCheck,
-  shouldSuppressMissingManifestPrereleaseFallbackEvent,
-  suppressMissingManifestPrereleaseFallbackPromiseFailure,
-  setAvailableReleaseUrl,
-  setAvailableVersion,
-  setUserInitiatedCheck
-}: UpdaterHandlerContext): void {
+export function registerAutoUpdaterHandlers(context: UpdaterHandlerContext): void {
+  const {
+    autoUpdater,
+    clearBackgroundCheckLaunchPending,
+    clearAvailableUpdateContext,
+    consumeMissingManifestPrereleaseFallbackResult,
+    getPublishingWindowLastGoodCheck,
+    getMissingManifestPrereleaseFallbackUserInitiated,
+    getCurrentStatus,
+    getActiveUpdateCheckEventAttemptId,
+    getKnownReleaseUrl,
+    getPendingInstallVersion,
+    getUserInitiatedCheck,
+    handleQuitAndInstallFailure,
+    isQuitAndInstallHandoffActive,
+    hasInstallableDownloadedVersion,
+    isLocalBuildCheck,
+    isPinnedBuildCheck,
+    shouldHandleUpdaterErrorEvent,
+    markUpdateCheckEventAttempt,
+    markMissingManifestPrereleaseFallbackChecking,
+    performQuitAndInstall,
+    shouldDeferMacQuitForInstall,
+    recordCompletedUpdateCheck,
+    restoreReleaseUpdateSource,
+    sendCheckFailureStatus,
+    sendErrorStatus,
+    sendStatus,
+    scheduleAutomaticUpdateCheck,
+    shouldSuppressMissingManifestPrereleaseFallbackEvent,
+    suppressMissingManifestPrereleaseFallbackPromiseFailure,
+    setUserInitiatedCheck
+  } = context
   // Why: electron-updater fires 'update-downloaded' before Squirrel.Mac finishes; track readiness to avoid a premature "ready".
   if (process.platform === 'darwin') {
     nativeUpdater.on('update-downloaded', () => {
@@ -157,83 +155,7 @@ export function registerAutoUpdaterHandlers({
     sendStatus({ state: 'checking', userInitiated: wasUserInitiated || undefined })
   })
 
-  autoUpdater.on('update-available', (info) => {
-    const attemptId = getActiveUpdateCheckEventAttemptId()
-    if (attemptId === null) {
-      return
-    }
-    clearBackgroundCheckLaunchPending()
-    // --- synchronous preamble (runs before any await) ---
-    const missingManifestFallback = consumeMissingManifestPrereleaseFallbackResult()
-    const publishingWindowLastGoodCheck = getPublishingWindowLastGoodCheck()
-    const wasUserInitiated = missingManifestFallback?.userInitiated ?? getUserInitiatedCheck()
-    setUserInitiatedCheck(false)
-
-    // Release checks remain newer-only; validated local builds and pinned dev jumps may intentionally downgrade.
-    if (
-      !isLocalBuildCheck() &&
-      !isPinnedBuildCheck() &&
-      compareVersions(info.version, app.getVersion()) <= 0
-    ) {
-      clearAvailableUpdateContext()
-      if (missingManifestFallback || publishingWindowLastGoodCheck) {
-        // Why: a current-version fallback manifest means the primary is transiently missing; keep the short retry cadence.
-        scheduleAutomaticUpdateCheck(AUTO_UPDATE_RETRY_INTERVAL_MS)
-      } else {
-        recordCompletedUpdateCheck()
-        if (!wasUserInitiated) {
-          scheduleAutomaticUpdateCheck(AUTO_UPDATE_CHECK_INTERVAL_MS)
-        }
-      }
-      sendStatus({ state: 'not-available', userInitiated: wasUserInitiated || undefined })
-      return
-    }
-
-    // Why: only a genuinely newer offer supersedes the retained package; a publishing-window blip that
-    // momentarily resolves an older tag must not destroy a still-valid recovery path.
-    clearTrackedLinuxPackageArtifactForOtherVersion(info.version)
-
-    // Why: fetch the changelog in main to avoid renderer-side CORS on onorca.dev.
-    markUpdateAvailableEventPending(attemptId)
-    void (async () => {
-      try {
-        const changelog =
-          isLocalBuildCheck() || isPinnedBuildCheck()
-            ? null
-            : await fetchChangelog(info.version, app.getVersion()).catch(() => null)
-
-        // Why: async fetch may take seconds; bail if a newer event superseded this attempt to avoid a stale 'available' broadcast.
-        if (!isActiveUpdateCheckAttempt(attemptId)) {
-          return
-        }
-        if (getCurrentStatus().state !== 'checking' && getCurrentStatus().state !== 'idle') {
-          return
-        }
-
-        // Why: side effects must run after the guard so a concurrent 'error' during the fetch can't leave orphaned state.
-        setAvailableVersion(info.version)
-        setAvailableReleaseUrl(null)
-        // Why: a pinned dev jump is not a release check. Letting it call
-        // recordCompletedUpdateCheck() would persist lastUpdateCheckAt and
-        // suppress the next real background check for a full day.
-        if (!isLocalBuildCheck() && !isPinnedBuildCheck()) {
-          if (missingManifestFallback || publishingWindowLastGoodCheck) {
-            // Why: last-good release is a temporary fallback; keep probing so users can move to the newest tag once it publishes.
-            scheduleAutomaticUpdateCheck(AUTO_UPDATE_RETRY_INTERVAL_MS)
-          } else {
-            recordCompletedUpdateCheck()
-            if (!wasUserInitiated) {
-              scheduleAutomaticUpdateCheck(AUTO_UPDATE_CHECK_INTERVAL_MS)
-            }
-          }
-        }
-
-        sendStatus({ state: 'available', version: info.version, changelog })
-      } finally {
-        clearUpdateAvailableEventPending(attemptId)
-      }
-    })()
-  })
+  registerUpdateAvailableHandler(context)
 
   autoUpdater.on('update-not-available', () => {
     if (getActiveUpdateCheckEventAttemptId() === null) {
