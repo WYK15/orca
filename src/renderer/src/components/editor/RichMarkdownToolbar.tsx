@@ -28,6 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { RichMarkdownToolbarButton } from './RichMarkdownToolbarButton'
 import { translate } from '@/i18n/i18n'
 import { insertToggle } from './rich-markdown-slash-command-primitives'
+import { RichMarkdownTableInsertMenu } from './RichMarkdownTableInsertMenu'
 
 type RichMarkdownToolbarProps = {
   editor: Editor | null
@@ -193,6 +194,7 @@ export function RichMarkdownToolbar({
       >
         <ImageIcon className="size-3.5" />
       </RichMarkdownToolbarButton>
+      <RichMarkdownTableInsertMenu editor={editor} />
       <RichMarkdownMoreBlocksMenu editor={editor} />
     </div>
   )
