@@ -6,6 +6,7 @@ import {
 } from '../../../../../shared/browser-url'
 import type { BrowserLoadError } from '../../../../../shared/browser-workspace-types'
 import { BROWSER_GUEST_RECOVERY_ERROR_CODE } from './browser-page-guest-recovery'
+import { resolveBrowserPageTitleEvent } from '../browser-page-title-event'
 import { rememberLiveBrowserUrl } from '../describe-page/live-browser-url-registry'
 import type { BrowserOverlayViewport } from '../describe-page/browser-annotation-geometry'
 import {
@@ -125,7 +126,10 @@ export function createBrowserPageWebviewNavigationHandlers({
     try {
       const currentUrl = webview.getURL() || browserTabUrl
       const browserModelUrl = redactKagiSessionToken(currentUrl)
-      const title = getBrowserDisplayTitle(event.title, browserModelUrl)
+      const title = getBrowserDisplayTitle(
+        resolveBrowserPageTitleEvent(event.title, () => webview.getTitle()),
+        browserModelUrl
+      )
       onUpdatePageStateRef.current(browserTabId, { title })
       addBrowserHistoryEntryRef.current(browserModelUrl, title)
     } catch {
