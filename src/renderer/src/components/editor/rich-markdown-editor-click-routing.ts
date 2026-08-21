@@ -17,6 +17,11 @@ import {
   classifyHtmlSuperscriptLinkAction,
   type RichMarkdownHtmlSuperscriptLinkContext
 } from './rich-markdown-html-superscript-link-context'
+import { findRichMarkdownSafeHtmlHref } from './rich-markdown-safe-html-link'
+import {
+  RICH_MARKDOWN_SAFE_HTML_BLOCK_NODE,
+  RICH_MARKDOWN_SAFE_HTML_INLINE_NODE
+} from './rich-markdown-safe-html-schema'
 
 export type ActivateMarkdownLink = (
   href: string,
@@ -105,18 +110,28 @@ export function handleRichMarkdownEditorClick({
     onOpenDocLinkRef.current?.(clickedNode.attrs.target as string)
     return true
   }
+  const safeHtmlNode =
+    clickedNode?.type.name === RICH_MARKDOWN_SAFE_HTML_INLINE_NODE ||
+    clickedNode?.type.name === RICH_MARKDOWN_SAFE_HTML_BLOCK_NODE
+  const safeHtmlDom = safeHtmlNode ? view.nodeDOM(pos) : null
   const href =
     clickedNode?.type.name === 'richMarkdownHtmlSuperscriptLink'
       ? String(clickedNode.attrs.href ?? '')
-      : getClickedLinkHref(view, pos)
+      : safeHtmlNode && safeHtmlDom instanceof HTMLElement
+        ? findRichMarkdownSafeHtmlHref(
+            String(clickedNode.attrs.source ?? ''),
+            event.target instanceof Element ? event.target : null,
+            safeHtmlDom
+          )
+        : getClickedLinkHref(view, pos)
+  if (!href) {
+    return false
+  }
   if (
     clickedNode?.type.name === 'richMarkdownHtmlSuperscriptLink' &&
     !classifyHtmlSuperscriptLinkAction(href, sourceSnapshot)
   ) {
     return true
-  }
-  if (!href) {
-    return false
   }
   if (href.startsWith('#')) {
     scrollToAnchorInEditor(rootRef.current, href.slice(1))

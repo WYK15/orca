@@ -13,40 +13,14 @@ import {
   skipInlineTransportStartScan
 } from './rich-markdown-source-transport'
 import { matchHtmlSuperscriptLinkSource } from './rich-markdown-html-superscript-link-source'
+import { matchRichMarkdownSafeHtml } from './rich-markdown-safe-html-source'
+import {
+  createRawMarkdownHtmlContainerStack,
+  isEscapedMarkdownHtml,
+  matchRawMarkdownHtmlBlock
+} from './raw-markdown-html-scanning'
 
 const INLINE_HTML_PATTERN = /^<!--[\s\S]*?-->|^<\/?[A-Za-z][\w.:-]*(?:\s[^<>]*?)?\/?>/
-
-function isEscaped(content: string, index: number): boolean {
-  let backslashCount = 0
-  for (let i = index - 1; i >= 0 && content[i] === '\\'; i -= 1) {
-    backslashCount += 1
-  }
-  return backslashCount % 2 === 1
-}
-
-function findLineEnd(content: string, start: number): number {
-  const newlineIndex = content.indexOf('\n', start)
-  return newlineIndex === -1 ? content.length : newlineIndex
-}
-
-function isLineOnlyHtml(line: string): boolean {
-  const trimmed = line.trim()
-  if (!trimmed.startsWith('<')) {
-    return false
-  }
-
-  if (trimmed.startsWith('<!--')) {
-    return trimmed.includes('-->')
-  }
-
-  return /^<\/?[A-Za-z][\w.:-]*(?:\s[^<>]*?)?\/?>$/.test(trimmed)
-}
-
-function matchBlockHtml(content: string, start: number): string | null {
-  const lineEnd = findLineEnd(content, start)
-  const line = content.slice(start, lineEnd)
-  return isLineOnlyHtml(line) ? line : null
-}
 
 export function encodeRawMarkdownHtmlForRichEditor(
   content: string,
@@ -61,6 +35,7 @@ export function encodeRawMarkdownHtmlForRichEditor(
   let activeFence: '`' | '~' | null = null
   let activeFenceLength = 0
   let result = ''
+  const rawHtmlContainers = createRawMarkdownHtmlContainerStack()
   const nonWhitespace = /\S/g
   const fencePrefix = /(`{3,}|~{3,})/y
   let fenceProbe = -1
@@ -147,9 +122,19 @@ export function encodeRawMarkdownHtmlForRichEditor(
         continue
       }
 
-      const blockHtml = matchBlockHtml(normalizedContent, index)
+      const safeBlockHtml = rawHtmlContainers.isInside
+        ? null
+        : matchRichMarkdownSafeHtml(normalizedContent, index, 'block')
+      if (safeBlockHtml) {
+        result += transport.create('safe-block-html', safeBlockHtml.source)
+        index += safeBlockHtml.source.length
+        continue
+      }
+
+      const blockHtml = matchRawMarkdownHtmlBlock(normalizedContent, index)
       if (blockHtml) {
         result += transport.create('block-html', blockHtml)
+        rawHtmlContainers.observe(blockHtml)
         index += blockHtml.length
         continue
       }
@@ -168,7 +153,7 @@ export function encodeRawMarkdownHtmlForRichEditor(
       continue
     }
 
-    if (normalizedContent[index] === '<' && !isEscaped(normalizedContent, index)) {
+    if (normalizedContent[index] === '<' && !isEscapedMarkdownHtml(normalizedContent, index)) {
       if (htmlSuperscriptLinks) {
         const superscriptLink = matchHtmlSuperscriptLinkSource(normalizedContent, index)
         if (superscriptLink) {
@@ -177,6 +162,14 @@ export function encodeRawMarkdownHtmlForRichEditor(
           continue
         }
       }
+      const safeInlineHtml = rawHtmlContainers.isInside
+        ? null
+        : matchRichMarkdownSafeHtml(normalizedContent, index, 'inline')
+      if (safeInlineHtml) {
+        result += transport.create('safe-inline-html', safeInlineHtml.source)
+        index += safeInlineHtml.source.length
+        continue
+      }
       // An unterminated comment cannot match; later tags must still be encoded.
       const inlineHtml =
         normalizedContent.startsWith('<!--', index) && index + 4 > lastCommentClose
@@ -184,6 +177,7 @@ export function encodeRawMarkdownHtmlForRichEditor(
           : (normalizedContent.slice(index).match(INLINE_HTML_PATTERN)?.[0] ?? null)
       if (inlineHtml) {
         result += transport.create('inline-html', inlineHtml)
+        rawHtmlContainers.observe(inlineHtml)
         index += inlineHtml.length
         continue
       }
@@ -194,7 +188,7 @@ export function encodeRawMarkdownHtmlForRichEditor(
     if (
       normalizedContent[index] === '[' &&
       normalizedContent[index + 1] === '[' &&
-      !isEscaped(normalizedContent, index)
+      !isEscapedMarkdownHtml(normalizedContent, index)
     ) {
       const closingIndex = normalizedContent.indexOf(']]', index + 2)
       if (closingIndex !== -1) {
