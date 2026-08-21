@@ -31,9 +31,6 @@ on:
         description: JSON array of specs to run; empty runs the full suite
         required: false
         type: string
-  schedule:
-    # One complete daily reference run; targeted PR coverage remains unchanged.
-    - cron: '0 17 * * *'
 
 jobs:
   build:

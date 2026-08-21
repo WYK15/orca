@@ -155,7 +155,8 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       readPackagedReleaseAutoUpdateEnabled(app.getAppPath(), process.platform)
     )
     const autoUpdater = this.getAutoUpdater()
-    autoUpdater.autoDownload = false
+    autoUpdater.autoDownload =
+      process.platform === 'darwin' && this.releaseUpdateDelivery === 'automatic'
     if (this.activeUpdateSource === 'release') {
       autoUpdater.allowDowngrade = false
       autoUpdater.disableDifferentialDownload = false

@@ -36,9 +36,6 @@ name: Hourly macOS Dev Build
 # number and the next run does not reuse it.
 
 on:
-  schedule:
-    # Top of every hour. Skipped automatically when main has not moved.
-    - cron: '0 * * * *'
   workflow_dispatch:
     inputs:
       force:

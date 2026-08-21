@@ -150,6 +150,25 @@ export function getCatalogModel(id: string): SpeechModelManifest | undefined {
   return SPEECH_MODEL_CATALOG.find((m) => m.id === id)
 }
 
+export const LOCAL_SPEECH_UNAVAILABLE_MESSAGE =
+  'Local speech recognition is unavailable on Windows ARM64. Choose a cloud transcription model.'
+
+export function isLocalSpeechSupported(
+  hostPlatform = process.platform,
+  hostArch = process.arch
+): boolean {
+  return hostPlatform !== 'win32' || hostArch !== 'arm64'
+}
+
+export function getAvailableSpeechModels(
+  hostPlatform = process.platform,
+  hostArch = process.arch
+): SpeechModelManifest[] {
+  return isLocalSpeechSupported(hostPlatform, hostArch)
+    ? SPEECH_MODEL_CATALOG
+    : SPEECH_MODEL_CATALOG.filter((model) => model.provider === 'openai')
+}
+
 export function isLocalSpeechModel(manifest: SpeechModelManifest): boolean {
   return manifest.provider === 'local'
 }

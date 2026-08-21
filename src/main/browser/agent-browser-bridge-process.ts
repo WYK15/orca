@@ -6,10 +6,10 @@ import type { WebContents } from 'electron'
 import { BrowserError } from './cdp-bridge'
 import { ORCA_TAB_SESSION_PREFIX } from './agent-browser-orphan-sweep'
 import { EMBEDDED_NAVIGATION_TIMEOUT_MS } from './agent-browser-bridge-types'
+import { agentBrowserBinaryName } from './agent-browser-binary-name'
 
 export function agentBrowserNativeName(): string {
-  const ext = process.platform === 'win32' ? '.exe' : ''
-  return `agent-browser-${platform()}-${arch()}${ext}`
+  return agentBrowserBinaryName(platform(), arch())
 }
 
 export function resolveAgentBrowserBinary(): string {

@@ -1,8 +1,6 @@
 name: Warm shared CI caches
 
 on:
-  schedule:
-    - cron: '41 * * * *'
   workflow_dispatch:
   push:
     branches: [main]

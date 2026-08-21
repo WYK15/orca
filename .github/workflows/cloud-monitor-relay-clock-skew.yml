@@ -8,8 +8,6 @@ name: Monitor Relay Cell Clock Skew
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 * * * *'
 
 permissions:
   contents: read

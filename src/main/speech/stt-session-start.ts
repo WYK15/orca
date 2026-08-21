@@ -1,5 +1,9 @@
 import { Worker } from 'node:worker_threads'
-import { getCatalogModel } from './model-catalog'
+import {
+  getCatalogModel,
+  isLocalSpeechSupported,
+  LOCAL_SPEECH_UNAVAILABLE_MESSAGE
+} from './model-catalog'
 import { OpenAiTranscriptionSession } from './openai-transcription-client'
 import { readOpenAiSpeechApiKey } from './openai-api-key-store'
 import type { SttEventSink } from './stt-service'
@@ -83,6 +87,10 @@ async function startSttSession(
     state.eventSink = sink
     sink({ type: 'ready' })
     return
+  }
+
+  if (!isLocalSpeechSupported()) {
+    throw new Error(LOCAL_SPEECH_UNAVAILABLE_MESSAGE)
   }
 
   if (state.cloudSession) {

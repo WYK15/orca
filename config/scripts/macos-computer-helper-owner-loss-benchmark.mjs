@@ -22,6 +22,7 @@ import {
   writeProcessRecord
 } from './macos-computer-helper-owner-loss-processes.mjs'
 import { cleanupOwnerLossTrial } from './macos-computer-helper-owner-loss-trial-cleanup.mjs'
+import { macOSComputerHelperAppPath } from './computer-native-macos-helper-path.mjs'
 
 const INTERNAL_ENV = 'ORCA_COMPUTER_HELPER_OWNER_BENCH_INTERNAL'
 const EXPECTATION_ENV = 'ORCA_COMPUTER_HELPER_OWNER_BENCH_EXPECTATION'
@@ -46,14 +47,7 @@ const trialCleanupPath = path.join(
   'macos-computer-helper-owner-loss-trial-cleanup.mjs'
 )
 const sidecarPath = path.join(repoRoot, 'out', 'main', 'computer-sidecar.js')
-const helperAppPath = path.join(
-  repoRoot,
-  'native',
-  'computer-use-macos',
-  '.build',
-  'release',
-  'Orca Computer Use.app'
-)
+const helperAppPath = macOSComputerHelperAppPath(repoRoot)
 const helperPath = path.join(helperAppPath, 'Contents', 'MacOS', 'orca-computer-use-macos')
 
 function sleep(ms) {

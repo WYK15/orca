@@ -15,15 +15,21 @@ import { verifyPackageCliBin } from './verify-cli-bin.mjs'
 /** Builds a temporary Orca-style project fixture with a compiled CLI entrypoint. */
 function makeProjectWithCli(
   content,
-  { mode = 0o755, rootPackageType, writeOutPackageJson = true } = {}
+  { command = 'orca', mode = 0o755, rootPackageType, writeOutPackageJson = true } = {}
 ) {
   const projectDir = mkdtempSync(path.join(tmpdir(), 'orca-cli-bin-'))
   const cliPath = path.join(projectDir, 'out', 'cli', 'index.js')
   const outPackageJsonPath = path.join(projectDir, 'out', 'package.json')
   mkdirSync(path.dirname(cliPath), { recursive: true })
+  mkdirSync(path.join(projectDir, 'config'), { recursive: true })
+  writeFileSync(
+    path.join(projectDir, 'config', 'orcaw-product-identity.json'),
+    JSON.stringify({ nativeCliCommand: command }),
+    'utf8'
+  )
   writeFileSync(
     path.join(projectDir, 'package.json'),
-    JSON.stringify({ bin: { orca: './out/cli/index.js' }, type: rootPackageType }),
+    JSON.stringify({ bin: { [command]: './out/cli/index.js' }, type: rootPackageType }),
     'utf8'
   )
   if (writeOutPackageJson) {
@@ -37,6 +43,16 @@ function makeProjectWithCli(
 }
 
 describe('verifyPackageCliBin', () => {
+  it('verifies the CLI command declared by the product identity', () => {
+    const { projectDir, cliPath } = makeProjectWithCli('#!/usr/bin/env node\n', {
+      command: 'orcaw'
+    })
+
+    expect(verifyPackageCliBin({ projectDir })).toMatchObject({
+      binPath: cliPath
+    })
+  })
+
   it('accepts a non-empty Node entrypoint and can run help through Node', () => {
     const { projectDir, cliPath } = makeProjectWithCli(
       '#!/usr/bin/env node\nif (process.argv.includes("--help")) process.exit(0)\n'

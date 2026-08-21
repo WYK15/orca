@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { rename, rm } from 'node:fs/promises'
 import { join, relative, resolve } from 'node:path'
 import type {
@@ -7,7 +7,13 @@ import type {
   SpeechModelState,
   SpeechModelStatus
 } from '../../shared/speech-types'
-import { SPEECH_MODEL_CATALOG, getCatalogModel, isLocalSpeechModel } from './model-catalog'
+import {
+  LOCAL_SPEECH_UNAVAILABLE_MESSAGE,
+  SPEECH_MODEL_CATALOG,
+  getCatalogModel,
+  isLocalSpeechModel,
+  isLocalSpeechSupported
+} from './model-catalog'
 import { hasOpenAiSpeechApiKey } from './openai-api-key-store'
 import {
   getSpeechModelCacheDirCandidates,
@@ -15,6 +21,7 @@ import {
   type SpeechModelCacheDir
 } from './model-cache-path'
 import { SpeechModelDownloadTransport } from './speech-model-download-transport'
+import { validateSpeechModelFiles } from './speech-model-files-validation'
 import {
   removeModelDownloadFiles,
   removeModelDownloadStaging
@@ -133,16 +140,7 @@ export class ModelManager extends SpeechModelDownloadTransport {
   }
 
   private validateModelFiles(manifest: SpeechModelManifest, modelDir: string): boolean {
-    if (!manifest.downloadFiles) {
-      return false
-    }
-    return manifest.downloadFiles.every(({ name, sizeBytes }) => {
-      try {
-        return statSync(join(modelDir, name)).size === sizeBytes
-      } catch {
-        return false
-      }
-    })
+    return validateSpeechModelFiles(manifest, modelDir)
   }
 
   async downloadModel(modelId: string): Promise<void> {
@@ -157,6 +155,9 @@ export class ModelManager extends SpeechModelDownloadTransport {
     }
     if (!isLocalSpeechModel(manifest)) {
       throw new Error(`Model does not support downloads: ${modelId}`)
+    }
+    if (!isLocalSpeechSupported()) {
+      throw new Error(LOCAL_SPEECH_UNAVAILABLE_MESSAGE)
     }
     if (!manifest.downloadFiles?.length || !manifest.sizeBytes) {
       throw new Error(`Model download metadata missing: ${modelId}`)

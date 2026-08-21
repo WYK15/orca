@@ -15,7 +15,7 @@ function readRootEntries(sha) {
 
 // Why: the Cloud workspace import is the one reviewed root addition; it stays
 // listed until it lands on main, after which the base tree carries it.
-const REVIEWED_ROOT_ENTRIES = new Set(['cloud'])
+const REVIEWED_ROOT_ENTRIES = new Set(['cloud', 'FORK_NOTES.md'])
 
 function checkRootDirectoryEntries(argv) {
   if (argv.length !== 2) {

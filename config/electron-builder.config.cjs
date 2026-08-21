@@ -50,6 +50,7 @@ const isWinAdhoc = process.env.ORCA_WIN_ADHOC === '1'
 const isWinDevChannel = isWinHourly || isWinDaily || isWinAdhoc
 const isMacRelease = process.env.ORCA_MAC_RELEASE === '1' || isMacHourly || isMacDaily || isMacAdhoc
 const isLinuxArm64Release = process.env.ORCA_LINUX_ARM64_RELEASE === '1'
+const isWindowsArm64Release = process.env.ORCA_WINDOWS_ARM64_RELEASE === '1'
 const releaseAutoUpdateEnabled = isMacRelease || process.env.ORCA_RELEASE_AUTO_UPDATE === '1'
 const localBuildVersion =
   isMacRelease || isWinDevChannel ? undefined : process.env.ORCA_LOCAL_BUILD_VERSION
@@ -241,7 +242,8 @@ module.exports = {
     // app.asar too lets asarUnpack:['resources/**'] extract a second copy at
     // app.asar.unpacked/resources/win32/bin/orcaw.cmd with no adjacent orcaw.exe,
     // which fails to launch the CLI (#7351).
-    '!resources/win32{,/**/*}'
+    '!resources/win32{,/**/*}',
+    ...(isWindowsArm64Release ? ['!node_modules/sherpa-onnx-win-x64/**'] : [])
   ],
   // Why: the CLI entry-point lives in out/cli/ but imports shared modules
   // from out/shared/ and local hook mutators from out/main/. These paths must be
@@ -450,7 +452,7 @@ module.exports = {
     extraResources: [
       ...commonExtraResources,
       ...windowsRuntimeResources,
-      winSpeechNativeResource,
+      ...(isWindowsArm64Release ? [] : [winSpeechNativeResource]),
       {
         from: 'resources/win32/bin/orcaw.cmd',
         to: 'bin/orcaw.cmd'
@@ -471,7 +473,9 @@ module.exports = {
     ]
   },
   nsis: {
-    artifactName: `${productIdentity.artifactPrefix}-windows-setup.\${ext}`,
+    artifactName: isWindowsArm64Release
+      ? `${productIdentity.artifactPrefix}-windows-arm64-setup.\${ext}`
+      : `${productIdentity.artifactPrefix}-windows-setup.\${ext}`,
     shortcutName: '${productName}',
     uninstallDisplayName: '${productName}',
     createDesktopShortcut: 'always',
@@ -740,7 +744,9 @@ async function signMacComputerUseHelper(helperAppPath, packager) {
   const identity =
     process.env.ORCA_COMPUTER_MACOS_SIGN_IDENTITY ??
     process.env.CSC_NAME ??
-    findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
+    findInstalledMacSigningIdentity(
+      process.env.ORCA_MACOS_SIGNING_KEYCHAIN ?? codeSigningInfo?.keychainFile
+    ) ??
     (isMacRelease ? null : '-')
   if (!identity) {
     throw new Error(`Missing signing identity for ${productIdentity.computerUseAppName} helper app`)
@@ -766,7 +772,9 @@ async function signMacStandaloneHelper(helperPath, helperName, packager) {
       : null
   const identity =
     process.env.CSC_NAME ??
-    findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
+    findInstalledMacSigningIdentity(
+      process.env.ORCA_MACOS_SIGNING_KEYCHAIN ?? codeSigningInfo?.keychainFile
+    ) ??
     (isMacRelease ? null : '-')
   if (!identity) {
     throw new Error(`Missing signing identity for ${helperName} helper`)

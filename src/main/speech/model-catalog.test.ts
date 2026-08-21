@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { getCatalogModel, SPEECH_MODEL_CATALOG } from './model-catalog'
+import {
+  getCatalogModel,
+  getAvailableSpeechModels,
+  isLocalSpeechSupported,
+  SPEECH_MODEL_CATALOG
+} from './model-catalog'
 
 describe('SPEECH_MODEL_CATALOG', () => {
+  it('offers only cloud transcription on Windows ARM64', () => {
+    expect(isLocalSpeechSupported('win32', 'arm64')).toBe(false)
+    expect(
+      getAvailableSpeechModels('win32', 'arm64').every((model) => model.provider === 'openai')
+    ).toBe(true)
+    expect(getAvailableSpeechModels('win32', 'x64')).toEqual(SPEECH_MODEL_CATALOG)
+  })
   it('includes the Japanese Parakeet TDT-CTC model with a valid manifest', () => {
     const manifest = getCatalogModel('parakeet-tdt-ctc-0.6b-ja-int8')
 

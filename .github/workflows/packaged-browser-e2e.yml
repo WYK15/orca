@@ -6,8 +6,6 @@ on:
         description: Commit SHA or ref to validate (defaults to the selected revision)
         type: string
         required: false
-  schedule:
-    - cron: '20 8 * * 1'
   workflow_call:
     inputs:
       ref:

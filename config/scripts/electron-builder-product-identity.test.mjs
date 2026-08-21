@@ -11,6 +11,7 @@ const MUTABLE_BUILD_ENV = [
   'ORCA_ADHOC_BUILD_VERSION',
   'ORCA_LOCAL_BUILD_VERSION',
   'ORCA_LINUX_ARM64_RELEASE',
+  'ORCA_WINDOWS_ARM64_RELEASE',
   'ORCA_RELEASE_AUTO_UPDATE'
 ]
 
@@ -88,6 +89,16 @@ describe('electron-builder product identity', () => {
   it('uses a distinct Orcaw AppImage name for Linux arm64 uploads', () => {
     withEnv({ ORCA_LINUX_ARM64_RELEASE: '1' }, (config) => {
       expect(config.appImage.artifactName).toBe('orcaw-linux-arm64.${ext}')
+    })
+  })
+
+  it('uses a distinct Windows ARM64 installer name without x64 native speech resources', () => {
+    withEnv({ ORCA_WINDOWS_ARM64_RELEASE: '1' }, (config) => {
+      expect(config.nsis.artifactName).toBe('orcaw-windows-arm64-setup.${ext}')
+      expect(config.win.extraResources).not.toContainEqual(
+        expect.objectContaining({ from: 'node_modules/sherpa-onnx-win-x64' })
+      )
+      expect(config.files).toContain('!node_modules/sherpa-onnx-win-x64/**')
     })
   })
 

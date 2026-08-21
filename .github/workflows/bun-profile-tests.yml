@@ -36,8 +36,6 @@ on:
       - '.github/actions/install-node-dependencies/**'
       - '.github/workflows/bun-profile-tests.yml'
   workflow_dispatch:
-  schedule:
-    - cron: '30 11 * * *'
 
 permissions:
   contents: read

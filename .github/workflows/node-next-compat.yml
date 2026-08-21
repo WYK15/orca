@@ -1,9 +1,6 @@
 name: Scheduled x86 unit compatibility
 
 on:
-  schedule:
-    # Keep current and future Node coverage on x86 while PR unit shards use ARM.
-    - cron: '0 10 * * *'
   workflow_dispatch:
 
 concurrency:

@@ -6,6 +6,7 @@ const {
   getCloudSessions,
   getCreatedWorkerCount,
   getLastWorker,
+  isLocalSpeechSupportedMock,
   readOpenAiSpeechApiKeyMock,
   resetCloudSessions,
   resetWorkers
@@ -104,6 +105,7 @@ const {
     getCreatedWorkerCount: () => HoistedMockWorker.created,
     getLastWorker: () => HoistedMockWorker.instances.at(-1),
     readOpenAiSpeechApiKeyMock: vi.fn(() => 'test-openai-key'),
+    isLocalSpeechSupportedMock: vi.fn(() => true),
     resetCloudSessions: () => {
       HoistedMockOpenAiTranscriptionSession.instances = []
     },
@@ -128,6 +130,8 @@ vi.mock('worker_threads', () => ({
 }))
 
 vi.mock('./model-catalog', () => ({
+  LOCAL_SPEECH_UNAVAILABLE_MESSAGE: 'Local speech recognition is unavailable on Windows ARM64.',
+  isLocalSpeechSupported: isLocalSpeechSupportedMock,
   getCatalogModel: (id: string) =>
     id === 'openai-model'
       ? {
@@ -162,6 +166,32 @@ describe('SttService', () => {
     resetCloudSessions()
     resetWorkers()
     readOpenAiSpeechApiKeyMock.mockClear()
+    isLocalSpeechSupportedMock.mockReset().mockReturnValue(true)
+  })
+
+  it('rejects local startup without constructing a worker on Windows ARM64', async () => {
+    isLocalSpeechSupportedMock.mockReturnValue(false)
+    const service = new SttService({
+      getModelState: vi.fn().mockResolvedValue({ id: 'model-a', status: 'ready' }),
+      getModelDir: vi.fn().mockReturnValue('/tmp/model-a')
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The service consumes only these model-manager methods.
+    } as never)
+    await expect(service.startDictation('model-a', vi.fn())).rejects.toThrow(
+      'Local speech recognition is unavailable on Windows ARM64.'
+    )
+    expect(getCreatedWorkerCount()).toBe(0)
+  })
+
+  it('keeps cloud startup available when local speech is unsupported', async () => {
+    isLocalSpeechSupportedMock.mockReturnValue(false)
+    const service = new SttService({
+      getModelState: vi.fn().mockResolvedValue({ id: 'openai-model', status: 'ready' }),
+      getModelDir: vi.fn()
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Cloud startup consumes only getModelState.
+    } as never)
+    await service.startDictation('openai-model', vi.fn())
+    expect(getCloudSessions()).toHaveLength(1)
+    expect(getCreatedWorkerCount()).toBe(0)
   })
 
   it('reuses an idle warm worker for a second dictation with the same owner', async () => {

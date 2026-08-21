@@ -121,11 +121,11 @@ describe('fork updater service delivery', () => {
   )
 
   it.each(['darwin', 'win32', 'linux'] as const)(
-    'allows explicit automatic metadata on %s without changing 218 download timing',
+    'keeps signed macOS automatic downloads and explicit downloads on %s',
     async (platform) => {
       const { updater } = await start(platform, { orcawReleaseAutoUpdate: true })
       expect(updater.getUpdateStatus()).toEqual({ state: 'available', version, changelog: null })
-      expect(autoUpdaterMock.autoDownload).toBe(false)
+      expect(autoUpdaterMock.autoDownload).toBe(platform === 'darwin')
       updater.downloadUpdate()
       autoUpdaterMock.emit('update-downloaded', { version })
       if (platform === 'darwin') {

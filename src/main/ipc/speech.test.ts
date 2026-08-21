@@ -31,6 +31,7 @@ vi.mock('electron', () => ({
 
 vi.mock('../speech/model-catalog', () => ({
   SPEECH_MODEL_CATALOG: [],
+  getAvailableSpeechModels: vi.fn(() => []),
   getCatalogModel: vi.fn(() => ({ id: 'model-1' }))
 }))
 

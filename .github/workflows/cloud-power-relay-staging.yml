@@ -1,9 +1,6 @@
 name: Power Relay Staging
 
 on:
-  schedule:
-    # A zero-activity guard makes this a no-op when an internal test is still running.
-    - cron: '0 9 * * *'
   workflow_dispatch:
     inputs:
       mode:

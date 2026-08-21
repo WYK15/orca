@@ -9,9 +9,6 @@ on:
       - 'config/scripts/regenerate-xterm-patches.mjs'
       - 'config/scripts/xterm-patch-text.mjs'
       - 'package.json'
-  # Refresh after Node patch releases or cache eviction without rebuilding on hits.
-  schedule:
-    - cron: '17 5 * * *'
   workflow_dispatch:
 permissions:
   contents: read
