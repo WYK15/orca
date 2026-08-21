@@ -33,6 +33,7 @@ import type { RichMarkdownEditorCodec } from './rich-markdown-source-transport'
 import { createRichMarkdownHtmlSuperscriptLink } from './rich-markdown-html-superscript-link'
 import type { RichMarkdownHtmlSuperscriptLinkContext } from './rich-markdown-html-superscript-link-context'
 import { RichMarkdownTaskList } from './rich-markdown-task-list'
+import { createRichMarkdownSafeHtmlExtensions } from './rich-markdown-safe-html'
 
 const lowlight = createLowlight(common)
 
@@ -218,6 +219,7 @@ export function createRichMarkdownExtensions({
     ...(htmlSuperscriptLinks
       ? [createRichMarkdownHtmlSuperscriptLink(codec.transport, htmlSuperscriptLinkContext!)]
       : []),
+    ...createRichMarkdownSafeHtmlExtensions(codec.transport),
     createRawMarkdownHtmlInline(codec.transport),
     createRawMarkdownHtmlBlock(codec.transport),
     createMarkdownDocLink(codec.transport),

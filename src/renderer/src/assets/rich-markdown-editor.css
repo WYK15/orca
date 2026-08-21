@@ -1216,6 +1216,35 @@
   outline-offset: 2px;
 }
 
+.rich-markdown-safe-html-node {
+  border-radius: var(--radius-sm);
+}
+
+.rich-markdown-safe-html-node--block {
+  display: block;
+}
+
+.rich-markdown-safe-html-source {
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--foreground);
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  outline: none;
+}
+
+.rich-markdown-safe-html-node--block .rich-markdown-safe-html-source {
+  width: 100%;
+  resize: vertical;
+}
+
+.rich-markdown-safe-html-source:focus {
+  border-color: var(--ring);
+}
+
 /* ── Linear Issue Markdown Editor ────────────────────── */
 
 .linear-issue-markdown-editor {
