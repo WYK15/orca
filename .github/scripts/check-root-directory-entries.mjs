@@ -21,7 +21,9 @@ function checkRootDirectoryEntries(argv) {
 
   const [baseSha, headSha] = argv
   const baseEntries = new Set(readRootEntries(baseSha))
-  const blockedEntries = readRootEntries(headSha).filter((entry) => !baseEntries.has(entry))
+  const blockedEntries = readRootEntries(headSha).filter(
+    (entry) => entry !== 'FORK_NOTES.md' && !baseEntries.has(entry)
+  )
 
   if (blockedEntries.length === 0) {
     console.log('Root directory guard passed: no new root-level files or folders.')

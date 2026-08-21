@@ -1,0 +1,295 @@
+name: Fork Desktop Packages
+
+on:
+  push:
+    tags:
+      - 'v*-wyk.*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, or SHA to build'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-desktop-packages-${{ inputs.ref || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            platform: windows-x64
+            package_command: >-
+              node config/scripts/ensure-native-runtime.mjs --runtime=electron;
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE };
+              pnpm exec electron-builder --config config/electron-builder.config.cjs
+              --win --x64 --publish never
+            artifact_paths: |-
+              dist/orcaw-windows-setup.exe
+              dist/orcaw-windows-setup.exe.blockmap
+              dist/latest.yml
+            electron_cache: |-
+              ~\AppData\Local\electron\Cache
+              ~\AppData\Local\electron-builder\Cache
+          - os: ubuntu-24.04
+            platform: linux-x64
+            package_command: >-
+              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
+              ORCA_RELEASE_AUTO_UPDATE=1 pnpm exec electron-builder
+              --config config/electron-builder.config.cjs
+              --linux AppImage deb rpm --x64 --publish never
+            artifact_paths: |-
+              dist/*.AppImage
+              dist/*.deb
+              dist/*.rpm
+              dist/latest-linux.yml
+            electron_cache: |-
+              ~/.cache/electron
+              ~/.cache/electron-builder
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64
+            package_command: >-
+              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
+              ORCA_RELEASE_AUTO_UPDATE=1 ORCA_LINUX_ARM64_RELEASE=1
+              pnpm exec electron-builder
+              --config config/electron-builder.config.cjs
+              --linux AppImage deb rpm --arm64 --publish never
+            artifact_paths: |-
+              dist/*.AppImage
+              dist/*.deb
+              dist/*.rpm
+              dist/latest-linux-arm64.yml
+            electron_cache: |-
+              ~/.cache/electron
+              ~/.cache/electron-builder
+          - os: macos-15-intel
+            platform: macos
+            package_command: >-
+              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
+              node config/scripts/verify-macos-release-env.mjs &&
+              ORCA_MAC_RELEASE=1 pnpm exec electron-builder
+              --config config/electron-builder.config.cjs
+              --mac --publish never
+            artifact_paths: |-
+              dist/orcaw-macos-*.dmg
+              dist/orcaw-macos-*.dmg.blockmap
+              dist/Orcaw-*-mac.zip
+              dist/Orcaw-*-mac.zip.blockmap
+              dist/latest-mac.yml
+            electron_cache: |-
+              ~/Library/Caches/electron
+              ~/Library/Caches/electron-builder
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      CSC_LINK: ${{ matrix.platform == 'macos' && secrets.CSC_LINK || '' }}
+      CSC_KEY_PASSWORD: ${{ matrix.platform == 'macos' && secrets.CSC_KEY_PASSWORD || '' }}
+      APPLE_API_KEY_BASE64: ${{ matrix.platform == 'macos' && secrets.APPLE_API_KEY || '' }}
+      APPLE_API_KEY_ID: ${{ matrix.platform == 'macos' && secrets.APPLE_API_KEY_ID || '' }}
+      APPLE_API_ISSUER: ${{ matrix.platform == 'macos' && secrets.APPLE_API_ISSUER || '' }}
+
+    steps:
+      - name: Checkout requested ref
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Identify checked-out source
+        id: source
+        shell: bash
+        run: echo "short_sha=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Validate fork release contract
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin refs/heads/upstream-sync:refs/remotes/origin/upstream-sync
+          git merge-base --is-ancestor origin/upstream-sync HEAD
+          upstream_version="$(git show origin/upstream-sync:package.json | node -p "JSON.parse(require('node:fs').readFileSync(0, 'utf8')).version")"
+          fork_version="$(node -p "require('./package.json').version")"
+          node config/scripts/fork-release-contract.mjs --release \
+            "v$upstream_version" "$upstream_version" "$fork_version" "$GITHUB_REF_NAME"
+
+      - name: Use external node-gyp on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          npm install -g node-gyp@11.5.0
+          echo "npm_config_node_gyp=$(npm root -g)/node-gyp/bin/node-gyp.js" >> "$GITHUB_ENV"
+
+      - name: Cache Electron Builder downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ matrix.electron_cache }}
+          key: fork-electron-builder-${{ matrix.platform }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            fork-electron-builder-${{ matrix.platform }}-
+
+      - name: Install dependencies
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: pnpm install --frozen-lockfile
+
+      # `build:release` imports AT-SPI bindings, and rpm packaging needs fpm's rpm backend.
+      - name: Install Linux package dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: >-
+          sudo apt-get update &&
+          sudo apt-get install -y
+          python3-gi gir1.2-atspi-2.0 at-spi2-core xclip xdotool rpm
+
+      - name: Build package inputs
+        run: pnpm run build:release
+
+      - name: Prepare macOS signing and notarization keys
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          certificate_path="$RUNNER_TEMP/orcaw-developer-id.p12"
+          keychain_path="$RUNNER_TEMP/orcaw-signing.keychain-db"
+          keychain_password="$(openssl rand -base64 32)"
+          api_key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$CSC_LINK" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings "$keychain_path"
+          security import "$certificate_path" -k "$keychain_path" -T /usr/bin/codesign -P "$CSC_KEY_PASSWORD"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain_path"
+          printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
+          chmod 600 "$certificate_path" "$api_key_path"
+          echo "ORCA_MACOS_SIGNING_KEYCHAIN=$keychain_path" >> "$GITHUB_ENV"
+          echo "APPLE_API_KEY=$api_key_path" >> "$GITHUB_ENV"
+
+      - name: Package desktop app
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4
+        with:
+          timeout_minutes: 45
+          max_attempts: 2
+          retry_wait_seconds: 30
+          command: ${{ matrix.package_command }}
+
+      - name: Upload desktop packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: orcaw-${{ matrix.platform }}-${{ github.run_number }}-${{ steps.source.outputs.short_sha }}
+          path: ${{ matrix.artifact_paths }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout release verifier
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.ref }}
+          persist-credentials: false
+
+      - name: Download desktop packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: orcaw-*-${{ github.run_number }}-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create or reuse draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          draft="$(gh release view "$TAG_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json isDraft \
+            --jq .isDraft 2>/dev/null || true)"
+
+          if [[ "$draft" == "false" ]]; then
+            echo "Release $TAG_NAME is already published" >&2
+            exit 1
+          fi
+
+          if [[ -z "$draft" ]]; then
+            publication_kind="$(
+              node config/scripts/release-publication-kind.mjs "$TAG_NAME"
+            )"
+            args=(
+              release create "$TAG_NAME"
+              --repo "$GITHUB_REPOSITORY"
+              --title "$TAG_NAME"
+              --draft
+              --generate-notes
+            )
+            if [[ "$publication_kind" == "prerelease" ]]; then
+              args+=(--prerelease --latest=false)
+            fi
+            gh "${args[@]}"
+          fi
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' packages < <(
+            find release-assets -type f -print0
+          )
+          if (( ${#packages[@]} == 0 )); then
+            echo "No release packages found" >&2
+            exit 1
+          fi
+          gh release upload "$TAG_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber \
+            "${packages[@]}"
+
+      - name: Verify Orcaw release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: node config/scripts/verify-release-required-assets.mjs "$TAG_NAME"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: >-
+          gh release edit "$TAG_NAME"
+          --repo "$GITHUB_REPOSITORY"
+          --draft=false

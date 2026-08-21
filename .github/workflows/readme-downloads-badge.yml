@@ -2,8 +2,6 @@ name: README Downloads Badge
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 */6 * * *'
   release:
     types:
       - published

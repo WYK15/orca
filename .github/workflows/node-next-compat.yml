@@ -1,9 +1,6 @@
 name: Node next compatibility
 
 on:
-  schedule:
-    # Full future-runtime coverage is useful, but not worth doubling every PR matrix.
-    - cron: '0 10 * * *'
   workflow_dispatch:
 
 concurrency:
