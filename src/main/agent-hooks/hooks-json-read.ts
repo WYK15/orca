@@ -6,11 +6,10 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-export type HooksJsonSnapshot = {
-  /** null when the file does not exist or could not be read. */
-  raw: string | null
-  config: HooksConfig | null
-}
+export type HooksJsonSnapshot =
+  | { state: 'missing'; raw: null; config: HooksConfig }
+  | { state: 'unreadable'; raw: null; config: null }
+  | { state: 'readable'; raw: string; config: HooksConfig | null }
 
 export function parseHooksJsonText(raw: string): HooksConfig | null {
   // Why: JSON.parse rejects a decoded UTF-8 BOM; strip only the leading marker.
@@ -27,16 +26,15 @@ export function parseHooksJsonText(raw: string): HooksConfig | null {
 // bytes it was derived from; the raw snapshot and the parse must come from one
 // read or a concurrent save can slip between them unnoticed.
 export function readHooksJsonWithRaw(configPath: string): HooksJsonSnapshot {
-  // Why: the read arm below already separates "no hooks configured" from "could
-  // not read", but the `existsSync` arm in front of it did not — it returned a
-  // VALID EMPTY config for a file that merely could not be opened, and the
-  // installer then wrote generated hooks over it. One read classifies both, and
-  // closes the TOCTOU window between the two calls.
+  // Why: one read avoids a TOCTOU window and distinguishes absence from failures
+  // that must never be treated as a writable empty config.
   try {
     const raw = readFileSync(configPath, 'utf-8')
-    return { raw, config: parseHooksJsonText(raw) }
+    return { state: 'readable', raw, config: parseHooksJsonText(raw) }
   } catch (error) {
-    return isDefinitiveAbsence(error) ? { raw: null, config: {} } : { raw: null, config: null }
+    return isDefinitiveAbsence(error)
+      ? { state: 'missing', raw: null, config: {} }
+      : { state: 'unreadable', raw: null, config: null }
   }
 }
 

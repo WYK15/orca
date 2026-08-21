@@ -4,7 +4,6 @@ import type { SFTPWrapper } from 'ssh2'
 import type { AgentHookInstallState, AgentHookInstallStatus } from '../../shared/agent-hook-types'
 import { resolveGrokHomeDir } from '../../shared/grok-session-paths'
 import {
-  readHooksJson,
   readHooksJsonWithRaw,
   writeHooksJson,
   writeManagedScript
@@ -95,7 +94,7 @@ export class GrokHookService {
   getStatus(): AgentHookInstallStatus {
     const configPath = getConfigPath()
     const scriptPath = getGrokManagedScriptPath()
-    const config = readHooksJson(configPath)
+    const config = readHooksJsonWithRaw(configPath).config
     if (!config) {
       return {
         agent: 'grok',
@@ -222,6 +221,9 @@ export class GrokHookService {
     }
     clearGrokSymlinkCleanupMarker(configPath)
     const snapshot = readHooksJsonWithRaw(configPath)
+    if (snapshot.state === 'missing') {
+      return notInstalledStatus(configPath)
+    }
     const config = snapshot.config
     if (!config) {
       return notInstalledStatus(configPath, 'Could not parse Grok hook config')

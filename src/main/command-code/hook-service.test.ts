@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -34,6 +34,28 @@ describe('CommandCodeHookService', () => {
   afterEach(() => {
     vi.clearAllMocks()
     rmSync(homeDir, { recursive: true, force: true })
+  })
+
+  it('does not create config state when removing missing managed hooks', () => {
+    const configDirectory = join(homeDir, '.commandcode')
+    const configPath = join(configDirectory, 'settings.json')
+
+    expect(new CommandCodeHookService().remove().state).toBe('not_installed')
+    expect(existsSync(configPath)).toBe(false)
+    expect(existsSync(configDirectory)).toBe(false)
+  })
+
+  it('returns an error from an unreadable config snapshot without re-reading', async () => {
+    const installerUtils = await import('../agent-hooks/installer-utils')
+    const readSnapshot = vi
+      .spyOn(installerUtils, 'readHooksJsonWithRaw')
+      .mockReturnValue({ state: 'unreadable', raw: null, config: null })
+
+    try {
+      expect(new CommandCodeHookService().remove().state).toBe('error')
+    } finally {
+      readSnapshot.mockRestore()
+    }
   })
 
   it('installs the managed command for Command Code status events', () => {
