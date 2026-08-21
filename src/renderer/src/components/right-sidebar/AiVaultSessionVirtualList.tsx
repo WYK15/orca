@@ -33,14 +33,11 @@ import {
   VAULT_SESSION_ROW_HEIGHT
 } from './ai-vault-virtual-rows'
 import { canContinueAiVaultSessionInNewSession } from './ai-vault-session-continuation'
-
 const VAULT_ROW_OVERSCAN = 8
 const VAULT_EXPANDED_SESSION_ROW_ESTIMATED_HEIGHT = 420
-
 type AiVaultListRow =
   | { type: 'group'; group: AiVaultSessionGroup }
   | { type: 'session'; groupKey: string; session: AiVaultSession }
-
 export function AiVaultSessionVirtualList({
   groups,
   collapsedGroups,
@@ -67,6 +64,9 @@ export function AiVaultSessionVirtualList({
   onOpenLog,
   onRevealLog,
   onOpenCwd,
+  selectionMode,
+  selectedSessionIds,
+  onToggleSessionSelection,
   onRequestDelete
 }: {
   groups: readonly AiVaultSessionGroup[]
@@ -94,13 +94,15 @@ export function AiVaultSessionVirtualList({
   onOpenLog: (session: AiVaultSession) => void
   onRevealLog: (session: AiVaultSession) => void
   onOpenCwd: (session: AiVaultSession) => void
+  selectionMode: boolean
+  selectedSessionIds: ReadonlySet<string>
+  onToggleSessionSelection: (session: AiVaultSession) => void
   onRequestDelete: (session: AiVaultSession) => void
 }): React.JSX.Element {
   const listScrollRef = useRef<HTMLDivElement>(null)
   const stickyRangeStartIndexRef = useRef(0)
   const activeStickyHeaderIndexRef = useRef<number | null>(null)
   const [expandedSessionIds, setExpandedSessionIds] = useState<Set<string>>(() => new Set())
-
   const vaultRows = useMemo(() => {
     const rows: AiVaultListRow[] = []
     for (const sessionGroup of groups) {
@@ -113,9 +115,7 @@ export function AiVaultSessionVirtualList({
     }
     return rows
   }, [collapsedGroups, groups])
-
   const stickyHeaderIndexes = useMemo(() => getVaultStickyHeaderIndexes(vaultRows), [vaultRows])
-
   const virtualizer = useVirtualizer({
     count: vaultRows.length,
     getScrollElement: () => listScrollRef.current,
@@ -147,7 +147,6 @@ export function AiVaultSessionVirtualList({
       return row.type === 'group' ? `group:${row.group.key}` : `session:${row.session.id}`
     }
   })
-
   const toggleSessionDetails = useCallback((sessionId: string) => {
     setExpandedSessionIds((current) => {
       const next = new Set(current)
@@ -159,7 +158,6 @@ export function AiVaultSessionVirtualList({
       return next
     })
   }, [])
-
   const virtualItems = virtualizer.getVirtualItems()
   activeStickyHeaderIndexRef.current = getActiveStickyHeaderIndexForScroll({
     rangeStartIndex: stickyRangeStartIndexRef.current,
@@ -167,14 +165,12 @@ export function AiVaultSessionVirtualList({
     stickyHeaderIndexes,
     virtualItems
   })
-
   return (
     <div
       ref={listScrollRef}
       className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-sleek"
     >
       {loading && sessionsCount === 0 ? <SessionLoadingState /> : null}
-
       {!loading && sessionsCount === 0 && !error ? (
         <EmptyState
           title={translate(
@@ -183,7 +179,6 @@ export function AiVaultSessionVirtualList({
           )}
         />
       ) : null}
-
       {sessionsCount > 0 && filteredSessionsCount === 0 ? (
         <EmptyState
           title={
@@ -199,7 +194,6 @@ export function AiVaultSessionVirtualList({
           }
         />
       ) : null}
-
       {vaultRows.length > 0 ? (
         <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
           {virtualItems.map((virtualRow) => (
@@ -231,6 +225,9 @@ export function AiVaultSessionVirtualList({
               onOpenLog={onOpenLog}
               onRevealLog={onRevealLog}
               onOpenCwd={onOpenCwd}
+              selectionMode={selectionMode}
+              selectedSessionIds={selectedSessionIds}
+              onToggleSessionSelection={onToggleSessionSelection}
               onRequestDelete={onRequestDelete}
             />
           ))}
@@ -239,7 +236,18 @@ export function AiVaultSessionVirtualList({
     </div>
   )
 }
-
+type AiVaultVirtualRowProps = Omit<
+  Parameters<typeof AiVaultSessionVirtualList>[0],
+  'groups' | 'loading' | 'sessionsCount' | 'filteredSessionsCount' | 'noAgentsSelected' | 'error'
+> & {
+  row: AiVaultListRow | undefined
+  index: number
+  start: number
+  activeStickyHeaderIndex: number | null
+  measureElement: (node: Element | null) => void
+  expandedSessionIds: ReadonlySet<string>
+  onToggleSessionDetails: (sessionId: string) => void
+}
 function AiVaultVirtualRow({
   row,
   index,
@@ -267,36 +275,11 @@ function AiVaultVirtualRow({
   onOpenLog,
   onRevealLog,
   onOpenCwd,
+  selectionMode,
+  selectedSessionIds,
+  onToggleSessionSelection,
   onRequestDelete
-}: {
-  row: AiVaultListRow | undefined
-  index: number
-  start: number
-  activeStickyHeaderIndex: number | null
-  measureElement: (node: Element | null) => void
-  collapsedGroups: ReadonlySet<string>
-  expandedSessionIds: ReadonlySet<string>
-  vaultScope: AiVaultScope
-  buildResumeStartup: (session: AiVaultSession, worktreeId?: string | null) => AiVaultResumeStartup
-  getOriginalPaneTarget: (session: AiVaultSession) => AiVaultOriginalPaneTarget | null
-  getSessionLiveState: (session: AiVaultSession) => AgentStatusState | null
-  getWorktreeInfo: (session: AiVaultSession) => AiVaultSessionWorktreeInfo | null
-  getSessionResumeState: (session: AiVaultSession) => AiVaultSessionResumeState
-  getSessionResumeActions: (session: AiVaultSession) => AiVaultSessionResumeActions
-  onToggleGroup: (key: string) => void
-  onToggleSessionDetails: (sessionId: string) => void
-  onJumpToOriginalPane: (session: AiVaultSession) => void
-  onJumpToWorktree: (worktreeId: string) => void
-  onResume: (session: AiVaultSession, worktreeId: string) => void
-  onContinueInNewSession: (session: AiVaultSession, worktreeId: string) => void
-  onCopyResume: (session: AiVaultSession, worktreeId?: string | null) => void
-  onCopyId: (session: AiVaultSession) => void
-  onCopyPath: (session: AiVaultSession) => void
-  onOpenLog: (session: AiVaultSession) => void
-  onRevealLog: (session: AiVaultSession) => void
-  onOpenCwd: (session: AiVaultSession) => void
-  onRequestDelete: (session: AiVaultSession) => void
-}): React.JSX.Element | null {
+}: AiVaultVirtualRowProps): React.JSX.Element | null {
   if (!row) {
     return null
   }
@@ -406,6 +389,9 @@ function AiVaultVirtualRow({
           onOpenCwd={
             canOpenLocalSessionPaths && row.session.cwd ? () => onOpenCwd(row.session) : undefined
           }
+          selectionMode={selectionMode}
+          selected={selectedSessionIds.has(row.session.id)}
+          onToggleSelection={() => onToggleSessionSelection(row.session)}
           onRequestDelete={onRequestDelete}
         />
       )}

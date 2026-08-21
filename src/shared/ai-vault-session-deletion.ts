@@ -7,6 +7,8 @@ export type AiVaultDeleteSessionArgs = {
   // Optional for mixed renderer/main versions. Main ignores this field on delete
   // (path + host + agent validation only; no identity/liveness check).
   sessionId?: string
+  // Codex uses this to locate every verified transcript alias.
+  codexHome?: string | null
   filePath: string
   // The session's host; only a local session may be deleted.
   executionHostId?: ExecutionHostId
@@ -50,6 +52,11 @@ export function isAiVaultDeletableAgent(agent: AiVaultAgent): agent is AiVaultDe
   return (AI_VAULT_DELETABLE_AGENTS as readonly AiVaultAgent[]).includes(agent)
 }
 
+// Codex has a dedicated multi-file deleter rather than the generic removal plan.
+export function isAiVaultSessionDeleteSupportedAgent(agent: AiVaultAgent): boolean {
+  return agent === 'codex' || isAiVaultDeletableAgent(agent)
+}
+
 // A '#' marks an OpenCode 1.17.x SQLite row's synthetic `<dbPath>#<sessionId>`
 // identity — no real file to open or delete. '#' never appears in a genuine
 // transcript path.
@@ -66,6 +73,8 @@ export type AiVaultSessionDeleteRejectionCode =
   // The scanner would never have surfaced this path as a session row, so it is
   // not a session to delete (wrong extension, or a pruned subagent transcript).
   | 'undiscoverable-path'
+  // The selected Codex path did not contain the requested session id.
+  | 'file-predicate-mismatch'
   // A directory-shaped agent's file sits directly in the sessions root, so it
   // names no session dir of its own — removing it would trash every session.
   | 'no-session-directory'

@@ -50,6 +50,7 @@ import { usePersistedAiVaultViewOptions } from './use-persisted-ai-vault-view-op
 import { AgentSessionContinuationDialog } from '@/components/agent-session-continuation/AgentSessionContinuationDialog'
 import { AiVaultScanIssueBanners } from './AiVaultScanIssueBanners'
 import { useAiVaultSessionDeleteAction } from './ai-vault-session-delete-action'
+import { useAiVaultBulkSessionDelete } from './use-ai-vault-bulk-session-delete'
 
 export default function AiVaultPanel(): React.JSX.Element {
   const activeWorktreeId = useActiveWorktreeId()
@@ -249,6 +250,7 @@ export default function AiVaultPanel(): React.JSX.Element {
       }),
     [filteredSessions, group, projectLabelByKey, sessionProjectById]
   )
+  const bulkDelete = useAiVaultBulkSessionDelete({ filteredSessions, refresh })
 
   const copyText = useCallback(async (text: string, label: string): Promise<void> => {
     await window.api.ui.writeClipboardText(text)
@@ -337,7 +339,14 @@ export default function AiVaultPanel(): React.JSX.Element {
         onSessionLimitChange={setSessionLimit}
         onReset={resetViewOptions}
         onRefresh={() => void refresh({ force: true })}
+        onSelectSessions={
+          !bulkDelete.selectionMode && filteredSessions.length > 0
+            ? bulkDelete.enterSelectionMode
+            : undefined
+        }
       />
+
+      {bulkDelete.controls}
 
       {error ? (
         <div className="border-b border-sidebar-border px-3 py-2 text-xs text-destructive">
@@ -389,6 +398,9 @@ export default function AiVaultPanel(): React.JSX.Element {
             void window.api.shell.openPath(session.cwd)
           }
         }}
+        selectionMode={bulkDelete.selectionMode}
+        selectedSessionIds={bulkDelete.selectedSessionIds}
+        onToggleSessionSelection={bulkDelete.toggleSession}
         onRequestDelete={(session) => void requestDelete(session)}
       />
       {launchActions.continuationRequest && (
