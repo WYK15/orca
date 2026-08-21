@@ -594,7 +594,9 @@ async function signMacComputerUseHelper(helperAppPath, packager) {
   const identity =
     process.env.ORCA_COMPUTER_MACOS_SIGN_IDENTITY ??
     process.env.CSC_NAME ??
-    findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
+    findInstalledMacSigningIdentity(
+      process.env.ORCA_MACOS_SIGNING_KEYCHAIN ?? codeSigningInfo?.keychainFile
+    ) ??
     (isMacRelease ? null : '-')
   if (!identity) {
     throw new Error(`Missing signing identity for ${productIdentity.computerUseAppName} helper app`)
@@ -620,7 +622,9 @@ async function signMacStandaloneHelper(helperPath, helperName, packager) {
       : null
   const identity =
     process.env.CSC_NAME ??
-    findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
+    findInstalledMacSigningIdentity(
+      process.env.ORCA_MACOS_SIGNING_KEYCHAIN ?? codeSigningInfo?.keychainFile
+    ) ??
     (isMacRelease ? null : '-')
   if (!identity) {
     throw new Error(`Missing signing identity for ${helperName} helper`)

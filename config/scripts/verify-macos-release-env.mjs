@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 const required = [
-  'APPLE_ID',
-  'APPLE_APP_SPECIFIC_PASSWORD',
-  'APPLE_TEAM_ID',
   'CSC_LINK',
-  'CSC_KEY_PASSWORD'
+  'CSC_KEY_PASSWORD',
+  'APPLE_API_KEY',
+  'APPLE_API_KEY_ID',
+  'APPLE_API_ISSUER'
 ]
 
 const missing = required.filter((key) => {

@@ -6790,6 +6790,8 @@
           "f2d4f877b2": "Open GitHub"
         },
         "GeneralUpdateSettingsSection": {
+          "openDownloadPage": "Open Download Page",
+          "manualDownloadDescription": "Version {{value0}} is available. Download and install it from the release page.",
           "8a52ca1d02": "Release notes",
           "d89806cc89": "is ready to install.",
           "a6b37929dc": "Version",

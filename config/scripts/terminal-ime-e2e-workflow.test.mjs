@@ -10,10 +10,10 @@ describe('terminal IME e2e workflow', () => {
     readFileSync(join(projectDir, '.github/workflows/terminal-ime-e2e.yml'), 'utf8')
   )
 
-  it('runs only on schedule or manual dispatch', () => {
+  it('runs only on manual dispatch in the fork', () => {
     expect(workflow.on.pull_request).toBeUndefined()
     expect(workflow.on.workflow_dispatch).toBeNull()
-    expect(workflow.on.schedule).toEqual([{ cron: '30 9 * * *' }])
+    expect(workflow.on.schedule).toBeUndefined()
   })
 
   it('installs native IBus Hangul and X11 input tools', () => {

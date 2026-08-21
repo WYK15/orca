@@ -2,8 +2,6 @@ name: Terminal IME E2E
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '30 9 * * *'
 
 permissions:
   contents: read
