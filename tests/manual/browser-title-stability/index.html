@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Orcaw title stability test</title>
+    <style>
+      @font-face {
+        font-family: 'Geist';
+        src: url('/assets/Geist-Variable.woff2') format('woff2');
+        font-weight: 100 900;
+        font-display: swap;
+      }
+
+      :root {
+        color-scheme: light dark;
+        --background: #fff;
+        --foreground: #0a0a0a;
+        --card: #fff;
+        --muted: #f5f5f5;
+        --muted-foreground: #737373;
+        --primary: #171717;
+        --primary-foreground: #fafafa;
+        --border: #e5e5e5;
+        --ring: #a1a1a1;
+        --radius: 0.625rem;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #0a0a0a;
+          --foreground: #fafafa;
+          --card: #171717;
+          --muted: #262626;
+          --muted-foreground: #a1a1a1;
+          --primary: #e5e5e5;
+          --primary-foreground: #171717;
+          --border: rgb(255 255 255 / 0.07);
+          --ring: #737373;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--background);
+        color: var(--foreground);
+        font-family: 'Geist', sans-serif;
+        font-size: 14px;
+        letter-spacing: 0.01em;
+      }
+
+      main {
+        width: min(100%, 560px);
+        padding: 28px;
+        border: 1px solid var(--border);
+        border-radius: calc(var(--radius) * 1.4);
+        background: var(--card);
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--muted-foreground);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.25;
+      }
+
+      p {
+        line-height: 1.5;
+      }
+
+      section {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px 16px;
+        margin: 24px 0;
+        padding: 16px;
+        border-radius: calc(var(--radius) * 0.8);
+        background: var(--muted);
+      }
+
+      button {
+        min-height: 36px;
+        padding: 0 16px;
+        border: 0;
+        border-radius: calc(var(--radius) * 0.8);
+        background: var(--primary);
+        color: var(--primary-foreground);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Manual regression fixture</p>
+      <h1>Browser title stability test</h1>
+      <p>页面正在快速发出临时旋转标题。Orcaw 顶部标签页发生移动或宽度变化即为失败。</p>
+      <section aria-label="测试状态">
+        <span>状态</span>
+        <strong id="status" aria-live="polite">运行中</strong>
+        <span>触发次数</span>
+        <strong id="event-count">0</strong>
+      </section>
+      <button id="toggle" type="button">停止</button>
+    </main>
+    <script type="module">
+      import { emitTransientTitlePair } from './browser-title-cycle.mjs'
+
+      const intervalMilliseconds = 180
+      const countElement = document.querySelector('#event-count')
+      const statusElement = document.querySelector('#status')
+      const toggleButton = document.querySelector('#toggle')
+      let eventCount = 0
+      let timer
+
+      function tick() {
+        emitTransientTitlePair(document, eventCount)
+        eventCount += 1
+        countElement.textContent = String(eventCount)
+      }
+
+      function start() {
+        if (timer) return
+        statusElement.textContent = '运行中'
+        toggleButton.textContent = '停止'
+        tick()
+        timer = window.setInterval(tick, intervalMilliseconds)
+      }
+
+      function stop() {
+        window.clearInterval(timer)
+        timer = undefined
+        statusElement.textContent = '已停止'
+        toggleButton.textContent = '开始'
+      }
+
+      toggleButton.addEventListener('click', () => (timer ? stop() : start()))
+      start()
+    </script>
+  </body>
+</html>
