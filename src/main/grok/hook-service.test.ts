@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -219,6 +219,30 @@ describe('GrokHookService', () => {
       expect(form.get('payload')).toBe('{"hook_event_name":"UserPromptSubmit"}')
     }
   )
+
+  it('does not create config state when removing missing managed hooks', () => {
+    const agentDirectory = join(homeDir, '.grok')
+    const configDirectory = join(homeDir, '.grok', 'hooks')
+    const configPath = join(configDirectory, 'orca-status.json')
+
+    expect(new GrokHookService().remove().state).toBe('not_installed')
+    expect(existsSync(configPath)).toBe(false)
+    expect(existsSync(configDirectory)).toBe(false)
+    expect(existsSync(agentDirectory)).toBe(false)
+  })
+
+  it('returns an error from an unreadable config snapshot without re-reading', async () => {
+    const installerUtils = await import('../agent-hooks/installer-utils')
+    const readSnapshot = vi
+      .spyOn(installerUtils, 'readHooksJsonWithRaw')
+      .mockReturnValue({ state: 'unreadable', raw: null, config: null })
+
+    try {
+      expect(new GrokHookService().remove().state).toBe('error')
+    } finally {
+      readSnapshot.mockRestore()
+    }
+  })
 
   it('installs a dedicated global Grok hook config and managed script', () => {
     const status = new GrokHookService().install()

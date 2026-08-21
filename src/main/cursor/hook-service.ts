@@ -8,6 +8,7 @@ import {
   buildWindowsAgentHookPostCommand,
   getSharedManagedScriptPath,
   readHooksJson,
+  readHooksJsonWithRaw,
   removeManagedCommands,
   wrapPosixHookCommand,
   wrapWindowsHookCommand,
@@ -276,7 +277,11 @@ export class CursorHookService {
 
   remove(): AgentHookInstallStatus {
     const configPath = getConfigPath()
-    const config = readHooksJson(configPath)
+    const snapshot = readHooksJsonWithRaw(configPath)
+    if (snapshot.state === 'missing') {
+      return this.getStatus()
+    }
+    const config = snapshot.config
     if (!config) {
       return {
         agent: 'cursor',

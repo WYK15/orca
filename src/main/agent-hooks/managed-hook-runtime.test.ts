@@ -21,6 +21,16 @@ const { installManagedHooks, resolveRelayGrokHome } = await import('./managed-ho
 
 type ExecFileCallback = (error: Error | null, result?: { stdout: string; stderr: string }) => void
 
+it.each([
+  ['omitted options', undefined],
+  ['an empty agent allowlist', { agents: [] }]
+])('returns before host probes with %s', async (_label, options) => {
+  await expect(installManagedHooks(options)).resolves.toEqual({
+    installers: 0,
+    errors: 0
+  })
+})
+
 function stubProbeOutput(stdout: string): void {
   execFileMock.mockImplementation(((...args: unknown[]) => {
     ;(args.at(-1) as ExecFileCallback)(null, { stdout, stderr: '' })

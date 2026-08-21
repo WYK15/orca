@@ -6,7 +6,7 @@ import {
   buildManagedCommandHook,
   createManagedCommandMatcher,
   getSharedManagedScriptPath,
-  readHooksJson,
+  readHooksJsonWithRaw,
   removeManagedCommands,
   wrapPosixHookCommand,
   wrapWindowsCmdHookCommand,
@@ -161,7 +161,7 @@ function getManagedScript(target: 'local' | 'posix' = 'local'): string {
 }
 
 function buildInstalledConfig(
-  config: NonNullable<ReturnType<typeof readHooksJson>>,
+  config: NonNullable<ReturnType<typeof readHooksJsonWithRaw>['config']>,
   command: string,
   scriptFileName: string
 ): void {
@@ -204,7 +204,7 @@ export class GrokHookService {
   getStatus(): AgentHookInstallStatus {
     const configPath = getConfigPath()
     const scriptPath = getManagedScriptPath()
-    const config = readHooksJson(configPath)
+    const config = readHooksJsonWithRaw(configPath).config
     if (!config) {
       return {
         agent: 'grok',
@@ -251,7 +251,7 @@ export class GrokHookService {
   install(): AgentHookInstallStatus {
     const configPath = getConfigPath()
     const scriptPath = getManagedScriptPath()
-    const config = readHooksJson(configPath)
+    const config = readHooksJsonWithRaw(configPath).config
     if (!config) {
       return {
         agent: 'grok',
@@ -314,14 +314,14 @@ export class GrokHookService {
 
   remove(): AgentHookInstallStatus {
     const configPath = getConfigPath()
-    const config = readHooksJson(configPath)
-    if (!config) {
+    const { state, config } = readHooksJsonWithRaw(configPath)
+    if (state === 'missing' || !config) {
       return {
         agent: 'grok',
-        state: 'error',
+        state: state === 'missing' ? 'not_installed' : 'error',
         configPath,
         managedHooksPresent: false,
-        detail: 'Could not parse Grok hook config'
+        detail: state === 'missing' ? null : 'Could not parse Grok hook config'
       }
     }
 

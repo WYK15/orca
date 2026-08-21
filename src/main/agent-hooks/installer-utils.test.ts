@@ -51,6 +51,7 @@ describe('readHooksJsonWithRaw', () => {
     writeFileSync(configPath, contents, 'utf-8')
 
     expect(readHooksJsonWithRaw(configPath)).toEqual({
+      state: 'readable',
       raw: contents,
       config: { hooks: { Stop: [] }, custom: 1 }
     })
@@ -61,6 +62,7 @@ describe('readHooksJsonWithRaw', () => {
     writeFileSync(configPath, contents, 'utf-8')
 
     expect(readHooksJsonWithRaw(configPath)).toEqual({
+      state: 'readable',
       raw: contents,
       config: { hooks: { Stop: [] }, custom: 1 }
     })
@@ -72,6 +74,7 @@ describe('readHooksJsonWithRaw', () => {
       writeFileSync(configPath, contents, 'utf-8')
 
       expect(readHooksJsonWithRaw(configPath)).toEqual({
+        state: 'readable',
         raw: contents,
         config: null
       })
@@ -79,13 +82,38 @@ describe('readHooksJsonWithRaw', () => {
   })
 
   it('reports a missing file as an empty config with no raw bytes', () => {
-    expect(readHooksJsonWithRaw(configPath)).toEqual({ raw: null, config: {} })
+    expect(readHooksJsonWithRaw(configPath)).toEqual({
+      state: 'missing',
+      raw: null,
+      config: {}
+    })
+  })
+
+  it('reports a path below a non-directory ancestor as missing', () => {
+    writeFileSync(configPath, 'not a directory\n', 'utf-8')
+
+    expect(readHooksJsonWithRaw(join(configPath, 'hooks.json'))).toEqual({
+      state: 'missing',
+      raw: null,
+      config: {}
+    })
+  })
+
+  it('distinguishes an existing unreadable path from a missing file', () => {
+    mkdirSync(configPath)
+
+    expect(readHooksJsonWithRaw(configPath)).toEqual({
+      state: 'unreadable',
+      raw: null,
+      config: null
+    })
   })
 
   it('keeps the raw bytes when the contents are not a JSON object', () => {
     writeFileSync(configPath, 'not json\n', 'utf-8')
 
     expect(readHooksJsonWithRaw(configPath)).toEqual({
+      state: 'readable',
       raw: 'not json\n',
       config: null
     })
