@@ -10,24 +10,27 @@
 
 Remove an entry after an upstream sync contains its equivalent commits.
 
-## Persistent customizations
+## Customization Registry
 
-- Desktop workspace tabs shrink evenly to a 72px minimum before horizontal
-  overflow, instead of upstream's 88px minimum.
-- Rich Markdown's toolbar provides a 10×10 table-size grid and a validated
-  custom-size dialog; selected rows are body rows and insertion adds a header.
-- Rich Markdown renders and source-edits a bounded allowlist of safe inline
-  HTML plus `<p>` and `<h1>`–`<h6>` blocks; unsupported HTML remains lossless
-  raw source.
-- Desktop builds ship as Orcaw with the independent `com.wyk15.orcaw`
-  application identity, isolated user data, `orcaw` / `orcaw-ide` commands,
-  and updates sourced only from `WYK15/orca`. Preserve these seams during
-  upstream synchronization. Unsigned macOS and Windows builds open the matching
-  Release for manual installation; Linux and explicitly signed builds retain
-  automatic updates.
-- Inherited cron schedules are disabled in this fork. Tag pushes still build
-  and publish desktop releases; manual, pull-request, and release event
-  triggers remain available where their workflows define them.
+| ID | Title | Status | Introduced | Contract | Scope | Verification | Upstream |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ORCAW-001 | Independent desktop identity and update channel | active | 1.4.165-wyk.4 | Preserve Orcaw identity, isolated user data, CLI/helper names, and fork-scoped updates | `config/orcaw-product-identity.json`, `config/electron-builder.config.cjs`, `src/main/updater-delivery-policy.ts`, `src/shared/orca-cli-command-name.ts` | `config/scripts/electron-builder-product-identity.test.mjs`, `src/main/updater.test.ts`, `src/main/cli/cli-installer.test.ts` | none |
+| ORCAW-002 | Fork-owned desktop release delivery | active | 1.4.165-wyk.4 | Preserve fork package assets, release publication, signing policy, and disabled inherited schedules | `.github/workflows/fork-desktop-packages.yml`, `config/scripts/release-publication-kind.mjs` | `config/scripts/fork-desktop-packages-workflow.test.mjs`, `config/scripts/fork-workflow-trigger-policy.test.mjs`, `config/scripts/release-publication-kind.test.mjs` | none |
+| ORCAW-003 | Workspace-tab compression floor | active | 1.4.165-wyk.4 | Keep workspace tabs at a 72px minimum before overflow | `src/renderer/src/components/tab-bar/tab-width-rules.ts` | `src/renderer/src/components/tab-bar/tab-title-tooltip.test.tsx` | none |
+| ORCAW-004 | Rich-Markdown table insertion controls | active | 1.4.165-wyk.4 | Preserve the 10×10 grid, validated custom size, and header/body insertion semantics | `src/renderer/src/components/editor/RichMarkdownTableInsertMenu.tsx`, `src/renderer/src/components/editor/rich-markdown-table-insertion.ts` | `src/renderer/src/components/editor/RichMarkdownTableInsertMenu.test.tsx`, `src/renderer/src/components/editor/rich-markdown-table-insertion.test.ts` | none |
+| ORCAW-005 | Bounded safe rich-Markdown HTML | active | 1.4.165-wyk.4 | Render and source-edit the safe allowlist while preserving unsupported HTML losslessly | `src/renderer/src/components/editor/rich-markdown-safe-html-source.ts`, `src/renderer/src/components/editor/rich-markdown-safe-html-node-view.ts` | `src/renderer/src/components/editor/rich-markdown-safe-html-source.test.ts`, `src/renderer/src/components/editor/rich-markdown-safe-html-node-view.test.ts` | none |
+| ORCAW-006 | Browser title stability | upstream-candidate | 1.4.165-wyk.5 | Ignore stale title events and preserve the active worktree page title | `src/renderer/src/components/browser-pane/browser-page-title-event.ts`, `src/renderer/src/components/browser-pane/BrowserPane.tsx` | `src/renderer/src/components/browser-pane/browser-page-title-event.test.ts` | pending upstream review |
+| ORCAW-007 | Chinese editor localization | upstream-candidate | 1.4.165-wyk.5 | Preserve Chinese rich-Markdown editor and menu labels | `src/renderer/src/i18n/locales/zh.json` | `src/renderer/src/i18n/zh-menu-action-localization.test.ts` | pending upstream review |
+| ORCAW-008 | Agent-hook configuration safety | upstream-candidate | 1.4.165-wyk.6 | Fail closed without detected agents and preserve safe local, WSL, and remote hook updates | `src/main/agent-hooks/managed-hook-runtime.ts`, `src/main/agent-hooks/remote-managed-hook-installers.ts` | `src/main/agent-hooks/managed-hook-runtime.test.ts`, `src/main/agent-hooks/remote-hook-service-installers.test.ts`, `src/main/agent-hooks/wsl-hook-relay-manager.test.ts` | pending upstream review |
+| ORCAW-009 | Complete Codex and bulk AI Vault deletion | upstream-candidate | 1.4.165-wyk.6 | Delete complete supported Codex sessions and preserve multi-session deletion | `src/main/ai-vault/codex-session-delete.ts`, `src/main/ipc/ai-vault-delete.ts`, `src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.ts` | `src/main/ai-vault/codex-session-delete.test.ts`, `src/main/ipc/ai-vault.test.ts`, `src/renderer/src/components/right-sidebar/ai-vault-session-delete-action.test.tsx` | pending upstream review |
+| ORCAW-010 | WSL failed-scan terminal preservation | upstream-candidate | 1.4.165-wyk.8 | Preserve existing terminals when WSL worktree scanning fails | `src/main/git/worktree.ts` | `src/main/git/worktree.test.ts`, `src/main/ipc/worktrees.test.ts` | pending upstream review |
+| ORCAW-011 | Linux relay process-scan bound | upstream-candidate | 1.4.165-wyk.8 | Avoid procfs-wide `pgrep` scans during Linux relay handling | `src/relay/pty-shell-utils.ts` | `src/relay/pty-shell-utils.test.ts` | pending upstream review |
+| ORCAW-012 | Remote transcript parse cache | upstream-candidate | 1.4.165-wyk.8 | Reuse unchanged remote AI Vault transcript parses | `src/main/ai-vault/remote-session-parse-cache.ts`, `src/main/ai-vault/remote-session-scanner.ts` | `src/main/ai-vault/remote-session-scanner.test.ts` | pending upstream review |
+| ORCAW-013 | Windows editor tab identity | upstream-candidate | 1.4.165-wyk.10 | Preserve active-file tabs across Windows path identity variants | `src/renderer/src/store/slices/editor-tab-file-identity.ts`, `src/renderer/src/store/slices/tabs.ts` | `src/renderer/src/store/slices/tabs.test.ts` | pending upstream review |
+| ORCAW-014 | Markdown editing and source outline | upstream-candidate | 1.4.165-wyk.11 | Preserve source editing, Markdown table of contents, and inline editing behavior | `src/renderer/src/components/editor/MarkdownSourceEditorSurface.tsx`, `src/renderer/src/components/editor/markdown-table-of-contents.ts`, `src/renderer/src/components/editor/rich-markdown-inline-input.ts` | `src/renderer/src/components/editor/EditorContent.monaco-lifecycle.test.tsx`, `src/renderer/src/components/editor/MarkdownTableOfContentsPanel.test.tsx`, `src/renderer/src/components/editor/rich-markdown-inline-input.test.ts` | pending upstream review |
+| ORCAW-015 | Upstream sync and customization replay governance | active | unreleased | Preserve stable-only upstream tracking, customization registration, replay coverage, version alignment, and explicit retirement approval | `FORK_NOTES.md`, `AGENTS.md`, `.github/workflows/fork-upstream-sync.yml`, `config/scripts/fork-customization-registry.mjs`, `config/scripts/fork-customization-commit-coverage.mjs`, `config/scripts/fork-release-contract.mjs` | `config/scripts/fork-customization-registry.test.mjs`, `config/scripts/fork-customization-commit-coverage.test.mjs`, `config/scripts/fork-release-contract.test.mjs`, `config/scripts/fork-upstream-sync-workflow.test.mjs` | none |
+
+`upstream-candidate` entries remain in the replay set until behavioral equivalence is explicitly confirmed. Replace `unreleased` with the first published Orcaw version that contains ORCAW-015.
 
 ## Fork desktop packages
 
