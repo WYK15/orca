@@ -20,6 +20,7 @@ export abstract class UpdaterInstallSupport extends UpdaterCheckState {
 
   protected hasInstallableDownloadedVersion(): boolean {
     return (
+      this.getActiveUpdateDelivery() === 'automatic' &&
       this.availableVersion !== null &&
       // Why: local builds and pinned dev jumps may intentionally move backwards.
       (this.activeUpdateSource !== 'release' ||

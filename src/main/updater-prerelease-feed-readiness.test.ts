@@ -17,7 +17,7 @@ function buildAtomFeed(tags: string[]): string {
   return `<?xml version="1.0" encoding="UTF-8"?><feed>${tags
     .map(
       (tag) =>
-        `<entry><link rel="alternate" type="text/html" href="https://github.com/stablyai/orca/releases/tag/${tag}"/><title>${tag}</title></entry>`
+        `<entry><link rel="alternate" type="text/html" href="https://github.com/WYK15/orca/releases/tag/${tag}"/><title>${tag}</title></entry>`
     )
     .join('')}</feed>`
 }
@@ -62,7 +62,7 @@ function respondWithAtom(
   const missingAssets = new Set(missingAssetTags)
   const unavailableManifests = new Set(unavailableManifestTags)
   netFetchMock.mockImplementation((url: string, init?: { method?: string }) => {
-    if (url === 'https://github.com/stablyai/orca/releases.atom') {
+    if (url === 'https://github.com/WYK15/orca/releases.atom') {
       return Promise.resolve({
         ok: true,
         status: 200,
@@ -114,47 +114,56 @@ describe('fetchNewerReleaseTagsWithReadiness', () => {
     setPlatformForTest(ORIGINAL_PLATFORM)
   })
 
-  it("offers a Windows release from GitHub's asset redirect without probing Azure", async () => {
-    setPlatformForTest('win32')
-    const assetRequestInits: { method?: string; redirect?: string }[] = []
+  it.each([
+    'orca-windows-setup.exe',
+    'https://github.com/WYK15/orca/releases/download/v1.4.190/orca-windows-setup.exe'
+  ])(
+    "offers a Windows release from GitHub's asset redirect without probing Azure (%s)",
+    async (assetName) => {
+      setPlatformForTest('win32')
+      const assetRequestInits: { method?: string; redirect?: string }[] = []
 
-    netFetchMock.mockImplementation(
-      (url: string, init?: { method?: string; redirect?: string }) => {
-        if (url === 'https://github.com/stablyai/orca/releases.atom') {
-          return Promise.resolve({
-            ok: true,
-            status: 200,
-            text: () => Promise.resolve(buildAtomFeed(['v1.4.190']))
-          })
+      netFetchMock.mockImplementation(
+        (url: string, init?: { method?: string; redirect?: string }) => {
+          if (url === 'https://github.com/WYK15/orca/releases.atom') {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              text: () => Promise.resolve(buildAtomFeed(['v1.4.190']))
+            })
+          }
+          if (isPlatformManifestRequest(url)) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              text: () =>
+                Promise.resolve(
+                  buildWindowsManifest('1.4.190').replaceAll('orca-windows-setup.exe', assetName)
+                )
+            })
+          }
+          if (init?.method === 'HEAD') {
+            assetRequestInits.push(init)
+            return Promise.resolve({ ok: false, status: 302, text: () => Promise.resolve('') })
+          }
+          return Promise.resolve({ ok: false, status: 503, text: () => Promise.resolve('') })
         }
-        if (isPlatformManifestRequest(url)) {
-          return Promise.resolve({
-            ok: true,
-            status: 200,
-            text: () => Promise.resolve(buildWindowsManifest('1.4.190'))
-          })
-        }
-        if (init?.method === 'HEAD') {
-          assetRequestInits.push(init)
-          return Promise.resolve({ ok: false, status: 302, text: () => Promise.resolve('') })
-        }
-        return Promise.resolve({ ok: false, status: 503, text: () => Promise.resolve('') })
-      }
-    )
+      )
 
-    const { fetchNewerReleaseTagsWithReadiness } = await import('./updater-prerelease-feed')
+      const { fetchNewerReleaseTagsWithReadiness } = await import('./updater-prerelease-feed')
 
-    await expect(fetchNewerReleaseTagsWithReadiness('1.4.189', 1)).resolves.toEqual({
-      tags: ['v1.4.190'],
-      state: 'ready'
-    })
-    expect(assetRequestInits).toEqual([expect.objectContaining({ redirect: 'manual' })])
-  })
+      await expect(fetchNewerReleaseTagsWithReadiness('1.4.189', 1)).resolves.toEqual({
+        tags: ['v1.4.190'],
+        state: 'ready'
+      })
+      expect(assetRequestInits).toEqual([expect.objectContaining({ redirect: 'manual' })])
+    }
+  )
 
   it.each([301, 307, 308])('accepts a GitHub %s asset redirect as ready', async (status) => {
     setPlatformForTest('win32')
     netFetchMock.mockImplementation((url: string, init?: { method?: string }) => {
-      if (url === 'https://github.com/stablyai/orca/releases.atom') {
+      if (url === 'https://github.com/WYK15/orca/releases.atom') {
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -185,7 +194,7 @@ describe('fetchNewerReleaseTagsWithReadiness', () => {
   it('reports a GitHub asset request error as unavailable', async () => {
     setPlatformForTest('win32')
     netFetchMock.mockImplementation((url: string, init?: { method?: string }) => {
-      if (url === 'https://github.com/stablyai/orca/releases.atom') {
+      if (url === 'https://github.com/WYK15/orca/releases.atom') {
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -222,7 +231,7 @@ describe('fetchNewerReleaseTagsWithReadiness', () => {
       resolveAsset = () => resolve({ ok: false, status: 503 })
     })
     netFetchMock.mockImplementation((url: string, init?: { method?: string }) => {
-      if (url === 'https://github.com/stablyai/orca/releases.atom') {
+      if (url === 'https://github.com/WYK15/orca/releases.atom') {
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -342,7 +351,7 @@ describe('fetchNewerReleaseTagsWithReadiness', () => {
 
   it('reports transport failures as unavailable instead of not-ready', async () => {
     netFetchMock.mockImplementation((url: string) => {
-      if (url === 'https://github.com/stablyai/orca/releases.atom') {
+      if (url === 'https://github.com/WYK15/orca/releases.atom') {
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -363,7 +372,7 @@ describe('fetchNewerReleaseTagsWithReadiness', () => {
 
   it('requires every asset referenced by the manifest files list to be reachable', async () => {
     netFetchMock.mockImplementation((url: string, init?: { method?: string }) => {
-      if (url === 'https://github.com/stablyai/orca/releases.atom') {
+      if (url === 'https://github.com/WYK15/orca/releases.atom') {
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -419,7 +428,7 @@ describe('fetchNewerReleaseTagsWithReadiness', () => {
 
   it('treats an explicit asset 404 as not-ready when another asset is unavailable', async () => {
     netFetchMock.mockImplementation((url: string, init?: { method?: string }) => {
-      if (url === 'https://github.com/stablyai/orca/releases.atom') {
+      if (url === 'https://github.com/WYK15/orca/releases.atom') {
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -465,7 +474,7 @@ describe('fetchNewerReleaseTagsWithReadiness', () => {
   it('accepts absolute manifest asset URLs without rewriting them to release asset paths', async () => {
     const assetUrls: string[] = []
     netFetchMock.mockImplementation((url: string, init?: { method?: string }) => {
-      if (url === 'https://github.com/stablyai/orca/releases.atom') {
+      if (url === 'https://github.com/WYK15/orca/releases.atom') {
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -504,7 +513,7 @@ describe('fetchNewerReleaseTagsWithReadiness', () => {
 
   it('treats malformed updater manifests as not ready', async () => {
     netFetchMock.mockImplementation((url: string, init?: { method?: string }) => {
-      if (url === 'https://github.com/stablyai/orca/releases.atom') {
+      if (url === 'https://github.com/WYK15/orca/releases.atom') {
         return Promise.resolve({
           ok: true,
           text: () => Promise.resolve(buildAtomFeed(['v1.4.28', 'v1.4.27']))

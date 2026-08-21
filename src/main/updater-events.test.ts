@@ -76,6 +76,7 @@ function createContext(overrides?: Partial<HandlerContext>): HandlerContext {
     getActiveUpdateCheckEventAttemptId: vi.fn(() => 1),
     getKnownReleaseUrl: vi.fn(() => undefined),
     getPendingInstallVersion: vi.fn(() => '1.0.61'),
+    getReleaseUpdateDelivery: vi.fn(() => 'automatic' as const),
     getUserInitiatedCheck: vi.fn(() => false),
     handleQuitAndInstallFailure: vi.fn(() => false),
     isQuitAndInstallHandoffActive: vi.fn(() => false),
@@ -439,6 +440,30 @@ describe('registerAutoUpdaterHandlers linux package artifact tracking', () => {
           }
         })
       )
+    }
+  )
+
+  it.each([false, true])(
+    'publishes the exact fork release for manual delivery (externallyManaged=%s)',
+    async (externallyManaged) => {
+      isExternallyManagedLinuxInstallMock.mockReturnValue(externallyManaged)
+      const { emit, context } = await register({
+        getCurrentStatus: vi.fn(() => ({ state: 'checking' }) as never),
+        getReleaseUpdateDelivery: vi.fn(() => 'manual' as const)
+      })
+
+      emit('update-available', { version: '1.0.61' })
+
+      await vi.waitFor(() => {
+        expect(context.sendStatus).toHaveBeenCalledWith({
+          state: 'available',
+          version: '1.0.61',
+          changelog: null,
+          delivery: 'manual',
+          releaseUrl: 'https://github.com/WYK15/orca/releases/tag/v1.0.61',
+          ...(externallyManaged ? { externallyManaged: true } : {})
+        })
+      })
     }
   )
 })

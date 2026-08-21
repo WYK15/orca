@@ -2,7 +2,7 @@
 
 On Windows the terminal daemon does not run from the install directory. Before it forks the
 daemon, Orca materializes a trimmed copy of its own runtime under
-`%LOCALAPPDATA%\Orca\daemon-host\<app version>\` and forks the daemon from there
+`%LOCALAPPDATA%\Orcaw\daemon-host\<app version>\` and forks the daemon from there
 (`src/main/daemon/daemon-host-relocation.ts`). This is what keeps live terminals alive across an
 auto-update and across a crash of the main process.
 
@@ -99,11 +99,10 @@ stop being scored.
 - The daemon is identified by **PID and command line**, never by image name — in the product
   (`daemon-pid-file-parse`, `daemon-process-inspection`) and in the harness
   (`tests/tools/win-update-e2e/daemon-processes.mjs`). Nothing may start matching on the exe name.
-- `config/nsis/orca-installer-hooks.nsh` kills the daemon by image name. That now also matches the
-  app's own exe, which is correct on a genuine uninstall — the product is being removed — but its
-  `${isUpdated}` guard must stay: electron-builder runs the uninstaller during every update's
-  `uninstallOldVersion`, and killing the daemon there defeats the whole feature. The legacy
-  `orca-terminal-daemon.exe` name stays in the macro to reap hosts left by older builds.
+- `config/nsis/orca-installer-hooks.nsh` kills the daemon by the fork app's image name on a genuine
+  uninstall. Its `${isUpdated}` guard stays: electron-builder runs the uninstaller during every
+  update's `uninstallOldVersion`, and killing the daemon there defeats the whole feature. Orcaw
+  never targets upstream `orca-terminal-daemon.exe` or removes the upstream `Orca\daemon-host` tree.
 - `LOCAL_HOST_ROOT_NAME` in `daemon-host-relocation.ts` and the path in the uninstall macro are the
   same directory. Change both together.
 - Every native module the daemon bundle `require()`s must be in the copy plan

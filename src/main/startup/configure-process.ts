@@ -4,6 +4,7 @@ import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { getVersionManagerBinPaths } from '../codex-cli/command'
 import { getMainE2EConfig } from '../e2e-config'
+import productIdentity from '../../../config/orcaw-product-identity.json'
 import { DISABLED_CHROMIUM_FEATURES } from './disabled-chromium-features'
 import { readHttp1CompatibilityMarker } from './http1-compatibility-marker'
 import {
@@ -217,8 +218,11 @@ export function configureDevUserDataPath(isDev: boolean): void {
     app.setPath('userData', overrideUserDataPath)
     return
   }
-  // Why: without a dev-only path, pnpm dev overwrites the packaged app's runtime pointer under userData and breaks the orca CLI.
-  app.setPath('userData', join(app.getPath('appData'), 'orca-dev'))
+  // Why: dev must not overwrite either packaged Orcaw or official Orca runtime state.
+  app.setPath(
+    'userData',
+    join(app.getPath('appData'), `${productIdentity.productName.toLowerCase()}-dev`)
+  )
 }
 
 function areSameE2EHomePath(left: string, right: string): boolean {

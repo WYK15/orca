@@ -225,7 +225,7 @@ describe('updater', () => {
       expect(autoUpdaterMock.disableDifferentialDownload).toBe(false)
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       })
     }
   )
@@ -268,7 +268,7 @@ describe('updater', () => {
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       })
     }
   )
@@ -308,7 +308,7 @@ describe('updater', () => {
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       })
     }
   )
@@ -365,7 +365,7 @@ describe('updater', () => {
       expect(send).toHaveBeenCalledWith('updater:status', { state: 'not-available' })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       })
     }
   )
@@ -411,7 +411,7 @@ describe('updater', () => {
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: 'https://github.com/WYK15/orca/releases/latest/download'
       })
     }
   )
@@ -458,60 +458,101 @@ describe('updater', () => {
     }
   )
 
-  it('opts into the RC channel when checkForUpdatesFromMenu is called with includePrerelease', async () => {
-    appMock.getVersion.mockReturnValue('1.3.17')
-    fetchNewerReleaseTagsMock.mockResolvedValue(['v1.3.18-rc.1'])
-    autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
-    const mainWindow = { webContents: { send: vi.fn() } }
+  it.each([
+    ['1.4.218-wyk.1', false],
+    ['1.4.218-wyk.1+build.2', true]
+  ] as const)(
+    'keeps ordinary checks from formal fork %s on stable',
+    async (version, background) => {
+      appMock.getVersion.mockReturnValue(version)
+      fetchNewerReleaseTagsMock.mockResolvedValue(['v1.4.219-wyk.1'])
+      autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
+      const mainWindow = { webContents: { send: vi.fn() } }
+      const { setupAutoUpdater, checkForUpdates, checkForUpdatesFromMenu } =
+        await loadUpdaterModule()
 
-    const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadUpdaterModule()
+      setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => Date.now() })
+      if (background) {
+        checkForUpdates()
+      } else {
+        checkForUpdatesFromMenu()
+      }
 
-    // Why: recent timestamp defers the startup check so we observe updater state before any RC-mode call, without racing.
-    setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => Date.now() })
-    const setupFeedUrlCalls = autoUpdaterMock.setFeedURL.mock.calls.length
-    expect(autoUpdaterMock.allowPrerelease).not.toBe(true)
-
-    checkForUpdatesFromMenu({ includePrerelease: true })
-
-    await vi.waitFor(() => {
-      expect(fetchNewerReleaseTagsMock).toHaveBeenCalledWith('1.3.17', 2, {
-        includePrerelease: true
+      await vi.waitFor(() => {
+        expect(fetchNewerReleaseTagsMock).toHaveBeenCalledWith(version, 1, {
+          includePrerelease: false
+        })
+        expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
+          provider: 'generic',
+          url: 'https://github.com/WYK15/orca/releases/download/v1.4.219-wyk.1'
+        })
+        expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
       })
-      expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
-        provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/download/v1.3.18-rc.1'
+      expect(autoUpdaterMock.allowPrerelease).not.toBe(true)
+      expect(autoUpdaterMock.allowDowngrade).toBe(false)
+    }
+  )
+
+  it.each(['1.3.17', '1.3.17-wyk.1'])(
+    'opts %s into the RC channel when checkForUpdatesFromMenu is called with includePrerelease',
+    async (version) => {
+      appMock.getVersion.mockReturnValue(version)
+      fetchNewerReleaseTagsMock.mockResolvedValue(['v1.3.18-rc.1'])
+      autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
+      const mainWindow = { webContents: { send: vi.fn() } }
+
+      const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadUpdaterModule()
+
+      // Why: recent timestamp defers the startup check so we observe updater state before any RC-mode call, without racing.
+      setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => Date.now() })
+      const setupFeedUrlCalls = autoUpdaterMock.setFeedURL.mock.calls.length
+      expect(autoUpdaterMock.allowPrerelease).not.toBe(true)
+
+      checkForUpdatesFromMenu({ includePrerelease: true })
+
+      await vi.waitFor(() => {
+        expect(fetchNewerReleaseTagsMock).toHaveBeenCalledWith(version, 2, {
+          includePrerelease: true
+        })
+        expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
+          provider: 'generic',
+          url: 'https://github.com/WYK15/orca/releases/download/v1.3.18-rc.1'
+        })
+        expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
       })
-      expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
-    })
-    expect(autoUpdaterMock.allowPrerelease).toBe(true)
-    expect(autoUpdaterMock.setFeedURL.mock.calls.length).toBe(setupFeedUrlCalls + 1)
-  })
+      expect(autoUpdaterMock.allowPrerelease).toBe(true)
+      expect(autoUpdaterMock.setFeedURL.mock.calls.length).toBe(setupFeedUrlCalls + 1)
+    }
+  )
 
-  it('pins the generic feed to a perf-tagged prerelease when requested', async () => {
-    appMock.getVersion.mockReturnValue('1.4.120')
-    fetchNewerReleaseTagsMock.mockResolvedValue(['v1.4.121-rc.6.perf'])
-    autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
-    const mainWindow = { webContents: { send: vi.fn() } }
+  it.each(['1.4.120', '1.4.120-wyk.1+build.2'])(
+    'pins the generic feed from %s to a perf-tagged prerelease when requested',
+    async (version) => {
+      appMock.getVersion.mockReturnValue(version)
+      fetchNewerReleaseTagsMock.mockResolvedValue(['v1.4.121-rc.6.perf'])
+      autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
+      const mainWindow = { webContents: { send: vi.fn() } }
 
-    const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadUpdaterModule()
+      const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadUpdaterModule()
 
-    setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => Date.now() })
+      setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => Date.now() })
 
-    checkForUpdatesFromMenu({ includePerfPrerelease: true })
+      checkForUpdatesFromMenu({ includePerfPrerelease: true })
 
-    await vi.waitFor(() => {
-      expect(fetchNewerReleaseTagsMock).toHaveBeenCalledWith('1.4.120', 2, {
-        includePrerelease: true,
-        releaseFilter: 'perf'
+      await vi.waitFor(() => {
+        expect(fetchNewerReleaseTagsMock).toHaveBeenCalledWith(version, 2, {
+          includePrerelease: true,
+          releaseFilter: 'perf'
+        })
+        expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
+          provider: 'generic',
+          url: 'https://github.com/WYK15/orca/releases/download/v1.4.121-rc.6.perf'
+        })
+        expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
       })
-      expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
-        provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/download/v1.4.121-rc.6.perf'
-      })
-      expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
-    })
-    expect(autoUpdaterMock.allowPrerelease).toBe(true)
-  })
+      expect(autoUpdaterMock.allowPrerelease).toBe(true)
+    }
+  )
 
   it('surfaces no-update feedback when no newer perf-tagged prerelease exists', async () => {
     appMock.getVersion.mockReturnValue('1.4.120')
@@ -573,7 +614,7 @@ describe('updater', () => {
       })
       expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/download/v1.4.121'
+        url: 'https://github.com/WYK15/orca/releases/download/v1.4.121'
       })
     })
   })

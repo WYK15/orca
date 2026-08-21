@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import type { ChangelogData } from '../../../shared/update-status-types'
+import { getReleaseNotesUrlForVersion } from '../../../shared/release-channel'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { useAppStore } from '../store'
 import { Card } from './ui/card'
@@ -117,6 +118,12 @@ export function UpdateCard(): React.JSX.Element | null {
   }
 
   const handleUpdate = (): void => {
+    if (status.state === 'available' && status.delivery === 'manual') {
+      void window.api.shell.openUrl(
+        status.releaseUrl ?? getReleaseNotesUrlForVersion(status.version)
+      )
+      return
+    }
     hasStartedDownload.current = true
     if (!reassuranceSeen) {
       markReassuranceSeen()
@@ -236,7 +243,8 @@ export function UpdateCard(): React.JSX.Element | null {
       : 'animate-update-card-enter'
   const showReassurance =
     !reassuranceSeen &&
-    ((status.state === 'available' && !status.externallyManaged) || status.state === 'downloading')
+    ((status.state === 'available' && !status.externallyManaged && status.delivery !== 'manual') ||
+      status.state === 'downloading')
   return (
     <div ref={cardRootRef} className="flex flex-col gap-2">
       {showReassurance && (

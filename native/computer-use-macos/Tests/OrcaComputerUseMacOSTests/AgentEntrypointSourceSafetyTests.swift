@@ -34,6 +34,14 @@ final class AgentEntrypointSourceSafetyTests: XCTestCase {
         XCTAssertTrue(source.contains("event.flags = flags\n        event.postToPid(pid)"))
     }
 
+    func testAgentPeerAuthorizationUsesOnlyOrcawDesktopIdentity() throws {
+        let source = try agentEntrypointSource()
+
+        XCTAssertTrue(source.contains(#"bundleId == "com.wyk15.orcaw""#))
+        XCTAssertTrue(source.contains(#"bundleId.hasPrefix("com.wyk15.orcaw.dev.")"#))
+        XCTAssertFalse(source.contains(#"bundleId == "com.stablyai.orca""#))
+    }
+
     private func agentEntrypointSource() throws -> String {
         let testFile = URL(fileURLWithPath: #filePath)
         let packageRoot = testFile

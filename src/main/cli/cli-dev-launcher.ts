@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
-import { DEV_COMMAND_NAME, DEV_LAUNCHER_DIR } from './cli-install-constants'
+import { DEV_COMMAND_NAME, DEV_LAUNCHER_DIR, NATIVE_COMMAND_NAME } from './cli-install-constants'
 import {
   escapeWindowsBatchValue,
   isAbsoluteForPlatform,
@@ -40,8 +40,8 @@ export async function ensureDevLauncher(args: {
     mode: args.platform === 'win32' ? undefined : 0o755
   })
   if (args.commandName === DEV_COMMAND_NAME && args.platform !== 'win32') {
-    // Why: dev PTYs prepend this dir to PATH, so keep a local `orca` alias without claiming the global command.
-    await writeFile(join(dirname(launcherPath), 'orca'), content, {
+    // Why: dev PTYs prepend this dir to PATH, so expose the fork command without claiming the global command.
+    await writeFile(join(dirname(launcherPath), NATIVE_COMMAND_NAME), content, {
       encoding: 'utf8',
       mode: 0o755
     })

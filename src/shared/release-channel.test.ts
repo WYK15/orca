@@ -23,7 +23,7 @@ import {
   type ReleaseBuild,
   type ReleaseChannel
 } from './release-channel'
-import { compareAppVersions } from './app-version'
+import { compareAppVersions, isPrereleaseAppVersion } from './app-version'
 
 describe('release channel', () => {
   it('classifies versions by channel', () => {
@@ -36,20 +36,45 @@ describe('release channel', () => {
     expect(getVersionChannel('not-a-version')).toBeNull()
   })
 
-  // Why: hourly tags must never resolve to the main repo — the releases atom feed
-  // exposes only 10 entries, so 24 hourly tags a day would evict every stable/RC
-  // entry and leave real users with nothing to update to.
-  it('keeps dev builds out of the main release repo, and apart from each other', () => {
-    expect(getReleaseRepoForChannel('hourly')).toBe('stablyai/orca-hourly')
-    expect(getReleaseRepoForChannel('daily')).toBe('stablyai/orca-daily')
-    // Why adhoc gets its own repo rather than sharing hourly's: an unlanded
-    // branch build must never surface to someone who only meant to ride main.
-    expect(getReleaseRepoForChannel('adhoc')).toBe('stablyai/orca-adhoc')
-    expect(getReleaseRepoForChannel('stable')).toBe('stablyai/orca')
-    expect(getReleaseRepoForChannel('rc')).toBe('stablyai/orca')
+  it.each([
+    '1.4.218-wyk.0',
+    '1.4.218-wyk.1',
+    'v1.4.218-wyk.10',
+    'V1.4.218-wyk.2',
+    '1.4.218-wyk.1+build.2',
+    'v1.4.218-wyk.2+build-tag.abc'
+  ])('classifies formal fork revision %s as stable without changing semver', (version) => {
+    expect(getVersionChannel(version)).toBe('stable')
+    expect(isPrereleaseAppVersion(version)).toBe(true)
   })
 
-  it('marks exactly the dev channels as having their own repo', () => {
+  it.each([
+    '1.4.218-wyk.next',
+    '1.4.218-wyk.01',
+    '1.4.218-wyk.1.rc.1',
+    '1.4.218-WYK.1',
+    '01.4.218-wyk.1',
+    '1.4.218-wyk.1+build..2'
+  ])('does not classify noncanonical fork revision %s as stable', (version) => {
+    expect(getVersionChannel(version)).toBe('rc')
+  })
+
+  it('retains semver ordering for fork revisions and metadata', () => {
+    expect(compareAppVersions('1.4.218-wyk.10', '1.4.218-wyk.2')).toBeGreaterThan(0)
+    expect(compareAppVersions('1.4.219-wyk.1', '1.4.218-wyk.10')).toBeGreaterThan(0)
+    expect(compareAppVersions('1.4.218-wyk.1+build.2', '1.4.218-wyk.1')).toBe(0)
+    expect(compareAppVersions('1.4.218-wyk.1', '1.4.218')).toBeLessThan(0)
+  })
+
+  it('routes every release channel through the fork repository', () => {
+    expect(getReleaseRepoForChannel('hourly')).toBe('WYK15/orca')
+    expect(getReleaseRepoForChannel('daily')).toBe('WYK15/orca')
+    expect(getReleaseRepoForChannel('adhoc')).toBe('WYK15/orca')
+    expect(getReleaseRepoForChannel('stable')).toBe('WYK15/orca')
+    expect(getReleaseRepoForChannel('rc')).toBe('WYK15/orca')
+  })
+
+  it('retains dev-channel source classification', () => {
     expect(hasDedicatedReleaseRepo('hourly')).toBe(true)
     expect(hasDedicatedReleaseRepo('daily')).toBe(true)
     expect(hasDedicatedReleaseRepo('adhoc')).toBe(true)
@@ -57,25 +82,23 @@ describe('release channel', () => {
     expect(hasDedicatedReleaseRepo('rc')).toBe(false)
   })
 
-  // Why: an hourly tag linked against the main repo 404s — the tag only exists
-  // in the hourly repo.
-  it('builds release-notes links against the repo that published the version', () => {
+  it('builds every release-notes link against the fork repository', () => {
     expect(getReleaseNotesUrlForVersion('1.4.160-hourly.202607281400')).toBe(
-      'https://github.com/stablyai/orca-hourly/releases/tag/v1.4.160-hourly.202607281400'
+      'https://github.com/WYK15/orca/releases/tag/v1.4.160-hourly.202607281400'
     )
     expect(getReleaseNotesUrlForVersion('1.4.160-daily.202607281300')).toBe(
-      'https://github.com/stablyai/orca-daily/releases/tag/v1.4.160-daily.202607281300'
+      'https://github.com/WYK15/orca/releases/tag/v1.4.160-daily.202607281300'
     )
     expect(getReleaseNotesUrlForVersion('1.4.160')).toBe(
-      'https://github.com/stablyai/orca/releases/tag/v1.4.160'
+      'https://github.com/WYK15/orca/releases/tag/v1.4.160'
     )
     expect(getReleaseNotesUrlForVersion('v1.4.160-rc.3')).toBe(
-      'https://github.com/stablyai/orca/releases/tag/v1.4.160-rc.3'
+      'https://github.com/WYK15/orca/releases/tag/v1.4.160-rc.3'
     )
     expect(getReleaseNotesUrlForVersion('1.4.160-adhoc.20260728140533')).toBe(
-      'https://github.com/stablyai/orca-adhoc/releases/tag/v1.4.160-adhoc.20260728140533'
+      'https://github.com/WYK15/orca/releases/tag/v1.4.160-adhoc.20260728140533'
     )
-    expect(getReleaseNotesUrlForVersion(null)).toBe('https://github.com/stablyai/orca/releases')
+    expect(getReleaseNotesUrlForVersion(null)).toBe('https://github.com/WYK15/orca/releases')
   })
 
   it('round-trips an hourly version stamp as UTC', () => {

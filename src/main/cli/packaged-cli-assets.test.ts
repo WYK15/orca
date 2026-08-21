@@ -17,23 +17,23 @@ const builderConfig = require('../../../config/electron-builder.config.cjs') as 
   linux?: { extraResources?: { from?: string; to?: string }[] }
   win?: { extraResources?: { from?: string; to?: string }[] }
 }
-const linuxLauncherAsset = new URL('../../../resources/linux/bin/orca-ide', import.meta.url)
-const darwinLauncherAsset = new URL('../../../resources/darwin/bin/orca', import.meta.url)
+const linuxLauncherAsset = new URL('../../../resources/linux/bin/orcaw-ide', import.meta.url)
+const darwinLauncherAsset = new URL('../../../resources/darwin/bin/orcaw', import.meta.url)
 const unixLauncherFixtures = [
   {
     name: 'Linux',
     asset: linuxLauncherAsset,
-    appDir: ['Orca'],
-    launcher: ['resources', 'bin', 'orca-ide'],
-    executable: ['orca-ide'],
+    appDir: ['Orcaw'],
+    launcher: ['resources', 'bin', 'orcaw-ide'],
+    executable: ['orcaw-ide'],
     cli: ['resources', 'app.asar.unpacked', 'out', 'cli', 'index.js']
   },
   {
     name: 'macOS',
     asset: darwinLauncherAsset,
-    appDir: ['Orca.app'],
-    launcher: ['Contents', 'Resources', 'bin', 'orca'],
-    executable: ['Contents', 'MacOS', 'Orca'],
+    appDir: ['Orcaw.app'],
+    launcher: ['Contents', 'Resources', 'bin', 'orcaw'],
+    executable: ['Contents', 'MacOS', 'Orcaw'],
     cli: ['Contents', 'Resources', 'app.asar.unpacked', 'out', 'cli', 'index.js']
   }
 ] as const
@@ -194,14 +194,14 @@ server.listen(0, '127.0.0.1', () => {
   itRunsUnixShell(
     'runs the Linux launcher from its packaged path and installed symlink',
     async () => {
-      const root = await mkdtemp(join(tmpdir(), 'orca-linux-cli-'))
+      const root = await mkdtemp(join(tmpdir(), 'orcaw-linux-cli-'))
       try {
         const appDir = join(root, 'Orca')
         const resourcesDir = join(appDir, 'resources')
         const launcherDir = join(resourcesDir, 'bin')
         const cliDir = join(resourcesDir, 'app.asar.unpacked', 'out', 'cli')
-        const launcherPath = join(launcherDir, 'orca-ide')
-        const electronPath = join(appDir, 'orca-ide')
+        const launcherPath = join(launcherDir, 'orcaw-ide')
+        const electronPath = join(appDir, 'orcaw-ide')
         const cliPath = join(cliDir, 'index.js')
 
         await mkdir(launcherDir, { recursive: true })
@@ -227,9 +227,9 @@ printf 'arg=%s\\n' "$@"
 
         const homeDir = join(root, 'home')
         const commandDir = join(homeDir, '.local', 'bin')
-        const commandPath = join(commandDir, 'orca-ide')
+        const commandPath = join(commandDir, 'orcaw-ide')
         await mkdir(commandDir, { recursive: true })
-        await mkdir(join(homeDir, 'orca'), { recursive: true })
+        await mkdir(join(homeDir, 'orcaw'), { recursive: true })
         await symlink(launcherPath, commandPath)
 
         const symlinked = await execFileAsync(commandPath, ['--help'], {
@@ -249,13 +249,13 @@ printf 'arg=%s\\n' "$@"
   // launcher, so its env sanitation and argv passthrough are the contract the
   // AppImage, deb, and extracted-tree commands all depend on.
   itRunsUnixShell('sanitizes node env and forwards argv verbatim', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'orca-linux-cli-env-'))
+    const root = await mkdtemp(join(tmpdir(), 'orcaw-linux-cli-env-'))
     try {
       const appDir = join(root, 'Orca')
       const resourcesDir = join(appDir, 'resources')
       const launcherDir = join(resourcesDir, 'bin')
       const cliDir = join(resourcesDir, 'app.asar.unpacked', 'out', 'cli')
-      const launcherPath = join(launcherDir, 'orca-ide')
+      const launcherPath = join(launcherDir, 'orcaw-ide')
       const cliPath = join(cliDir, 'index.js')
 
       await mkdir(launcherDir, { recursive: true })
@@ -263,7 +263,7 @@ printf 'arg=%s\\n' "$@"
       await copyFile(linuxLauncherAsset, launcherPath)
       await writeFile(cliPath, '', 'utf8')
       await writeFile(
-        join(appDir, 'orca-ide'),
+        join(appDir, 'orcaw-ide'),
         `#!/usr/bin/env bash
 node -e 'console.log(JSON.stringify({
   argv: process.argv.slice(1),
@@ -313,9 +313,9 @@ node -e 'console.log(JSON.stringify({
       const resourcesDir = join(appDir, 'resources')
       const launcherDir = join(resourcesDir, 'bin')
       const cliDir = join(resourcesDir, 'app.asar.unpacked', 'out', 'cli')
-      const launcherPath = join(launcherDir, 'orca-ide')
+      const launcherPath = join(launcherDir, 'orcaw-ide')
       const appRunPath = join(appDir, 'AppRun')
-      const electronPath = join(appDir, 'orca-ide')
+      const electronPath = join(appDir, 'orcaw-ide')
       const cliPath = join(cliDir, 'index.js')
       const statePath = join(root, 'launch-state.json')
 

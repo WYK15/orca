@@ -22,6 +22,11 @@ export abstract class UpdaterInstallExecution extends UpdaterPackageRecovery {
       this.pendingQuitAndInstallTimer = null
     }
 
+    // Why: native macOS staging can invoke this entry point without the renderer-facing guard.
+    if (this.getActiveUpdateDelivery() === 'manual') {
+      this.mainWindowRef?.webContents.send('updater:quitAndInstallAborted')
+      return
+    }
     const pendingVersion = this.getPendingInstallVersion()
     if (this.deferHeadlessServeInstall('install', pendingVersion)) {
       return

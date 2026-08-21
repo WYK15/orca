@@ -606,7 +606,7 @@ final class Provider {
             // should open macOS privacy prompts/settings; runtime calls stay quiet.
             throw ProviderError.coded(
                 "permission_denied",
-                "Accessibility permission is required for Orca Computer Use. Run `orca computer permissions` or open Settings > Computer Use, grant Accessibility to Orca Computer Use, then retry."
+                "Accessibility permission is required for Orcaw Computer Use. Run `orcaw computer permissions` or open Settings > Computer Use, grant Accessibility to Orcaw Computer Use, then retry."
             )
         }
         let appElement = AXUIElementCreateApplication(app.pid)
@@ -643,7 +643,7 @@ final class Provider {
         let screenshotStatus: ScreenshotStatus = if screenshot != nil {
             .captured
         } else if includeScreenshot && !canCaptureScreenshot {
-            .failed("Screen Recording permission is required for Orca Computer Use; grant permission or pass --no-screenshot to inspect accessibility state only.")
+            .failed("Screen Recording permission is required for Orcaw Computer Use; grant permission or pass --no-screenshot to inspect accessibility state only.")
         } else if includeScreenshot {
             .failed("window screenshot capture returned no image; retry with --no-screenshot if accessibility state is sufficient.")
         } else {
@@ -1123,7 +1123,7 @@ private func focusedWindow(appElement: AXUIElement, app: AppDescriptor, visibleW
         if let window = settledWindow, outcome.settled {
             return window
         }
-        throw ProviderError.coded("permission_denied", "app '\(app.name)' has visible windows but no accessibility window (AX reads stayed blocked for \(outcome.waitedMs)ms after retries). macOS Accessibility may need Orca Computer Use toggled off and on again in System Settings.")
+        throw ProviderError.coded("permission_denied", "app '\(app.name)' has visible windows but no accessibility window (AX reads stayed blocked for \(outcome.waitedMs)ms after retries). macOS Accessibility may need Orcaw Computer Use toggled off and on again in System Settings.")
     }
     throw ProviderError.coded("window_not_found", "app '\(app.name)' has no accessibility window; make sure the app has a visible window, then retry with --restore-window.")
 }
@@ -2993,7 +2993,7 @@ private final class PermissionWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "Enable Orca Computer Use"
+        window.title = "Enable Orcaw Computer Use"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.backgroundColor = PermissionPalette.background
@@ -3119,9 +3119,9 @@ private enum PermissionKind: CaseIterable {
     var dragInstruction: String {
         switch self {
         case .accessibility:
-            "Drag Orca Computer Use into the list above to allow Accessibility."
+            "Drag Orcaw Computer Use into the list above to allow Accessibility."
         case .screenshots:
-            "Drag Orca Computer Use into the list above to allow Screenshots."
+            "Drag Orcaw Computer Use into the list above to allow Screenshots."
         }
     }
 
@@ -3223,14 +3223,14 @@ private final class PermissionView: NSView {
 
         let titleText = checking
             ? "Checking Computer Use"
-            : (ready ? "Computer Use is Ready" : "Enable Orca Computer Use")
+            : (ready ? "Computer Use is Ready" : "Enable Orcaw Computer Use")
         let title = label(titleText, size: 22, weight: .bold)
         let subtitle = label(
             checking
                 ? "Checking Accessibility and Screenshots."
                 : (ready
-                    ? "Orca can use local apps when you ask."
-                    : "Grant permissions so Orca can use apps when you ask."),
+                    ? "Orcaw can use local apps when you ask."
+                    : "Grant permissions so Orcaw can use apps when you ask."),
             size: 12,
             weight: .regular
         )
@@ -3402,7 +3402,7 @@ private final class PermissionDragAssistantController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "Drag Orca Computer Use"
+        window.title = "Drag Orcaw Computer Use"
         window.backgroundColor = .clear
         window.isOpaque = false
         window.isReleasedWhenClosed = false
@@ -3814,7 +3814,7 @@ private final class DraggableAppTile: NSView, NSDraggingSource {
         icon.imageScaling = .scaleProportionallyUpOrDown
         icon.translatesAutoresizingMaskIntoConstraints = false
 
-        let title = NSTextField(labelWithString: "Orca Computer Use")
+        let title = NSTextField(labelWithString: "Orcaw Computer Use")
         title.font = NSFont.systemFont(ofSize: 15, weight: .semibold)
         title.textColor = PermissionPalette.primaryText
         title.translatesAutoresizingMaskIntoConstraints = false
@@ -4107,9 +4107,9 @@ private func isTrustedOrcaApplication(_ pid: pid_t) -> Bool {
         return false
     }
     // Why: dev validation runs from per-worktree wrapper apps with stable
-    // Orca-owned bundle ids; the sidecar peer check must still authorize them.
-    return bundleId == "com.stablyai.orca" ||
-        bundleId.hasPrefix("com.stablyai.orca.dev.") ||
+    // Orcaw-owned bundle ids; the sidecar peer check must still authorize them.
+    return bundleId == "com.wyk15.orcaw" ||
+        bundleId.hasPrefix("com.wyk15.orcaw.dev.") ||
         bundleId == "com.github.Electron"
 }
 
@@ -4187,7 +4187,7 @@ private func writePermissionStatus(to path: String) {
 }
 
 private func runStdio() {
-    fputs("Orca Computer Use provider must be launched by Orca in app-agent mode.\n", stderr)
+    fputs("Orcaw Computer Use provider must be launched by Orcaw in app-agent mode.\n", stderr)
     exit(13)
 }
 

@@ -9,9 +9,12 @@
 // macOS keys notification records to that identifier.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
+const require = createRequire(import.meta.url)
+const productIdentity = require('../orcaw-product-identity.json')
 const repoRoot = path.resolve(import.meta.dirname, '../..')
 const sourcePath = path.join(repoRoot, 'native', 'notification-status-macos', 'main.swift')
 const defaultOutputPath = path.join(
@@ -28,7 +31,7 @@ if (process.platform !== 'darwin') {
 }
 
 const args = process.argv.slice(2)
-const bundleId = readArg('--bundle-id') ?? 'com.stablyai.orca'
+const bundleId = readArg('--bundle-id') ?? productIdentity.appId
 const outputPath = readArg('--output') ?? defaultOutputPath
 // Why: dev launches only need the host architecture; release builds ship a
 // universal binary matching the app's x64 + arm64 targets.

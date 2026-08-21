@@ -113,12 +113,14 @@ describe('electron-builder markdown file associations', () => {
     const script = stripNsisCommentLines(await readInstallerHooks())
 
     expect(script).toMatch(/taskkill[^\n]*\/IM\s+"?\$\{APP_EXECUTABLE_FILENAME\}"?/)
-    // Legacy name, so hosts left by builds that renamed the copy still get reaped.
-    expect(script).toMatch(/taskkill[^\n]*\/IM\s+"?orca-terminal-daemon\.exe"?/)
+    // The fork must not reap an upstream Orca daemon.
+    expect(script).not.toMatch(/taskkill[^\n]*\/IM\s+"?orca-terminal-daemon\.exe"?/)
     // Scopes both kills to the uninstalling user: an elevated machine-wide uninstall must
     // not reach another logged-on user's session.
     expect(script).toMatch(/\/FI\s+"USERNAME eq /)
-    expect(script).toContain('$LOCALAPPDATA\\Orca\\daemon-host')
+    expect(script).toContain('$LOCALAPPDATA\\Orcaw\\daemon-host')
+    expect(script).not.toContain('$LOCALAPPDATA\\Orca\\daemon-host')
+    expect(script).toContain('!define MARKDOWN_PROGID "Orcaw.Markdown"')
     // Without this guard, uninstallOldVersion would kill the daemon on every update —
     // defeating the relocation that keeps terminals alive across updates.
     expect(script).toMatch(/\$\{ifNot\}\s+\$\{isUpdated\}/)

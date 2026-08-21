@@ -1,7 +1,15 @@
 import { app, powerMonitor } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
-import type { ReleaseBuild, ReleaseChannel } from '../../shared/release-channel'
+import {
+  MAIN_RELEASE_REPO,
+  type ReleaseBuild,
+  type ReleaseChannel
+} from '../../shared/release-channel'
+import {
+  getReleaseUpdateDelivery,
+  readPackagedReleaseAutoUpdateEnabled
+} from '../updater-delivery-policy'
 import type { ReleaseBuildListOptions } from '../updater-release-build-cache'
 import type {
   LinuxPackageInstallInstructions,
@@ -142,6 +150,10 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       return
     }
 
+    this.releaseUpdateDelivery = getReleaseUpdateDelivery(
+      process.platform,
+      readPackagedReleaseAutoUpdateEnabled(app.getAppPath(), process.platform)
+    )
     const autoUpdater = this.getAutoUpdater()
     autoUpdater.autoDownload = false
     if (this.activeUpdateSource === 'release') {
@@ -151,7 +163,9 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
     // Why: supervised serve installs require an explicit handoff; ordinary service quits must never install implicitly.
     // Only an explicit AppImage/non-root marker may opt into electron-updater's implicit quit install.
     autoUpdater.autoInstallOnAppQuit =
-      this.updateInstallMode === 'interactive' && getLinuxPackageType() === 'non-root'
+      this.updateInstallMode === 'interactive' &&
+      this.getActiveUpdateDelivery() === 'automatic' &&
+      getLinuxPackageType() === 'non-root'
     // Why: MacUpdater ignores quitAndInstall arguments; the surviving CLI supervisor must be the only serve relaunch owner.
     autoUpdater.autoRunAppAfterInstall = this.updateInstallMode === 'interactive'
     // Why: our only on-machine window into electron-updater; otherwise an unexpected update-not-available or failed fetch is invisible.
@@ -161,7 +175,7 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
     if (this.activeUpdateSource === 'release') {
       autoUpdater.setFeedURL({
         provider: 'generic',
-        url: 'https://github.com/stablyai/orca/releases/latest/download'
+        url: `https://github.com/${MAIN_RELEASE_REPO}/releases/latest/download`
       })
     }
     if (this.autoUpdaterInitialized) {
@@ -182,6 +196,7 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       getActiveUpdateCheckEventAttemptId: () => this.getActiveUpdateCheckEventAttemptId(),
       getKnownReleaseUrl: () => this.getKnownReleaseUrl(),
       getPendingInstallVersion: () => this.getPendingInstallVersion(),
+      getReleaseUpdateDelivery: () => this.getActiveUpdateDelivery(),
       getUserInitiatedCheck: () => this.userInitiatedCheck,
       handleQuitAndInstallFailure: (error) => this.handleQuitAndInstallFailure(error),
       isQuitAndInstallHandoffActive: () => this.isQuitAndInstallHandoffActive(),

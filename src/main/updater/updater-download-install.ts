@@ -8,6 +8,11 @@ import { UpdaterRemoteStatus } from './updater-remote-status'
 /** Coordinates renderer-facing download/install actions and their duplicate guards. */
 export abstract class UpdaterDownloadInstall extends UpdaterRemoteStatus {
   protected quitAndInstall(): void {
+    if (this.getActiveUpdateDelivery() === 'manual') {
+      // The preload checkpoints renderer state before invoking, even when main refuses the install.
+      this.mainWindowRef?.webContents.send('updater:quitAndInstallAborted')
+      return
+    }
     if (
       this.localBuildSelectionInProgress ||
       this.pinnedBuildSelectionInProgress ||
@@ -38,6 +43,10 @@ export abstract class UpdaterDownloadInstall extends UpdaterRemoteStatus {
   }
 
   protected downloadUpdate(): void {
+    // Why: IPC callers and error retries must obey the same delivery policy as the available card.
+    if (this.getActiveUpdateDelivery() === 'manual') {
+      return
+    }
     if (
       this.localBuildSelectionInProgress ||
       this.pinnedBuildSelectionInProgress ||

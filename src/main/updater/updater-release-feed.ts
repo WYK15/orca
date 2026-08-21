@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { getVersionChannel, MAIN_RELEASE_REPO } from '../../shared/release-channel'
 import {
   fetchNewerReleaseTagsWithReadiness,
   getReleaseDownloadUrl
@@ -120,7 +121,9 @@ export abstract class UpdaterReleaseFeed extends UpdaterInstallExecution {
     const currentVersion = app.getVersion()
     const isPerfCheck = variant === 'perf'
     const includePrerelease =
-      isPerfCheck || this.includePrereleaseActive || isPrereleaseVersion(currentVersion)
+      isPerfCheck ||
+      this.includePrereleaseActive ||
+      (isPrereleaseVersion(currentVersion) && getVersionChannel(currentVersion) !== 'stable')
     const releaseTagsResult = await fetchNewerReleaseTagsWithReadiness(
       currentVersion,
       includePrerelease ? 2 : 1,
@@ -208,7 +211,7 @@ export abstract class UpdaterReleaseFeed extends UpdaterInstallExecution {
     }
     this.clearPrereleaseFallbackContext()
     this.clearPublishingWindowLastGoodCheck()
-    const url = 'https://github.com/stablyai/orca/releases/latest/download'
+    const url = `https://github.com/${MAIN_RELEASE_REPO}/releases/latest/download`
     console.info(
       `[updater] release feed fallback: current=${currentVersion} includePrerelease=${includePrerelease} → ${url}`
     )

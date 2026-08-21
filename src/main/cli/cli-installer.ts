@@ -1,5 +1,5 @@
 import { mkdir, unlink } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { CliInstallStatus } from '../../shared/cli-install-types'
 import {
   pruneAppImageExtractedRoots,
@@ -12,8 +12,12 @@ import {
   resolveAppImageNamespacePath
 } from './appimage-extracted-root'
 import { isAppImageStableLauncherReady } from './appimage-stable-launcher'
+import { LINUX_CLI_COMMAND_NAME } from './bundled-cli-launcher-path'
+import { DEV_COMMAND_NAME, NATIVE_COMMAND_NAME } from './cli-install-constants'
+import type { CliInstallerOptions } from './cli-installer-contracts'
 import { CliPathRegistration } from './cli-path-registration'
 
+const DEFAULT_ORCAW_MAC_COMMAND_PATH = '/usr/local/bin/orcaw'
 export class CliInstaller extends CliPathRegistration {
   isAppImageRegistrationOwnedBySibling(status: CliInstallStatus): boolean {
     if (
@@ -26,6 +30,30 @@ export class CliInstaller extends CliPathRegistration {
     return Boolean(
       extractionOptions && isAppImageInstalledLauncherOwnedBySibling(extractionOptions)
     )
+  }
+
+  protected override get commandName(): string {
+    if (!this.isPackaged && !this.commandPathOverride) {
+      return DEV_COMMAND_NAME
+    }
+    return this.platform === 'linux' ? LINUX_CLI_COMMAND_NAME : NATIVE_COMMAND_NAME
+  }
+
+  constructor(options: CliInstallerOptions = {}) {
+    super({
+      ...options,
+      defaultMacCommandPath: options.defaultMacCommandPath ?? DEFAULT_ORCAW_MAC_COMMAND_PATH
+    })
+  }
+
+  protected override resolveCommandPath(): string | null {
+    const commandPath = super.resolveCommandPath()
+    if (this.platform !== 'darwin' || !this.isPackaged || this.commandPathOverride) {
+      return commandPath
+    }
+    return this.macCommandPath.endsWith(`/${NATIVE_COMMAND_NAME}`)
+      ? commandPath
+      : join(this.homePath, '.local', 'bin', NATIVE_COMMAND_NAME)
   }
 
   async getStatus(): Promise<CliInstallStatus> {
@@ -117,7 +145,7 @@ export class CliInstaller extends CliPathRegistration {
     }
     if (initialStatus.state === 'conflict') {
       throw new Error(
-        `Refusing to replace non-Orca command at ${initialStatus.commandPath}. Remove it and register again if it is no longer needed.`
+        `Refusing to replace non-Orcaw command at ${initialStatus.commandPath}. Remove it and register again if it is no longer needed.`
       )
     }
     const extractedRoot = await this.ensureLinuxAppImagePayload()
@@ -129,16 +157,16 @@ export class CliInstaller extends CliPathRegistration {
     }
     if (status.state === 'conflict') {
       throw new Error(
-        `Refusing to replace non-Orca command at ${status.commandPath}. Remove it and register again if it is no longer needed.`
+        `Refusing to replace non-Orcaw command at ${status.commandPath}. Remove it and register again if it is no longer needed.`
       )
     }
 
     // eslint-disable-next-line unicorn/prefer-ternary -- Why: the install path performs async side effects and is easier to audit as an explicit branch than as an awaited ternary.
     if (status.installMethod === 'symlink') {
       await this.installSymlink(status)
-      await this.removeLegacyLinuxCommandIfManaged(status.launcherPath)
+      // Why: Orcaw owns only its independent name; never clean up upstream `orca`.
     } else if (this.isWindowsPackagedBundledCommand(status.commandPath, status.launcherPath)) {
-      // Why: packaged Windows already ships resources/bin/orca.exe; registration only owns the PATH entry.
+      // Why: packaged Windows already ships resources/bin/orcaw.exe; registration only owns the PATH entry.
     } else {
       // Why: the Windows wrapper dir is user-writable (%LOCALAPPDATA%), so mkdir here can't hit EACCES.
       await mkdir(dirname(status.commandPath), { recursive: true })
@@ -169,7 +197,6 @@ export class CliInstaller extends CliPathRegistration {
       return status
     }
     if (status.state === 'not_installed') {
-      await this.removeLegacyLinuxCommandIfManaged(status.launcherPath)
       if (this.platform === 'win32') {
         await this.removeWindowsPathEntry(dirname(status.commandPath))
         return this.getStatus()
@@ -178,10 +205,10 @@ export class CliInstaller extends CliPathRegistration {
       return status
     }
     if (status.state === 'conflict') {
-      throw new Error(`Refusing to remove non-Orca command at ${status.commandPath}.`)
+      throw new Error(`Refusing to remove non-Orcaw command at ${status.commandPath}.`)
     }
     if (status.state === 'stale' && status.installMethod !== 'symlink') {
-      throw new Error(`Refusing to remove a command not owned by Orca at ${status.commandPath}.`)
+      throw new Error(`Refusing to remove a command not owned by Orcaw at ${status.commandPath}.`)
     }
 
     if (status.state === 'stale' && this.isAppImageRegistrationOwnedBySibling(status)) {
@@ -191,7 +218,6 @@ export class CliInstaller extends CliPathRegistration {
 
     if (status.installMethod === 'symlink') {
       await this.removeSymlink(status.commandPath)
-      await this.removeLegacyLinuxCommandIfManaged(status.launcherPath)
     } else if (this.isWindowsPackagedBundledCommand(status.commandPath, status.launcherPath)) {
       await this.removeWindowsPathEntry(dirname(status.commandPath))
     } else {

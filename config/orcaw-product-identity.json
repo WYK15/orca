@@ -1,0 +1,14 @@
+{
+  "productName": "Orcaw",
+  "appId": "com.wyk15.orcaw",
+  "devAppName": "Orcaw Dev",
+  "devAppIdPrefix": "com.wyk15.orcaw.dev",
+  "computerUseAppName": "Orcaw Computer Use",
+  "computerUseBundleId": "com.wyk15.orcaw.computer-use",
+  "nativeCliCommand": "orcaw",
+  "linuxCliCommand": "orcaw-ide",
+  "linuxPackageName": "orcaw-ide",
+  "githubOwner": "WYK15",
+  "githubRepo": "orca",
+  "artifactPrefix": "orcaw"
+}

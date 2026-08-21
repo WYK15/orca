@@ -21,10 +21,10 @@ export const RELEASE_CHANNEL_LABELS: Readonly<Record<ReleaseChannel, string>> = 
 /** Dev builds live in their own repos so their tags never enter the main
  *  releases atom feed, which only exposes the 10 newest entries — 24 hourly
  *  tags a day would evict every stable/RC entry and strand real users. */
-export const HOURLY_RELEASE_REPO = 'stablyai/orca-hourly'
-export const DAILY_RELEASE_REPO = 'stablyai/orca-daily'
-export const ADHOC_RELEASE_REPO = 'stablyai/orca-adhoc'
-export const MAIN_RELEASE_REPO = 'stablyai/orca'
+export const HOURLY_RELEASE_REPO = 'WYK15/orca'
+export const DAILY_RELEASE_REPO = 'WYK15/orca'
+export const ADHOC_RELEASE_REPO = 'WYK15/orca'
+export const MAIN_RELEASE_REPO = 'WYK15/orca'
 
 export const HOURLY_PRERELEASE_IDENTIFIER = 'hourly'
 export const DAILY_PRERELEASE_IDENTIFIER = 'daily'
@@ -217,10 +217,17 @@ export function parseDevBuildStamp(version: string): Date | null {
   )
 }
 
+// Why: publication treats canonical wyk.N revisions as stable despite semver prerelease syntax.
+const FORK_STABLE_VERSION =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-wyk\.(0|[1-9]\d*)(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
+
 export function getVersionChannel(version: string): ReleaseChannel | null {
   const normalized = normalizeTagToVersion(version)
   if (!isValidAppVersion(normalized)) {
     return null
+  }
+  if (FORK_STABLE_VERSION.test(normalized)) {
+    return 'stable'
   }
   if (isHourlyVersion(normalized)) {
     return 'hourly'

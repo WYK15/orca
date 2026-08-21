@@ -1,20 +1,21 @@
 import { quotePowerShellLiteral } from '../../shared/powershell-native-argument'
 
-const MANAGED_MARKER = '# Orca managed WSL CLI launcher'
-const BRIDGE_MANAGED_MARKER = '# Orca managed WSL CLI PowerShell bridge'
+const MANAGED_MARKER = '# Orcaw managed WSL CLI launcher'
+const BRIDGE_MANAGED_MARKER = '# Orcaw managed WSL CLI PowerShell bridge'
+export const WSL_CLI_BRIDGE_FILE_NAME = 'orcaw-wsl-bridge.ps1'
 
 const FIND_INTEROP_POWERSHELL = `if command -v powershell.exe >/dev/null 2>&1; then
   ORCA_POWERSHELL=powershell.exe
 elif [ -x /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe ]; then
   ORCA_POWERSHELL=/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
 else
-  echo "Orca WSL CLI requires Windows interop and could not find powershell.exe." >&2
+  echo "Orcaw WSL CLI requires Windows interop and could not find powershell.exe." >&2
   exit 1
 fi`
 
 export function buildWslLauncher(
   windowsLauncherPath: string,
-  bridgePath = '${XDG_DATA_HOME:-$HOME/.local/share}/orca/orca-wsl-bridge.ps1'
+  bridgePath = `\${XDG_DATA_HOME:-$HOME/.local/share}/orcaw/${WSL_CLI_BRIDGE_FILE_NAME}`
 ): string {
   return buildLauncher(windowsLauncherPath, quoteShell(bridgePath), FIND_INTEROP_POWERSHELL)
 }
@@ -26,10 +27,10 @@ export function buildColocatedWslLauncher(
 ): string {
   return buildLauncher(
     windowsLauncherPath,
-    '"$(dirname -- "$0")/orca-wsl-bridge.ps1"',
+    `"$(dirname -- "$0")/${WSL_CLI_BRIDGE_FILE_NAME}"`,
     `ORCA_POWERSHELL=$(wslpath -u ${quoteShell(windowsPowerShellPath)})
 if [ ! -x "$ORCA_POWERSHELL" ]; then
-  echo "Orca WSL CLI requires Windows interop and access to $ORCA_POWERSHELL." >&2
+  echo "Orcaw WSL CLI requires Windows interop and access to $ORCA_POWERSHELL." >&2
   exit 1
 fi`
   )
@@ -63,7 +64,7 @@ exec "$ORCA_POWERSHELL" -NoProfile -ExecutionPolicy Bypass -File "$ORCA_BRIDGE_P
 `
 }
 
-/** `app` pins the bridge to one Orca instance; the guest-registered bridge omits it. */
+/** `app` pins the bridge to one Orcaw instance; the guest-registered bridge omits it. */
 export function buildWslBridgeScript(app?: {
   userDataPath: string
   cliEntryPath?: string
@@ -111,7 +112,7 @@ $exitCode = 0
 try {
   # Why: a param block prefix-binds forwarded flags such as --for in PowerShell 5.1.
   if ($args.Count -lt 1) {
-    throw 'Invalid Orca WSL CLI bridge invocation.'
+    throw 'Invalid Orcaw WSL CLI bridge invocation.'
   }
   [string]$OrcaLauncher = $args[0]
   [string]$WslCwd = ''
@@ -119,14 +120,14 @@ try {
   [int]$ForwardArgStart = 1
   if ($args.Count -ge 2 -and $args[1] -eq '-WslCwd') {
     if ($args.Count -lt 3) {
-      throw 'Invalid Orca WSL CLI bridge invocation.'
+      throw 'Invalid Orcaw WSL CLI bridge invocation.'
     }
     $WslCwd = $args[2]
     $ForwardArgStart = 3
   }
   if ($ForwardArgStart -eq 3 -and $args.Count -ge 4 -and $args[3] -eq '-WslDistro') {
     if ($args.Count -lt 5) {
-      throw 'Invalid Orca WSL CLI bridge invocation.'
+      throw 'Invalid Orcaw WSL CLI bridge invocation.'
     }
     $WslDistro = $args[4]
     $ForwardArgStart = 5
@@ -164,7 +165,7 @@ ${bridgeLines(setAppEnv)}  $StartInfo.Arguments = (($ForwardArgs | ForEach-Objec
   $StartInfo.WorkingDirectory = $LauncherDirectory
   $Process = [System.Diagnostics.Process]::Start($StartInfo)
   if ($null -eq $Process) {
-    throw 'Unable to start the Orca Windows CLI launcher.'
+    throw 'Unable to start the Orcaw Windows CLI launcher.'
   }
   $Process.WaitForExit()
   $exitCode = $Process.ExitCode
@@ -194,8 +195,9 @@ function bridgeLines(lines: readonly string[]): string {
 }
 
 export function getBridgePathFromCommandPath(commandPath: string): string {
-  // Why: both the current Linux command and the legacy pre-rename command
-  // share one WSL bridge under ~/.local/share/orca.
+  if (commandPath.endsWith('/.local/bin/orcaw-ide')) {
+    return `${commandPath.replace(/\/\.local\/bin\/orcaw-ide$/, '/.local/share/orcaw')}/${WSL_CLI_BRIDGE_FILE_NAME}`
+  }
   return `${commandPath.replace(/\/\.local\/bin\/(?:orca|orca-ide)$/, '/.local/share/orca')}/orca-wsl-bridge.ps1`
 }
 
@@ -215,18 +217,18 @@ export function buildSafeReplaceGuard(path: string, managedMarker: string): stri
 
 export function buildRegistrationLockPrelude(commandPath: string): string {
   const lockDir = getPosixDirname(getBridgePathFromCommandPath(commandPath))
-  // Why: the per-distro queue only serializes one Orca process; flock covers
+  // Why: the per-distro queue only serializes one Orcaw process; flock covers
   // a second install (e.g. stable + nightly) mutating the same distro files.
   return [
     `if command -v flock >/dev/null 2>&1 && mkdir -p ${quoteShell(lockDir)} 2>/dev/null; then`,
-    `  exec 9>${quoteShell(`${lockDir}/.orca-wsl-cli.lock`)}`,
+    `  exec 9>${quoteShell(`${lockDir}/.orcaw-wsl-cli.lock`)}`,
     '  flock -x -w 30 9',
     'fi'
   ].join('\n')
 }
 
 export function buildManagedLegacyRemoveCommand(quotedLegacyCommandPath: string): string {
-  // Why: remove only the Orca-managed pre-rename wrapper; user-owned `orca`
+  // Why: remove only the managed pre-rename wrapper; user-owned `orca`
   // commands and symlinks must survive.
   return `if [ ! -L ${quotedLegacyCommandPath} ] && [ -f ${quotedLegacyCommandPath} ] && grep -Fq ${quoteShell(MANAGED_MARKER)} ${quotedLegacyCommandPath}; then rm -f ${quotedLegacyCommandPath}; fi`
 }

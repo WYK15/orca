@@ -1,31 +1,15 @@
+import { resolve } from 'node:path'
 import { afterAll, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import { clearTrackedRealTimers, trackRealTimers } from './updater-test-timer-tracking'
 
-/** Loose spy signature for the electron/electron-updater calls the suites only assert on. */
-type UpdaterSpy = Mock<(...args: unknown[]) => unknown>
-type LinuxPackageType = 'deb' | 'rpm' | 'non-root' | 'unusable'
+import type { AutoUpdaterMock, UpdaterSpy } from './updater-test-auto-updater-types'
 
-type AutoUpdaterMock = {
-  autoDownload: boolean
-  autoInstallOnAppQuit: boolean
-  autoRunAppAfterInstall: boolean
-  allowPrerelease: boolean
-  allowDowngrade: boolean
-  disableDifferentialDownload: boolean
-  logger: { error: (message: unknown) => void } | undefined
-  on: Mock<(event: string, handler: (...args: unknown[]) => void) => AutoUpdaterMock>
-  checkForUpdates: UpdaterSpy
-  downloadUpdate: UpdaterSpy
-  quitAndInstall: UpdaterSpy
-  setFeedURL: UpdaterSpy
-  updateConfigPath: string | undefined
-  emit: (event: string, ...args: unknown[]) => void
-  reset: () => void
-}
+type LinuxPackageType = 'deb' | 'rpm' | 'non-root' | 'unusable'
 
 type AppMock = {
   isPackaged: boolean
+  getAppPath: Mock<() => string>
   getVersion: Mock<() => string>
   on: Mock<(event: string, handler: (...args: unknown[]) => void) => AppMock>
   emit: (event: string, ...args: unknown[]) => void
@@ -199,6 +183,7 @@ export function createUpdaterMocks(): UpdaterMocks {
 
   const appMock: AppMock = {
     isPackaged: true,
+    getAppPath: vi.fn(() => resolve(import.meta.dirname, '__fixtures__/updater-signed-app')),
     getVersion: vi.fn(() => '1.0.51'),
     on: appOn,
     emit: appEmit,
@@ -264,7 +249,7 @@ export function createUpdaterMocks(): UpdaterMocks {
           : result
       },
       getReleaseDownloadUrl: (tag: string) =>
-        `https://github.com/stablyai/orca/releases/download/${tag}`
+        `https://github.com/WYK15/orca/releases/download/${tag}`
     }),
     localBuildSwitch: () => ({ chooseLocalBuild: chooseLocalBuildMock }),
     localBuildFeedServer: () => ({ startLocalBuildFeed: startLocalBuildFeedMock })
@@ -282,6 +267,10 @@ export function createUpdaterMocks(): UpdaterMocks {
     nativeUpdaterMock.on.mockReset()
     browserWindowMock.getAllWindows.mockReset()
     browserWindowMock.getAllWindows.mockReturnValue([])
+    appMock.getAppPath.mockReset()
+    appMock.getAppPath.mockReturnValue(
+      resolve(import.meta.dirname, '__fixtures__/updater-signed-app')
+    )
     appMock.getVersion.mockReset()
     appMock.getVersion.mockReturnValue('1.0.51')
     appMock.quit.mockReset()

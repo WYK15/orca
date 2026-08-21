@@ -179,8 +179,8 @@ describe('electron-builder config', () => {
     expect(electronBuilderConfig.mac.extraResources).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          from: 'native/computer-use-macos/.build/release/Orca Computer Use.app',
-          to: 'Orca Computer Use.app'
+          from: 'native/computer-use-macos/.build/release/Orcaw Computer Use.app',
+          to: 'Orcaw Computer Use.app'
         })
       ])
     )
@@ -200,7 +200,7 @@ describe('electron-builder config', () => {
         }),
         expect.objectContaining({
           from: 'native/windows-cli-launcher/.build/orca.exe',
-          to: 'bin/orca.exe'
+          to: 'bin/orcaw.exe'
         })
       ])
     )
@@ -229,8 +229,8 @@ describe('electron-builder config', () => {
     expect(electronBuilderConfig.win.extraResources).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          from: 'resources/win32/bin/orca.cmd',
-          to: 'bin/orca.cmd'
+          from: 'resources/win32/bin/orcaw.cmd',
+          to: 'bin/orcaw.cmd'
         })
       ])
     )
@@ -327,17 +327,19 @@ describe('electron-builder config', () => {
   })
 
   it('matches the Linux desktop entry to Electron window class', () => {
-    expect(electronBuilderConfig.linux.desktop.entry.StartupWMClass).toBe('orca')
+    expect(electronBuilderConfig.linux.desktop.entry.StartupWMClass).toBe(
+      electronBuilderConfig.linux.executableName
+    )
   })
 
   it('uses the release artifact set as local Linux targets without changing existing names', () => {
     expect(electronBuilderConfig.linux.target).toEqual(['AppImage', 'deb', 'rpm'])
     expect(electronBuilderConfig.toolsets).toEqual({ appimage: '1.0.3' })
-    expect(electronBuilderConfig.appImage.artifactName).toBe('orca-linux.${ext}')
-    expect(electronBuilderConfig.deb.artifactName).toBe('orca-ide_${version}_${arch}.${ext}')
+    expect(electronBuilderConfig.appImage.artifactName).toBe('orcaw-linux.${ext}')
+    expect(electronBuilderConfig.deb.artifactName).toBe('orcaw-ide_${version}_${arch}.${ext}')
     expect(electronBuilderConfig.rpm).toMatchObject({
-      packageName: 'orca-ide',
-      artifactName: 'orca-ide-${version}.${arch}.${ext}'
+      packageName: 'orcaw-ide',
+      artifactName: 'orcaw-ide-${version}.${arch}.${ext}'
     })
   })
 
@@ -375,7 +377,7 @@ describe('electron-builder config', () => {
       delete require.cache[configPath]
       process.env.ORCA_LINUX_ARM64_RELEASE = '1'
       expect(require('../electron-builder.config.cjs').appImage.artifactName).toBe(
-        'orca-linux-arm64.${ext}'
+        'orcaw-linux-arm64.${ext}'
       )
     } finally {
       if (original === undefined) {
@@ -397,7 +399,9 @@ describe('electron-builder config', () => {
       delete process.env.ORCA_MAC_RELEASE
       process.env.ORCA_LOCAL_BUILD_VERSION = '1.4.159-rc.0.local.123.abc'
       expect(require('../electron-builder.config.cjs').extraMetadata).toEqual({
-        version: '1.4.159-rc.0.local.123.abc'
+        version: '1.4.159-rc.0.local.123.abc',
+        orcawMacAutoUpdate: false,
+        orcawReleaseAutoUpdate: false
       })
     } finally {
       if (originalMacRelease === undefined) {
@@ -423,7 +427,10 @@ describe('electron-builder config', () => {
       delete require.cache[configPath]
       process.env.ORCA_LOCAL_BUILD_VERSION = '1.4.159-local.123.abc'
       process.env.ORCA_MAC_RELEASE = '1'
-      expect(require('../electron-builder.config.cjs').extraMetadata).toBeUndefined()
+      expect(require('../electron-builder.config.cjs').extraMetadata).toEqual({
+        orcawMacAutoUpdate: true,
+        orcawReleaseAutoUpdate: true
+      })
     } finally {
       if (originalLocalVersion === undefined) {
         delete process.env.ORCA_LOCAL_BUILD_VERSION

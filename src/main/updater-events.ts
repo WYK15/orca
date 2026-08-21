@@ -1,13 +1,14 @@
 import { app } from 'electron'
-import type { UpdateStatus } from '../shared/update-status-types'
+import type { UpdaterHandlerContext } from './updater-handler-context'
+export type { UpdaterHandlerContext } from './updater-handler-context'
 import {
   isMacInstallerReady,
   registerMacUpdaterEvents,
   resetMacInstallState
 } from './updater-mac-install'
+import { createAvailableReleaseStatus } from './updater-delivery-policy'
 import { compareVersions } from './updater-fallback'
 import { fetchChangelog } from './updater-changelog'
-import type { ElectronAutoUpdater } from './electron-updater-loader'
 import { recordUpdaterLifecycle } from './updater-lifecycle-diagnostics'
 import {
   getRetainedLinuxPackageManualInstallStatus,
@@ -20,49 +21,6 @@ import * as linuxPackageRecovery from './linux-package-update-recovery'
 const AUTO_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
 const AUTO_UPDATE_RETRY_INTERVAL_MS = 60 * 60 * 1000
 
-type UpdaterHandlerContext = {
-  autoUpdater: ElectronAutoUpdater
-  clearBackgroundCheckLaunchPending: () => void
-  clearAvailableUpdateContext: () => void
-  consumeMissingManifestPrereleaseFallbackResult: () => { userInitiated: boolean } | null
-  getPublishingWindowLastGoodCheck: () => { lastGoodTag: string } | null
-  getMissingManifestPrereleaseFallbackUserInitiated: () => boolean | null
-  getCurrentStatus: () => UpdateStatus
-  getActiveUpdateCheckEventAttemptId: () => number | null
-  getKnownReleaseUrl: () => string | undefined
-  getPendingInstallVersion: () => string
-  getUserInitiatedCheck: () => boolean
-  handleQuitAndInstallFailure: (error?: unknown) => boolean
-  isQuitAndInstallHandoffActive: () => boolean
-  hasInstallableDownloadedVersion: () => boolean
-  isLocalBuildCheck: () => boolean
-  isPinnedBuildCheck: () => boolean
-  shouldHandleUpdaterErrorEvent: () => boolean
-  clearUpdateAvailableEventPending: (attemptId: number | null) => void
-  isActiveUpdateCheckAttempt: (attemptId: number) => boolean
-  markUpdateCheckEventAttempt: () => boolean
-  markUpdateAvailableEventPending: (attemptId: number | null) => void
-  markMissingManifestPrereleaseFallbackChecking: () => void
-  performQuitAndInstall: () => void | Promise<void>
-  shouldDeferMacQuitForInstall: () => boolean
-  recordCompletedUpdateCheck: () => void
-  restoreReleaseUpdateSource: () => void
-  sendCheckFailureStatus: (
-    message: string,
-    userInitiated?: boolean,
-    source?: 'event' | 'promise' | 'fallback-promise',
-    sourceError?: unknown
-  ) => Promise<void>
-  sendErrorStatus: (message: string, userInitiated?: boolean) => void
-  sendStatus: (status: UpdateStatus) => void
-  scheduleAutomaticUpdateCheck: (delayMs: number) => void
-  shouldSuppressMissingManifestPrereleaseFallbackEvent: (message: string, error: unknown) => boolean
-  suppressMissingManifestPrereleaseFallbackPromiseFailure: (message: string) => void
-  setAvailableReleaseUrl: (releaseUrl: string | null) => void
-  setAvailableVersion: (version: string | null) => void
-  setUserInitiatedCheck: (value: boolean) => void
-}
-
 export function registerAutoUpdaterHandlers({
   autoUpdater,
   clearBackgroundCheckLaunchPending,
@@ -74,6 +32,7 @@ export function registerAutoUpdaterHandlers({
   getActiveUpdateCheckEventAttemptId,
   getKnownReleaseUrl,
   getPendingInstallVersion,
+  getReleaseUpdateDelivery,
   getUserInitiatedCheck,
   handleQuitAndInstallFailure,
   isQuitAndInstallHandoffActive,
@@ -182,8 +141,13 @@ export function registerAutoUpdaterHandlers({
         }
 
         // Why: side effects must run after the guard so a concurrent 'error' during the fetch can't leave orphaned state.
+        const availableUpdate = createAvailableReleaseStatus(
+          info.version,
+          changelog,
+          isLocalBuildCheck() ? 'automatic' : getReleaseUpdateDelivery()
+        )
         setAvailableVersion(info.version)
-        setAvailableReleaseUrl(null)
+        setAvailableReleaseUrl(availableUpdate.releaseUrl)
         // Why: a pinned dev jump is not a release check. Letting it call
         // recordCompletedUpdateCheck() would persist lastUpdateCheckAt and
         // suppress the next real background check for a full day.
@@ -201,9 +165,7 @@ export function registerAutoUpdaterHandlers({
 
         sendStatus(
           getRetainedLinuxPackageManualInstallStatus() ?? {
-            state: 'available',
-            version: info.version,
-            changelog,
+            ...availableUpdate.status,
             // Why: the offer is real, but this host can never apply it — say so before a download is offered.
             ...(isExternallyManagedLinuxInstall() ? { externallyManaged: true } : {})
           }
@@ -252,6 +214,9 @@ export function registerAutoUpdaterHandlers({
   })
 
   autoUpdater.on('download-progress', (progress) => {
+    if (!isLocalBuildCheck() && getReleaseUpdateDelivery() === 'manual') {
+      return
+    }
     clearBackgroundCheckLaunchPending()
     const version = getPendingInstallVersion()
     linuxPackageRecovery.clearTrackedLinuxPackageArtifactForOtherVersion(version)
@@ -263,6 +228,10 @@ export function registerAutoUpdaterHandlers({
   })
 
   autoUpdater.on('update-downloaded', (info) => {
+    // Why: pre-staged or stale downloads must not promote a manual release into an install action.
+    if (!isLocalBuildCheck() && getReleaseUpdateDelivery() === 'manual') {
+      return
+    }
     // Why: an earlier download can finish after a newer target replaced it; uncached pre-staged events have no target to compare.
     if (
       shouldIgnoreDownloadedUpdateEvent(

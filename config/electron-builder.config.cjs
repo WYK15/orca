@@ -31,6 +31,7 @@ const {
 const { verifySkillsCliRuntime } = require('./scripts/verify-skills-cli-runtime.cjs')
 const { verifyStaticAppImagePackage } = require('./scripts/static-appimage-package-contract.cjs')
 const { signWindowsUninstallerViaSignPath } = require('./scripts/windows-uninstaller-signing.cjs')
+const productIdentity = require('./orcaw-product-identity.json')
 
 // Why: dev-channel builds must carry the *release* identity — same bundle id,
 // Developer ID signature, and notarization ticket — or Squirrel.Mac refuses to
@@ -49,6 +50,7 @@ const isWinAdhoc = process.env.ORCA_WIN_ADHOC === '1'
 const isWinDevChannel = isWinHourly || isWinDaily || isWinAdhoc
 const isMacRelease = process.env.ORCA_MAC_RELEASE === '1' || isMacHourly || isMacDaily || isMacAdhoc
 const isLinuxArm64Release = process.env.ORCA_LINUX_ARM64_RELEASE === '1'
+const releaseAutoUpdateEnabled = isMacRelease || process.env.ORCA_RELEASE_AUTO_UPDATE === '1'
 const localBuildVersion =
   isMacRelease || isWinDevChannel ? undefined : process.env.ORCA_LOCAL_BUILD_VERSION
 const isHourlyChannel = isMacHourly || isWinHourly
@@ -61,20 +63,8 @@ const devChannelBuildVersion = isHourlyChannel
     : isAdhocChannel
       ? process.env.ORCA_ADHOC_BUILD_VERSION
       : undefined
-// Why each dev channel gets its own repo rather than tagging into the main one:
-// the releases atom feed exposes only the 10 newest entries, so 24 hourly tags a
-// day would evict every stable/RC entry and strand users on a feed with nothing
-// to install. Keeping adhoc/daily separate from hourly too means a branch build
-// or a once-a-day cut cannot be picked up by someone who only meant to ride
-// main's hourlies.
-const devChannelRepo = isHourlyChannel
-  ? 'orca-hourly'
-  : isDailyChannel
-    ? 'orca-daily'
-    : isAdhocChannel
-      ? 'orca-adhoc'
-      : null
-const appId = 'com.stablyai.orca'
+// Why: every downstream channel must stay bound to the fork's application and release identity.
+const appId = productIdentity.appId
 const featureWallResources = {
   from: 'resources/onboarding/feature-wall',
   to: 'onboarding/feature-wall'
@@ -172,14 +162,18 @@ const windowsRuntimeResources = existsSync(
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId,
-  productName: 'Orca',
-  protocols: [{ name: 'Orca', schemes: ['orca'] }],
   toolsets: { appimage: '1.0.3' },
-  ...(devChannelBuildVersion
-    ? { extraMetadata: { version: devChannelBuildVersion } }
-    : localBuildVersion
-      ? { extraMetadata: { version: localBuildVersion } }
-      : {}),
+  productName: productIdentity.productName,
+  protocols: [{ name: productIdentity.productName, schemes: ['orca'] }],
+  extraMetadata: {
+    ...(devChannelBuildVersion
+      ? { version: devChannelBuildVersion }
+      : localBuildVersion
+        ? { version: localBuildVersion }
+        : {}),
+    orcawMacAutoUpdate: isMacRelease,
+    orcawReleaseAutoUpdate: releaseAutoUpdateEnabled
+  },
   directories: {
     buildResources: 'resources/build'
   },
@@ -242,10 +236,10 @@ module.exports = {
     // extraResources entry below; keeping them in app.asar would ship every
     // native variant (and duplicate the selected one).
     '!node_modules/sherpa-onnx*{,/**/*}',
-    // Why: the Windows CLI shim ships via extraResources to resources/bin/orca.cmd
-    // (beside the native resources/bin/orca.exe). Packing the source tree into
+    // Why: the Windows CLI shim ships via extraResources to resources/bin/orcaw.cmd
+    // (beside the native resources/bin/orcaw.exe). Packing the source tree into
     // app.asar too lets asarUnpack:['resources/**'] extract a second copy at
-    // app.asar.unpacked/resources/win32/bin/orca.cmd with no adjacent orca.exe,
+    // app.asar.unpacked/resources/win32/bin/orcaw.cmd with no adjacent orcaw.exe,
     // which fails to launch the CLI (#7351).
     '!resources/win32{,/**/*}'
   ],
@@ -413,7 +407,10 @@ module.exports = {
       chmodSync(join(resourcesDir, filename), 0o755)
     }
     if (context.electronPlatformName === 'darwin') {
-      await signMacComputerUseHelper(join(resourcesDir, 'Orca Computer Use.app'), context.packager)
+      await signMacComputerUseHelper(
+        join(resourcesDir, `${productIdentity.computerUseAppName}.app`),
+        context.packager
+      )
       await signMacStandaloneHelper(
         join(resourcesDir, '..', 'MacOS', 'orca-notification-status'),
         'orca-notification-status',
@@ -427,7 +424,7 @@ module.exports = {
     }
   },
   win: {
-    executableName: 'Orca',
+    executableName: productIdentity.productName,
     // Why: Windows installers are signed after electron-builder packaging by
     // SignPath, so the packager cannot infer the updater publisherName.
     //
@@ -455,12 +452,12 @@ module.exports = {
       ...windowsRuntimeResources,
       winSpeechNativeResource,
       {
-        from: 'resources/win32/bin/orca.cmd',
-        to: 'bin/orca.cmd'
+        from: 'resources/win32/bin/orcaw.cmd',
+        to: 'bin/orcaw.cmd'
       },
       {
         from: 'native/windows-cli-launcher/.build/orca.exe',
-        to: 'bin/orca.exe'
+        to: 'bin/orcaw.exe'
       },
       {
         from: 'node_modules/agent-browser/bin/agent-browser-win32-x64.exe',
@@ -474,7 +471,7 @@ module.exports = {
     ]
   },
   nsis: {
-    artifactName: 'orca-windows-setup.${ext}',
+    artifactName: `${productIdentity.artifactPrefix}-windows-setup.\${ext}`,
     shortcutName: '${productName}',
     uninstallDisplayName: '${productName}',
     createDesktopShortcut: 'always',
@@ -539,16 +536,16 @@ module.exports = {
       ...createPackagedRuntimeNodeModuleResources('darwin'),
       macSpeechNativeResource,
       {
-        from: 'resources/darwin/bin/orca',
-        to: 'bin/orca'
+        from: 'resources/darwin/bin/orcaw',
+        to: 'bin/orcaw'
       },
       {
         from: 'node_modules/agent-browser/bin/agent-browser-darwin-${arch}',
         to: 'agent-browser-darwin-${arch}'
       },
       {
-        from: 'native/computer-use-macos/.build/release/Orca Computer Use.app',
-        to: 'Orca Computer Use.app'
+        from: `native/computer-use-macos/.build/release/${productIdentity.computerUseAppName}.app`,
+        to: `${productIdentity.computerUseAppName}.app`
       },
       featureWallResources
     ],
@@ -580,7 +577,7 @@ module.exports = {
   // silently downgrading to ad-hoc artifacts that look shippable in CI logs.
   forceCodeSigning: isMacRelease,
   dmg: {
-    artifactName: 'orca-macos-${arch}.${ext}'
+    artifactName: `${productIdentity.artifactPrefix}-macos-\${arch}.\${ext}`
   },
   linux: {
     // Why mimeTypes and not fileAssociations: shared-mime-info already maps *.md/*.markdown to
@@ -591,15 +588,14 @@ module.exports = {
     mimeTypes: ['text/markdown'],
     // Why: Ubuntu desktop ships GNOME Orca as the `orca` package and /usr/bin/orca.
     // The Linux installer should not claim those system package/file names.
-    executableName: 'orca-ide',
+    executableName: productIdentity.linuxCliCommand,
     // Why: the icns source lets electron-builder emit standard hicolor PNG
     // sizes; a single 1024px PNG is ignored by some Linux docks/launchers.
     icon: 'resources/build/icon.icns',
     desktop: {
       entry: {
-        // Why: Electron reports WM_CLASS=orca for the visible Linux window;
-        // GNOME docks need an exact match to group it with orca-ide.desktop.
-        StartupWMClass: 'orca'
+        // Why: GNOME docks need the packaged executable and desktop entry class to agree.
+        StartupWMClass: productIdentity.linuxCliCommand
       }
     },
     extraResources: [
@@ -607,8 +603,8 @@ module.exports = {
       ...createPackagedRuntimeNodeModuleResources('linux'),
       linuxSpeechNativeResource,
       {
-        from: 'resources/linux/bin/orca-ide',
-        to: 'bin/orca-ide'
+        from: 'resources/linux/bin/orcaw-ide',
+        to: 'bin/orcaw-ide'
       },
       {
         from: 'node_modules/agent-browser/bin/agent-browser-linux-${arch}',
@@ -626,11 +622,13 @@ module.exports = {
     category: 'Utility'
   },
   appImage: {
-    artifactName: isLinuxArm64Release ? 'orca-linux-arm64.${ext}' : 'orca-linux.${ext}'
+    artifactName: isLinuxArm64Release
+      ? `${productIdentity.artifactPrefix}-linux-arm64.\${ext}`
+      : `${productIdentity.artifactPrefix}-linux.\${ext}`
   },
   deb: {
-    packageName: 'orca-ide',
-    artifactName: 'orca-ide_${version}_${arch}.${ext}',
+    packageName: productIdentity.linuxPackageName,
+    artifactName: `${productIdentity.linuxPackageName}_\${version}_\${arch}.\${ext}`,
     // Why: xvfb lets the bundled `orca serve` CLI run browser panes on a headless
     // Linux host — Chromium needs a display server even for offscreen rendering,
     // and serve starts Xvfb itself when present (see ensure-virtual-display.ts).
@@ -644,7 +642,7 @@ module.exports = {
       'xclip',
       'xvfb'
     ],
-    // Why: symlink the bundled CLI onto PATH at install time so `orca-ide serve`
+    // Why: symlink the bundled CLI onto PATH at install time so `orcaw-ide serve`
     // works on a headless host. The in-app CLI registration (CliInstaller) is
     // GUI-triggered and can never run on a server, so without this the CLI is
     // unreachable from the shell on exactly the hosts that need it.
@@ -652,8 +650,8 @@ module.exports = {
     afterRemove: 'resources/linux/packaging/after-remove.sh'
   },
   rpm: {
-    packageName: 'orca-ide',
-    artifactName: 'orca-ide-${version}.${arch}.${ext}',
+    packageName: productIdentity.linuxPackageName,
+    artifactName: `${productIdentity.linuxPackageName}-\${version}.\${arch}.\${ext}`,
     // Why: see deb depends. RPM distros ship Xvfb as xorg-x11-server-Xvfb (there
     // is no `xvfb` package), so the name differs from the deb here.
     depends: [
@@ -678,13 +676,9 @@ module.exports = {
   npmRebuild: true,
   publish: {
     provider: 'github',
-    owner: 'stablyai',
-    repo: devChannelRepo ?? 'orca',
-    // Why draft on the main repo: `--publish always` otherwise creates a
-    // public GitHub release as soon as the first platform uploads, and
-    // /releases/latest serves a missing Windows exe. release-cut undrafts
-    // only after every required asset exists.
-    releaseType: devChannelRepo ? 'prerelease' : 'draft'
+    owner: productIdentity.githubOwner,
+    repo: productIdentity.githubRepo,
+    releaseType: 'prerelease'
   }
 }
 
@@ -702,7 +696,7 @@ function chmodUnixCliLaunchers(resourcesDir, electronPlatformName) {
   if (electronPlatformName === 'win32') {
     return
   }
-  for (const launcherName of ['orca', 'orca-ide']) {
+  for (const launcherName of ['orcaw', 'orcaw-ide']) {
     const launcherPath = join(resourcesDir, 'bin', launcherName)
     if (!existsSync(launcherPath)) {
       continue
@@ -733,7 +727,9 @@ function chmodMacServeSimHelpers(resourcesDir, electronPlatformName) {
 async function signMacComputerUseHelper(helperAppPath, packager) {
   if (!existsSync(helperAppPath)) {
     if (isMacRelease) {
-      throw new Error(`Missing Orca Computer Use helper app at ${helperAppPath}`)
+      throw new Error(
+        `Missing ${productIdentity.computerUseAppName} helper app at ${helperAppPath}`
+      )
     }
     return
   }
@@ -747,10 +743,10 @@ async function signMacComputerUseHelper(helperAppPath, packager) {
     findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
     (isMacRelease ? null : '-')
   if (!identity) {
-    throw new Error('Missing signing identity for Orca Computer Use helper app')
+    throw new Error(`Missing signing identity for ${productIdentity.computerUseAppName} helper app`)
   }
   // Why: TCC grants attach to this nested app's code identity. Sign it before
-  // the outer Orca.app is sealed so production builds preserve that identity.
+  // the outer Orcaw.app is sealed so production builds preserve that identity.
   execFileSync('codesign', codesignArgs(identity, helperAppPath), { stdio: 'inherit' })
   execFileSync('codesign', ['--verify', '--deep', '--strict', helperAppPath], {
     stdio: 'inherit'
@@ -775,7 +771,7 @@ async function signMacStandaloneHelper(helperPath, helperName, packager) {
   if (!identity) {
     throw new Error(`Missing signing identity for ${helperName} helper`)
   }
-  // Why: nested executables must be signed before the outer app bundle is sealed.
+  // Why: nested executables must be signed before the outer Orcaw app bundle is sealed.
   const args = ['--force', '--sign', identity]
   if (isMacRelease) {
     args.push('--options', 'runtime', '--timestamp')

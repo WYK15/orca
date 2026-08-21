@@ -34,6 +34,7 @@ export abstract class UpdaterRemoteStatus extends UpdaterNudge {
     }
     const linuxPackageType = getLinuxPackageType()
     if (
+      this.getActiveUpdateDelivery() === 'manual' ||
       this.updateInstallMode === 'unsupported-headless-serve' ||
       linuxPackageType === 'deb' ||
       linuxPackageType === 'rpm' ||

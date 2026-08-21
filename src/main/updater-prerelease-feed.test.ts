@@ -16,7 +16,7 @@ function buildAtomFeed(tags: string[]): string {
   const entries = tags
     .map(
       (tag) =>
-        `<entry><link rel="alternate" type="text/html" href="https://github.com/stablyai/orca/releases/tag/${tag}"/><title>${tag}</title></entry>`
+        `<entry><link rel="alternate" type="text/html" href="https://github.com/WYK15/orca/releases/tag/${tag}"/><title>${tag}</title></entry>`
     )
     .join('')
   return `<?xml version="1.0" encoding="UTF-8"?><feed>${entries}</feed>`
@@ -43,7 +43,7 @@ function respondWithAtom(
   const missingAssets = new Set(missingAssetTags)
   const unavailableManifests = new Set(unavailableManifestTags)
   netFetchMock.mockImplementation((url: string, init?: { method?: string }) => {
-    if (url === 'https://github.com/stablyai/orca/releases.atom') {
+    if (url === 'https://github.com/WYK15/orca/releases.atom') {
       return Promise.resolve({
         ok: true,
         text: () => Promise.resolve(buildAtomFeed(tags))
@@ -118,6 +118,45 @@ describe('fetchNewerReleaseTag', () => {
   })
 
   it.each([
+    ['1.4.218-wyk.1', ['v1.4.218-wyk.2', 'v1.4.218-wyk.10'], 'v1.4.218-wyk.10'],
+    ['1.4.218-wyk.10', ['v1.4.219-wyk.1+build.2'], 'v1.4.219-wyk.1+build.2']
+  ] as const)(
+    'finds newer formal fork releases from %s on stable checks',
+    async (current, tags, expected) => {
+      respondWithAtom([...tags, 'v1.4.220-rc.1'])
+      const { fetchNewerReleaseTag } = await import('./updater-prerelease-feed')
+
+      expect(await fetchNewerReleaseTag(current, { includePrerelease: false })).toBe(expected)
+      expect(netFetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `/WYK15/orca/releases/download/${encodeURIComponent(expected)}/latest`
+        ),
+        expect.anything()
+      )
+    }
+  )
+
+  it.each([false, true])(
+    'excludes shared-repo dev and perf builds with includePrerelease=%s',
+    async (includePrerelease) => {
+      respondWithAtom([
+        'v1.4.220-hourly.202607281400',
+        'v1.4.221-daily.202607281300',
+        'v1.4.222-adhoc.20260728140533',
+        'v1.4.223-hourly.202607281400+build.1',
+        'v1.4.219-rc.2.perf',
+        'v1.4.219-rc.1',
+        'v1.4.218-wyk.2'
+      ])
+      const { fetchNewerReleaseTag } = await import('./updater-prerelease-feed')
+
+      expect(await fetchNewerReleaseTag('1.4.218-wyk.1', { includePrerelease })).toBe(
+        includePrerelease ? 'v1.4.219-rc.1' : 'v1.4.218-wyk.2'
+      )
+    }
+  )
+
+  it.each([
     ['darwin', 'latest-mac.yml'],
     ['linux', 'latest-linux.yml'],
     ['win32', 'latest.yml']
@@ -129,7 +168,7 @@ describe('fetchNewerReleaseTag', () => {
       const assetUrls: string[] = []
 
       netFetchMock.mockImplementation((url: string, init?: { method?: string }) => {
-        if (url === 'https://github.com/stablyai/orca/releases.atom') {
+        if (url === 'https://github.com/WYK15/orca/releases.atom') {
           return Promise.resolve({
             ok: true,
             text: () => Promise.resolve(buildAtomFeed(['v1.4.1']))
@@ -157,10 +196,10 @@ describe('fetchNewerReleaseTag', () => {
 
       expect(await fetchNewerReleaseTag('1.4.0')).toBe('v1.4.1')
       expect(manifestUrls).toEqual([
-        `https://github.com/stablyai/orca/releases/download/v1.4.1/${manifestName}`
+        `https://github.com/WYK15/orca/releases/download/v1.4.1/${manifestName}`
       ])
       expect(assetUrls).toEqual([
-        'https://github.com/stablyai/orca/releases/download/v1.4.1/Orca-1.4.1-arm64-mac.zip'
+        'https://github.com/WYK15/orca/releases/download/v1.4.1/Orca-1.4.1-arm64-mac.zip'
       ])
       expect(netRequestMock).toHaveBeenCalledTimes(platform === 'win32' ? 1 : 0)
     }
@@ -365,7 +404,7 @@ describe('fetchNewerReleaseTag', () => {
     const manifestResolvers: (() => void)[] = []
 
     netFetchMock.mockImplementation((url: string) => {
-      if (url === 'https://github.com/stablyai/orca/releases.atom') {
+      if (url === 'https://github.com/WYK15/orca/releases.atom') {
         return Promise.resolve({
           ok: true,
           text: () => Promise.resolve(buildAtomFeed(feedTags))

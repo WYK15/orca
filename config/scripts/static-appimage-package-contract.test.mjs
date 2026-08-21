@@ -16,7 +16,9 @@ const FIXTURE_BYTES = 384
 describe('static AppImage package contract', () => {
   it.each([
     ['orca-linux.AppImage', 0x3e, 1],
-    ['orca-linux-arm64.AppImage', 0xb7, 'arm64']
+    ['orca-linux-arm64.AppImage', 0xb7, 'arm64'],
+    ['orcaw-linux.AppImage', 0x3e, 1],
+    ['orcaw-linux-arm64.AppImage', 0xb7, 'arm64']
   ])('accepts a dependency-free type-2 %s runtime', async (filename, machine, targetArch) => {
     await withFixture(filename, createRuntime({ machine }), (path) => {
       expect(() => verifyStaticAppImagePackage(path, targetArch)).not.toThrow()
@@ -29,7 +31,9 @@ describe('static AppImage package contract', () => {
     ['generic x64 runtime for an arm64 target', 'orca-linux.AppImage', 0x3e, 3],
     ['generic arm64 runtime for an x64 target', 'orca-linux.AppImage', 0xb7, 1],
     ['arm64 artifact filename for an x64 target', 'orca-linux-arm64.AppImage', 0xb7, 1],
-    ['x64 runtime under an arm64 artifact filename', 'orca-linux-arm64.AppImage', 0x3e, 3]
+    ['x64 runtime under an arm64 artifact filename', 'orca-linux-arm64.AppImage', 0x3e, 3],
+    ['fork x64 artifact for an arm64 target', 'orcaw-linux.AppImage', 0x3e, 3],
+    ['fork arm64 artifact for an x64 target', 'orcaw-linux-arm64.AppImage', 0xb7, 1]
   ])('rejects %s', async (_label, filename, machine, targetArch) => {
     await withFixture(filename, createRuntime({ machine }), (path) => {
       expect(() => verifyStaticAppImagePackage(path, targetArch)).toThrow(/architecture|target/)
@@ -70,10 +74,19 @@ describe('static AppImage package contract', () => {
     )
   })
 
-  it('rejects artifact names outside the release contract before reading them', () => {
-    expect(() => verifyStaticAppImagePackage('/missing/orca-preview.AppImage')).toThrow(
-      'unsupported artifact name'
-    )
+  it.each(['/missing/orca-preview.AppImage', '/missing/orcaw-preview.AppImage'])(
+    'rejects artifact names outside the release contract before reading %s',
+    (path) => {
+      expect(() => verifyStaticAppImagePackage(path)).toThrow('unsupported artifact name')
+    }
+  )
+
+  it('keeps dependency checks active for fork artifacts', async () => {
+    const runtime = createRuntime()
+    runtime.writeBigInt64LE(1n, DYNAMIC_OFFSET)
+    await withFixture('orcaw-linux.AppImage', runtime, (path) => {
+      expect(() => verifyStaticAppImagePackage(path, 1)).toThrow(/DT_NEEDED/)
+    })
   })
 
   it.skipIf(process.platform === 'win32')(

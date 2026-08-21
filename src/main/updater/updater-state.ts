@@ -4,6 +4,7 @@ import type { LocalBuildFeed } from '../local-builds/local-build-feed-server'
 import type { UpdateSource, UpdateStatus } from '../../shared/update-status-types'
 import type { ReleaseChannel } from '../../shared/release-channel'
 import type { PrimaryEventSuppression, UpdateCheckVariant } from './updater-types'
+import type { ReleaseUpdateDelivery } from '../updater-delivery-policy'
 
 export const AUTO_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
 export const AUTO_UPDATE_RETRY_INTERVAL_MS = 60 * 60 * 1000
@@ -108,6 +109,7 @@ export abstract class UpdaterState {
   protected quittingForUpdate = false
   protected autoUpdater: ElectronAutoUpdater | null = null
   protected activeUpdateSource: 'release' | UpdateSource = 'release'
+  protected releaseUpdateDelivery: ReleaseUpdateDelivery = 'manual'
   protected activeLocalBuildFeed: LocalBuildFeed | null = null
   protected localBuildSelectionInProgress = false
   // Why: a dev channel/tag jump may target an older build, so it needs allowDowngrade
@@ -120,6 +122,11 @@ export abstract class UpdaterState {
 
   protected consecutiveAutomaticRetrySchedules = 0
   protected readonly installFailureCauseMaxLength = 200
+
+  // Why: only a validated loopback local build bypasses packaged release delivery policy.
+  protected getActiveUpdateDelivery(): ReleaseUpdateDelivery {
+    return this.activeUpdateSource === 'local' ? 'automatic' : this.releaseUpdateDelivery
+  }
 
   constructor() {}
 }
