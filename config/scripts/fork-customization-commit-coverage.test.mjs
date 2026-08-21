@@ -1,13 +1,14 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   readCustomizationCommits,
   validateCustomizationCoverage
 } from './fork-customization-commit-coverage.mjs'
 
+const scriptPath = resolve(import.meta.dirname, 'fork-customization-commit-coverage.mjs')
 const tempDirs = []
 const entries = [
   { id: 'ORCAW-001', status: 'active' },
@@ -106,5 +107,33 @@ describe('fork customization commit coverage', () => {
         backports: ['stablyai/orca#12050']
       }
     ])
+  })
+
+  it('validates a replay range through the CLI', () => {
+    const fixture = makeRepository()
+    const registryPath = join(fixture.cwd, 'FORK_NOTES.md')
+    writeFileSync(
+      registryPath,
+      `# Fork Notes\n\n## Customization Registry\n\n| ID | Title | Status | Introduced | Contract | Scope | Verification | Upstream |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| ORCAW-001 | Identity | active | unreleased | Contract | scope | test | none |\n`
+    )
+    writeFileSync(join(fixture.cwd, 'fixture.txt'), 'customized\n')
+    git(fixture.cwd, ['add', 'fixture.txt', 'FORK_NOTES.md'])
+    git(fixture.cwd, [
+      'commit',
+      '--quiet',
+      '-m',
+      'feat: preserve identity',
+      '-m',
+      'Fork-Customization: ORCAW-001'
+    ])
+
+    const result = spawnSync(
+      process.execPath,
+      [scriptPath, registryPath, fixture.baseRef, 'HEAD'],
+      { cwd: fixture.cwd, encoding: 'utf8' }
+    )
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('Validated 1 replayed fork customization')
   })
 })

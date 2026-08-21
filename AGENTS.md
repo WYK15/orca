@@ -73,3 +73,4 @@ Treat this repository as a long-lived downstream Orca fork.
 - Treat `upstream-candidate` as replay-required until behavioral equivalence is explicitly confirmed; never retire a customization automatically.
 - Rewrite `main` only during an approved upstream adoption, preserve a recovery tag, and push only with `--force-with-lease`.
 - Record material, persistent differences from upstream in `FORK_NOTES.md`. Create or update it only when such differences exist; do not log routine fixes that remain easy to upstream or remove.
+- For tracking, adoption, retirement, validation, and rollback steps, follow [`docs/reference/fork-upstream-sync.md`](./docs/reference/fork-upstream-sync.md).

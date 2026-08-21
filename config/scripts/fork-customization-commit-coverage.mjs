@@ -1,4 +1,11 @@
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
+
+import {
+  parseForkCustomizationRegistry,
+  validateForkCustomizationRegistry
+} from './fork-customization-registry.mjs'
 
 const CUSTOMIZATION_TRAILER = /^Fork-Customization:\s*(\S+)\s*$/
 const BACKPORT_TRAILER = /^Upstream-Backport:\s*(\S+)\s*$/
@@ -85,4 +92,37 @@ export function validateCustomizationCoverage(entries, commits) {
   }
 
   return errors
+}
+
+function run(args) {
+  const [registryPath, baseRef, headRef = 'HEAD'] = args
+  if (!registryPath || !baseRef) {
+    throw new Error(
+      'Usage: fork-customization-commit-coverage.mjs <registry-path> <base-ref> [head-ref]'
+    )
+  }
+
+  const entries = parseForkCustomizationRegistry(readFileSync(registryPath, 'utf8'))
+  const registryErrors = validateForkCustomizationRegistry(entries)
+  if (registryErrors.length > 0) {
+    throw new Error(registryErrors.join('\n'))
+  }
+
+  const commits = readCustomizationCommits({ cwd: process.cwd(), baseRef, headRef })
+  const coverageErrors = validateCustomizationCoverage(entries, commits)
+  if (coverageErrors.length > 0) {
+    throw new Error(coverageErrors.join('\n'))
+  }
+
+  const replayedCount = entries.filter((entry) => entry.status !== 'retired').length
+  process.stdout.write(`Validated ${replayedCount} replayed fork customizations\n`)
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    run(process.argv.slice(2))
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
+    process.exitCode = 1
+  }
 }
