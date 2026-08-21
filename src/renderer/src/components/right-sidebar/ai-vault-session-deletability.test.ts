@@ -17,6 +17,26 @@ describe('aiVaultSessionDeleteBlockedReason', () => {
     expect(aiVaultSessionDeleteBlockedReason(localGeminiSession)).toBeNull()
   })
 
+  it('offers Delete for a local Codex transcript', () => {
+    expect(
+      aiVaultSessionDeleteBlockedReason({
+        agent: 'codex',
+        executionHostId: 'local',
+        filePath: '/home/user/.codex/sessions/2026/08/session.jsonl'
+      })
+    ).toBeNull()
+  })
+
+  it('blocks Codex transcripts reached through WSL UNC paths', () => {
+    expect(
+      aiVaultSessionDeleteBlockedReason({
+        agent: 'codex',
+        executionHostId: 'local',
+        filePath: '\\\\wsl$\\Ubuntu\\home\\user\\.codex\\sessions\\session.jsonl'
+      })
+    ).toBe(NON_LOCAL)
+  })
+
   it('offers Delete for a directory-shaped agent (claude)', () => {
     expect(
       aiVaultSessionDeleteBlockedReason({

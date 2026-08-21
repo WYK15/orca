@@ -80,7 +80,8 @@ const listCancellations = createSenderScopedRequestCancellations()
 // Shared by the IPC registration and the test internals: a delete must drop
 // the multi-host leg cache, which this module owns the only caller of.
 const aiVaultDeleteDeps = {
-  invalidateMultiHostListCache: invalidateAiVaultHostLegCache
+  invalidateMultiHostListCache: invalidateAiVaultHostLegCache,
+  getAdditionalCodexHomePaths: () => handlerOptions.getAdditionalCodexHomePaths?.() ?? []
 }
 
 const resolveAiVaultSessionTitles = (

@@ -11404,7 +11404,13 @@
             "sessionHostMismatchUnsupported": "此会话属于其他主机。请打开同一主机上的工作区以恢复它。",
             "prepareSessionResumeFailed": "无法为恢复准备此会话。",
             "sessionDeleted": "会话已删除",
-            "sessionDeleteFailed": "无法删除会话"
+            "sessionsDeleted": "已删除 {{count}} 个会话",
+            "sessionDeleteFailed": "无法删除会话",
+            "selectSessions": "选择",
+            "selectAllSessions": "选择全部会话",
+            "sessionsSelected": "已选择 {{count}} 项",
+            "cancelSelection": "取消",
+            "deleteSelected": "删除所选内容"
           },
           "AiVaultPanelControls": {
             "scanningSessions": "正在扫描会话",
@@ -11540,12 +11546,15 @@
             "delete": "删除",
             "deleteReasonNonLocalHost": "只能删除此设备上的会话。",
             "deleteReasonSyntheticPath": "此会话无法在 Orca 中删除。",
-            "deleteReasonUnsupportedAgent": "{{value0}} 会话无法在 Orca 中删除。"
+            "deleteReasonUnsupportedAgent": "{{value0}} 会话无法在 Orca 中删除。",
+            "selectSession": "选择会话“{{title}}”"
           },
           "AiVaultSessionDeleteDialog": {
             "title": "要删除此会话吗？",
             "description": "“{{value0}}”将被删除。删除后，也将无法通过 {{value1}} 自身的命令行恢复。",
-            "confirm": "删除"
+            "confirm": "删除",
+            "bulkTitle": "要删除所选会话吗？",
+            "bulkDescription": "将删除 {{count}} 个会话。删除后，也无法通过各自智能体的命令行恢复。"
           },
           "FileExplorerNameFilter": {
             "26fb73c6e3": "查找文件",
