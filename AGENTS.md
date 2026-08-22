@@ -17,6 +17,24 @@ Before writing new logic at any scale — a function, component, IPC channel, st
 - DO NOT: be verbose, explain the obvious, walk through the code ("WHY not HOW")
 - BE CONCISE. 1 LINE if possible
 
+## Tight Context Execution
+
+* Load only task-applicable skills and source material; do not reload material already available in the session.
+* Read the smallest relevant symbol or range, batch independent checks, and report only decision-relevant results.
+* Re-run a check only after a related change or to reproduce an unresolved failure.
+* Resolve a stale or conflicting diagnostic once; do not repeat it in status updates.
+* Give one concise update per milestone, not narration for routine tool calls.
+
+## Audit and Test Scope
+
+* Audit migrations from explicitly selected legacy PR diffs and record each hunk disposition; do not infer scope from titles or scan unrelated files.
+* Use TDD only for large refactors or broad new features. For targeted migrations, fixes, and audits, use the smallest direct validation that covers the changed surface.
+
+## Strategy and Documentation Changes
+
+* When documentation conflicts with established production behavior, prior releases, or release artifacts, compare all sources and present the evidence for an explicit user decision before changing the capability.
+* New strategies and major version changes update their owning policy and operational documentation in the same change, including compatibility, migration, and rollback effects when applicable.
+
 ## Lint Rules: Do Not Disable Max Lines
 
 NEVER add a `max-lines` disable (`eslint-disable max-lines`, `oxlint-disable max-lines`, or line-specific variants), and never add a per-file `max-lines` bump in `mobile/.oxlintrc.json`.
@@ -70,11 +88,11 @@ Orca runs the user's Git binary on native, WSL, and SSH hosts, which may all hav
 
 When adding or changing a Git command:
 
-- Check when every subcommand and option was introduced. For newer behavior, keep a baseline-compatible fallback or degrade safely.
-- Use `GitCapabilityCache` with a narrow unsupported-error predicate so recurring operations do not retry a known-invalid command. Do not rely only on `git --version`; wrappers such as `simple-git` do not remove host-version differences.
-- Scope capability state to the host that executes Git: native, WSL distro, SSH provider, or relay connection. Cover the first fallback, later cached calls, concurrent probes, and relevant host isolation in tests.
-- Keep the real-binary compatibility contract in PR CI current. When adopting a newer Git feature, add its version boundary so the preferred command and fallback both run against representative Git releases.
-- Preserve commands that begin with global Git options such as `-c` before the subcommand, including auto-maintenance suppression used by worktree-create fetches.
+* Check when every subcommand and option was introduced. For newer behavior, keep a baseline-compatible fallback or degrade safely.
+* Use `GitCapabilityCache` with a narrow unsupported-error predicate so recurring operations do not retry a known-invalid command. Do not rely only on `git --version`; wrappers such as `simple-git` do not remove host-version differences.
+* Scope capability state to the host that executes Git: native, WSL distro, SSH provider, or relay connection. Cover the first fallback, later cached calls, concurrent probes, and relevant host isolation in tests.
+* Keep the real-binary compatibility contract in PR CI current. When adopting a newer Git feature, add its version boundary so the preferred command and fallback both run against representative Git releases.
+* Preserve commands that begin with global Git options such as `-c` before the subcommand, including auto-maintenance suppression used by worktree-create fetches.
 
 ## Git Provider Compatibility
 
@@ -83,3 +101,19 @@ Source-control and review changes must consider GitLab and other supported git p
 ## GitHub CLI Usage
 
 Be mindful of the user's `gh` CLI API rate limit — batch requests where possible and avoid unnecessary calls. All code, commands, and scripts must be compatible with macOS, Linux, and Windows.
+
+# Fork Maintenance
+
+Treat this repository as a long-lived downstream Orca fork.
+
+* Keep changes small, focused, and easy to reconcile with upstream. Avoid unrelated refactors.
+* Keep generally useful fixes and personal customizations clearly separated in code and commits.
+* Add tests proportionate to each change, and consider regressions when later upstream updates are integrated.
+* Preserve upstream and user changes; do not rewrite, discard, or overwrite them without explicit instruction.
+* Keep `upstream-sync` identical to a selected stable `stablyai/orca` release; never add downstream commits to it.
+* Keep persistent downstream behavior in isolated commits on `main` with a registered `Fork-Customization: ORCAW-NNN` trailer.
+* Treat upstream-sync and customization-replay governance as persistent customization `ORCAW-015`.
+* Treat `upstream-candidate` as replay-required until behavioral equivalence is explicitly confirmed; never retire a customization automatically.
+* Rewrite `main` only during an approved upstream adoption, preserve a recovery tag, and push only with `--force-with-lease`.
+* Record material, persistent differences from upstream in `FORK_NOTES.md`. Create or update it only when such differences exist; do not log routine fixes that remain easy to upstream or remove.
+* For tracking, adoption, retirement, validation, and rollback steps, follow [`docs/reference/fork-upstream-sync.md`](./docs/reference/fork-upstream-sync.md).

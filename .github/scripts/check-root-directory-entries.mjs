@@ -1,6 +1,8 @@
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 
+const ALLOWED_FORK_ROOT_ENTRIES = new Set(['.gitleaksignore', 'FORK_NOTES.md'])
+
 function readRootEntries(sha) {
   // Why: a git pathname is arbitrary bytes, and 'utf8' folds every invalid
   // sequence to U+FFFD — that mangles the reported name and makes two different
@@ -22,7 +24,7 @@ function checkRootDirectoryEntries(argv) {
   const [baseSha, headSha] = argv
   const baseEntries = new Set(readRootEntries(baseSha))
   const blockedEntries = readRootEntries(headSha).filter(
-    (entry) => entry !== 'FORK_NOTES.md' && !baseEntries.has(entry)
+    (entry) => !ALLOWED_FORK_ROOT_ENTRIES.has(entry) && !baseEntries.has(entry)
   )
 
   if (blockedEntries.length === 0) {

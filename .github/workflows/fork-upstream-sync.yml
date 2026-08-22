@@ -1,0 +1,102 @@
+name: Fork Upstream Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: Stable upstream tag, for example v1.4.187
+        required: true
+        type: string
+      allow_non_fast_forward:
+        description: Replace upstream-sync only after explicit approval when stable histories diverge
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: sync stable upstream
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPSTREAM_TAG: ${{ inputs.upstream_tag }}
+      ALLOW_NON_FAST_FORWARD: ${{ inputs.allow_non_fast_forward }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate stable upstream tag
+        run: node config/scripts/fork-release-contract.mjs --stable-tag "$UPSTREAM_TAG"
+
+      - name: Fetch and validate upstream release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git remote remove upstream 2>/dev/null || true
+          git remote add upstream https://github.com/stablyai/orca.git
+          git fetch upstream "refs/tags/$UPSTREAM_TAG:refs/tags/$UPSTREAM_TAG"
+          git show "$UPSTREAM_TAG:package.json" > /tmp/upstream-package.json
+          UPSTREAM_VERSION="$(node -p "require('/tmp/upstream-package.json').version")"
+          node config/scripts/fork-release-contract.mjs --release \
+            "$UPSTREAM_TAG" "$UPSTREAM_VERSION" \
+            "$UPSTREAM_VERSION-wyk.1" "v$UPSTREAM_VERSION-wyk.1"
+
+      - name: Classify upstream-sync update
+        id: update
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git ls-remote --exit-code --heads origin upstream-sync >/dev/null 2>&1; then
+            echo 'mode=create' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch origin refs/heads/upstream-sync:refs/remotes/origin/upstream-sync
+          CURRENT_UPSTREAM_SYNC="$(git rev-parse origin/upstream-sync)"
+          echo "CURRENT_UPSTREAM_SYNC=$CURRENT_UPSTREAM_SYNC" >> "$GITHUB_ENV"
+          if git merge-base --is-ancestor origin/upstream-sync "$UPSTREAM_TAG"; then
+            echo 'mode=fast-forward' >> "$GITHUB_OUTPUT"
+          elif [ "$ALLOW_NON_FAST_FORWARD" = 'true' ]; then
+            echo 'mode=replace' >> "$GITHUB_OUTPUT"
+          else
+            echo "Refusing to replace non-fast-forward upstream-sync $CURRENT_UPSTREAM_SYNC with $UPSTREAM_TAG without allow_non_fast_forward=true" >&2
+            exit 1
+          fi
+
+      - name: Archive replaced upstream-sync
+        if: steps.update.outputs.mode == 'replace'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE_TAG="archive/upstream-sync-before-$UPSTREAM_TAG"
+          if git ls-remote --exit-code --tags origin "refs/tags/$ARCHIVE_TAG" >/dev/null 2>&1; then
+            git fetch origin "refs/tags/$ARCHIVE_TAG:refs/tags/$ARCHIVE_TAG"
+            test "$(git rev-parse "$ARCHIVE_TAG^{}")" = "$CURRENT_UPSTREAM_SYNC"
+          else
+            git -c user.name=github-actions[bot] \
+              -c user.email=41898282+github-actions[bot]@users.noreply.github.com \
+              tag -a "$ARCHIVE_TAG" "$CURRENT_UPSTREAM_SYNC" -m "Archive upstream-sync before adopting $UPSTREAM_TAG"
+            gh auth setup-git
+            git push origin "refs/tags/$ARCHIVE_TAG"
+          fi
+
+      - name: Update upstream-sync
+        env:
+          UPDATE_MODE: ${{ steps.update.outputs.mode }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git branch --force upstream-sync-candidate "$UPSTREAM_TAG"
+          git diff --quiet upstream-sync-candidate "$UPSTREAM_TAG"
+          gh auth setup-git
+          if [ "$UPDATE_MODE" = 'replace' ]; then
+            git push origin upstream-sync-candidate:refs/heads/upstream-sync \
+              --force-with-lease=refs/heads/upstream-sync:$CURRENT_UPSTREAM_SYNC
+          else
+            git push origin upstream-sync-candidate:refs/heads/upstream-sync
+          fi

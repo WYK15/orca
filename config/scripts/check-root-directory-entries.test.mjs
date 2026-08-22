@@ -93,9 +93,12 @@ describe('root directory guard', () => {
     expect(result.stdout).toContain('no new root-level files or folders')
   })
 
-  it('allows the fork maintenance record required by repository guidance', () => {
+  it.each([
+    ['FORK_NOTES.md', '# Fork Notes\n'],
+    ['.gitleaksignore', 'path:generic-api-key:1\n']
+  ])('allows required fork root record %s', (path, contents) => {
     const fixture = makeFixture()
-    const head = commitFiles(fixture.root, [['FORK_NOTES.md', '# Fork Notes\n']])
+    const head = commitFiles(fixture.root, [[path, contents]])
 
     const result = runGuard({ ...fixture, head })
 
