@@ -1,10 +1,43 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { getRemoteHostPlatform } from '../ssh/ssh-remote-platform'
 import { scanRemoteAiVaultSessions } from './remote-session-scanner'
+import { resetRemoteSessionParseCacheForTests } from './remote-session-parse-cache'
 import { MemoryRemoteProvider, jsonLines } from './remote-session-scanner-test-fixtures'
 import { primeAgentFixture } from './session-scanner-prime-agent-fixtures'
 
+beforeEach(() => {
+  resetRemoteSessionParseCacheForTests()
+})
+
 describe('scanRemoteAiVaultSessions', () => {
+  it('reuses unchanged remote transcripts without reading them again', async () => {
+    const provider = new MemoryRemoteProvider()
+    const transcriptPath = '/home/ada/.claude/projects/repo/session.jsonl'
+    provider.addFile(
+      transcriptPath,
+      jsonLines([
+        {
+          sessionId: 'session',
+          timestamp: '2026-07-04T04:00:00.000Z',
+          type: 'user',
+          message: { content: [{ type: 'text', text: 'Keep the relay cool' }] }
+        }
+      ]),
+      40
+    )
+    const args = {
+      provider,
+      executionHostId: 'ssh:dev-box' as const,
+      remoteHome: '/home/ada',
+      hostPlatform: getRemoteHostPlatform('linux-x64')
+    }
+
+    await scanRemoteAiVaultSessions(args)
+    await scanRemoteAiVaultSessions(args)
+
+    expect(provider.readFilePaths.filter((path) => path === transcriptPath)).toHaveLength(1)
+  })
+
   it('parses remote default and Orca-managed Codex homes with SSH host ids', async () => {
     const provider = new MemoryRemoteProvider()
     provider.addFile(

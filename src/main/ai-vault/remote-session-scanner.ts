@@ -27,6 +27,7 @@ import { throwIfAiVaultScanCancelled } from './ai-vault-scan-cancellation'
 import { recordSessionScanIssue } from './session-scan-issues'
 import { limitRemoteScanFilesystemConcurrency } from './remote-session-scan-concurrency'
 import { aiVaultScanLimit } from '../../shared/ai-vault-session-depth'
+import { parseRemoteSessionCandidateCached } from './remote-session-parse-cache'
 
 const REMOTE_SCAN_CONCURRENCY = 8
 const REMOTE_PARSE_CANDIDATE_MULTIPLIER = 2
@@ -223,22 +224,27 @@ async function parseRemoteSessionCandidate(
   issues: AiVaultScanIssue[]
 ): Promise<AiVaultSession | null> {
   try {
-    throwIfAiVaultScanCancelled(context.signal)
-    const read = await context.provider.readFile(candidate.file.path)
-    throwIfAiVaultScanCancelled(context.signal)
-    if (read.isBinary) {
-      return null
-    }
-    const session = await candidate.source.parse(candidate.file, read.content, context)
-    throwIfAiVaultScanCancelled(context.signal)
-    // Mirror the local rule: every session carries its sibling subagent
-    // transcript count (row badge; recoverable signal at zero turns). The
-    // walk listing supplies it — the parser can't readdir a remote disk.
-    const subagentTranscriptCount = candidate.subagentTranscriptCount ?? 0
-    if (session && subagentTranscriptCount > 0) {
-      return { ...session, subagentTranscriptCount }
-    }
-    return session
+    return await parseRemoteSessionCandidateCached({
+      candidate,
+      executionHostId: context.executionHostId,
+      parse: async () => {
+        throwIfAiVaultScanCancelled(context.signal)
+        const read = await context.provider.readFile(candidate.file.path)
+        throwIfAiVaultScanCancelled(context.signal)
+        if (read.isBinary) {
+          return null
+        }
+        const session = await candidate.source.parse(candidate.file, read.content, context)
+        throwIfAiVaultScanCancelled(context.signal)
+        // Mirror the local rule: every session carries its sibling subagent
+        // transcript count (row badge; recoverable signal at zero turns). The
+        // walk listing supplies it — the parser can't readdir a remote disk.
+        const subagentTranscriptCount = candidate.subagentTranscriptCount ?? 0
+        return session && subagentTranscriptCount > 0
+          ? { ...session, subagentTranscriptCount }
+          : session
+      }
+    })
   } catch (err) {
     throwIfAiVaultScanCancelled(context.signal)
     recordSessionScanIssue(issues, {
