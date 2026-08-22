@@ -8,6 +8,7 @@ export class MemoryRemoteProvider implements IFilesystemProvider {
   private readonly readDirErrors = new Map<string, Error>()
   private readonly statErrors = new Map<string, Error>()
   readonly readDirPaths: string[] = []
+  readonly readFilePaths: string[] = []
 
   addFile(path: string, content: string, mtimeMs: number): void {
     this.files.set(normalize(path), { content, mtimeMs })
@@ -52,6 +53,7 @@ export class MemoryRemoteProvider implements IFilesystemProvider {
   }
 
   async readFile(filePath: string): Promise<FileReadResult> {
+    this.readFilePaths.push(normalize(filePath))
     const file = this.files.get(normalize(filePath))
     if (!file) {
       throw new Error(`ENOENT: ${filePath}`)
