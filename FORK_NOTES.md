@@ -15,7 +15,7 @@ Remove an entry after an upstream sync contains its equivalent commits.
 | ID | Title | Status | Introduced | Contract | Scope | Verification | Upstream |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ORCAW-001 | Independent desktop identity and update channel | active | 1.4.165-wyk.4 | Preserve Orcaw identity, isolated user data, CLI/helper names, and fork-scoped updates | `config/orcaw-product-identity.json`, `config/electron-builder.config.cjs`, `src/main/updater-delivery-policy.ts`, `src/shared/orca-cli-command-name.ts` | `config/scripts/electron-builder-product-identity.test.mjs`, `src/main/updater.test.ts`, `src/main/cli/cli-installer.test.ts` | none |
-| ORCAW-002 | Fork-owned desktop release delivery | active | 1.4.165-wyk.4 | Preserve fork package assets, release publication, unsigned personal macOS builds, tag/version validation, and disabled inherited schedules | `.github/workflows/fork-desktop-packages.yml`, `config/scripts/fork-release-contract.mjs`, `config/scripts/release-publication-kind.mjs` | `config/scripts/fork-desktop-packages-workflow.test.mjs`, `config/scripts/fork-release-contract.test.mjs`, `config/scripts/fork-workflow-trigger-policy.test.mjs`, `config/scripts/release-publication-kind.test.mjs` | none |
+| ORCAW-002 | Fork-owned desktop release delivery | active | 1.4.165-wyk.4 | Preserve fork package assets, signed and notarized macOS release delivery, tag/version validation, and disabled inherited schedules | `.github/workflows/fork-desktop-packages.yml`, `config/scripts/fork-release-contract.mjs`, `config/scripts/release-publication-kind.mjs` | `config/scripts/fork-desktop-packages-workflow.test.mjs`, `config/scripts/fork-release-contract.test.mjs`, `config/scripts/fork-workflow-trigger-policy.test.mjs`, `config/scripts/release-publication-kind.test.mjs` | none |
 | ORCAW-003 | Workspace-tab compression floor | active | 1.4.165-wyk.4 | Keep workspace tabs at a 72px minimum before overflow | `src/renderer/src/components/tab-bar/tab-width-rules.ts` | `src/renderer/src/components/tab-bar/tab-title-tooltip.test.tsx` | none |
 | ORCAW-004 | Rich-Markdown table insertion controls | active | 1.4.165-wyk.4 | Preserve the 10×10 grid, validated custom size, and header/body insertion semantics | `src/renderer/src/components/editor/RichMarkdownTableInsertMenu.tsx`, `src/renderer/src/components/editor/rich-markdown-table-insertion.ts` | `src/renderer/src/components/editor/RichMarkdownTableInsertMenu.test.tsx`, `src/renderer/src/components/editor/rich-markdown-table-insertion.test.ts` | none |
 | ORCAW-005 | Bounded safe rich-Markdown HTML | active | 1.4.165-wyk.4 | Render and source-edit the safe allowlist while preserving unsupported HTML losslessly | `src/renderer/src/components/editor/rich-markdown-safe-html-source.ts`, `src/renderer/src/components/editor/rich-markdown-safe-html-node-view.ts` | `src/renderer/src/components/editor/rich-markdown-safe-html-source.test.ts`, `src/renderer/src/components/editor/rich-markdown-safe-html-node-view.test.ts` | none |
@@ -41,8 +41,8 @@ Linux x64/ARM64, and macOS x64/ARM64 installers for 14 days.
 For a permanent GitHub Release, create and push a `v*` tag:
 
 ```bash
-git tag v1.4.165-wyk.1
-git push origin v1.4.165-wyk.1
+git tag v1.4.187-wyk.2
+git push origin v1.4.187-wyk.2
 ```
 
 The workflow publishes the Release only after every platform succeeds. A tag
@@ -60,8 +60,8 @@ Release assets use Orcaw names such as `orcaw-windows-setup.exe`,
 `Orcaw-<version>-arm64-mac.zip`. The workflow verifies installers, blockmaps,
 and updater manifests before publishing the draft.
 
-These personal Windows and macOS builds are unsigned, so SmartScreen or
-Gatekeeper can warn when opening them. They do not replace the app
-automatically; use Orcaw's update prompt to open the exact Release, download
-the matching installer, and install it manually. Linux packages retain the
-existing automatic update path.
+Windows builds are unsigned, so SmartScreen can warn when opening them; use
+Orcaw's update prompt to open the exact Release and install the matching
+installer manually. macOS release builds are Developer ID-signed and notarized,
+so ShipIt can install matching Orcaw updates automatically. Linux packages
+retain the existing automatic update path.

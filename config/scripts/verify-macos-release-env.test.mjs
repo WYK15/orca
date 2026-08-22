@@ -30,13 +30,13 @@ describe('macOS release environment', () => {
     expect(verify(withoutApiKey).stderr).toContain('APPLE_API_KEY')
   })
 
-  it('keeps fork macOS packages unsigned', () => {
+  it('requires signed and notarized fork macOS packages', () => {
     const workflow = readFileSync('.github/workflows/fork-desktop-packages.yml', 'utf8')
 
-    expect(workflow).toContain('CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder')
-    expect(workflow).not.toContain('ORCA_MAC_RELEASE=1')
-    expect(workflow).not.toContain('Prepare macOS signing and notarization keys')
-    expect(workflow).not.toContain('CSC_LINK:')
-    expect(workflow).not.toContain('APPLE_API_KEY_BASE64:')
+    expect(workflow).toContain('node config/scripts/verify-macos-release-env.mjs')
+    expect(workflow).toContain('ORCA_MAC_RELEASE=1 pnpm exec electron-builder')
+    expect(workflow).toContain('Prepare macOS signing and notarization keys')
+    expect(workflow).toContain('CSC_LINK:')
+    expect(workflow).toContain('APPLE_API_KEY_BASE64:')
   })
 })
