@@ -11,6 +11,14 @@ Use the `$electron` skill and Playwright CDP for rendered Orca UI checks. Do not
   * DO NOT: be verbose, explain the obvious, walk through the code ("WHY not HOW")
   * BE CONCISE. 1 LINE if possible
 
+## Tight Context Execution
+
+- Load only task-applicable skills and source material; do not reload material already available in the session.
+- Read the smallest relevant symbol or range, batch independent checks, and report only decision-relevant results.
+- Re-run a check only after a related change or to reproduce an unresolved failure.
+- Resolve a stale or conflicting diagnostic once; do not repeat it in status updates.
+- Give one concise update per milestone, not narration for routine tool calls.
+
 ## Lint Rules: Do Not Disable Max Lines
 
 NEVER add a `max-lines` disable (`eslint-disable max-lines`, `oxlint-disable max-lines`, or line-specific variants), and never add a per-file `max-lines` bump in `mobile/.oxlintrc.json`.
@@ -68,3 +76,18 @@ Source-control and review changes must consider GitLab and other supported git p
 ## GitHub CLI Usage
 
 Be mindful of the user's `gh` CLI API rate limit — batch requests where possible and avoid unnecessary calls. All code, commands, and scripts must be compatible with macOS, Linux, and Windows.
+# Fork Maintenance
+
+Treat this repository as a long-lived downstream Orca fork.
+
+- Keep changes small, focused, and easy to reconcile with upstream. Avoid unrelated refactors.
+- Keep generally useful fixes and personal customizations clearly separated in code and commits.
+- Add tests proportionate to each change, and consider regressions when later upstream updates are integrated.
+- Preserve upstream and user changes; do not rewrite, discard, or overwrite them without explicit instruction.
+- Keep `upstream-sync` identical to a selected stable `stablyai/orca` release; never add downstream commits to it.
+- Keep persistent downstream behavior in isolated commits on `main` with a registered `Fork-Customization: ORCAW-NNN` trailer.
+- Treat upstream-sync and customization-replay governance as persistent customization `ORCAW-015`.
+- Treat `upstream-candidate` as replay-required until behavioral equivalence is explicitly confirmed; never retire a customization automatically.
+- Rewrite `main` only during an approved upstream adoption, preserve a recovery tag, and push only with `--force-with-lease`.
+- Record material, persistent differences from upstream in `FORK_NOTES.md`. Create or update it only when such differences exist; do not log routine fixes that remain easy to upstream or remove.
+- For tracking, adoption, retirement, validation, and rollback steps, follow [`docs/reference/fork-upstream-sync.md`](./docs/reference/fork-upstream-sync.md).
