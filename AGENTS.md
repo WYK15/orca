@@ -26,6 +26,11 @@ Use the `$electron` skill and Playwright CDP for rendered Orca UI checks. Do not
 * Audit migrations from explicitly selected legacy PR diffs and record each hunk disposition; do not infer scope from titles or scan unrelated files.
 * Use TDD only for large refactors or broad new features. For targeted migrations, fixes, and audits, use the smallest direct validation that covers the changed surface.
 
+## Strategy and Documentation Changes
+
+* When documentation conflicts with established production behavior, prior releases, or release artifacts, compare all sources and present the evidence for an explicit user decision before changing the capability.
+* New strategies and major version changes update their owning policy and operational documentation in the same change, including compatibility, migration, and rollback effects when applicable.
+
 ## Lint Rules: Do Not Disable Max Lines
 
 NEVER add a `max-lines` disable (`eslint-disable max-lines`, `oxlint-disable max-lines`, or line-specific variants), and never add a per-file `max-lines` bump in `mobile/.oxlintrc.json`.
