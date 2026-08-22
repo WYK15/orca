@@ -73,6 +73,7 @@ Handle one registered customization at a time:
 - A structural conflict is rewritten against the new upstream interface while preserving the registered contract and verification.
 - A partially equivalent upstream implementation shrinks the downstream commit to the remaining Orcaw behavior.
 - Uncertain equivalence keeps the customization unchanged.
+- Before completion, compare the candidate with explicitly selected legacy PR diff hunks. Record every hunk as replayed, upstream-equivalent with evidence, retired, or intentionally not replayed; never infer scope from a commit title or scan unrelated files.
 
 Run the focused tests named by the registry before continuing the replay.
 

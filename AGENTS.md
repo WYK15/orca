@@ -7,17 +7,24 @@ All UI work — layout, color, typography, spacing, component selection, UX beha
 Use the `$electron` skill and Playwright CDP for rendered Orca UI checks. Do not use computer-use for Orca UI validation.
 
 # Style
+
 ## Concise/Brief Non-obviosu comments ONLY
-  * DO NOT: be verbose, explain the obvious, walk through the code ("WHY not HOW")
-  * BE CONCISE. 1 LINE if possible
+
+* DO NOT: be verbose, explain the obvious, walk through the code ("WHY not HOW")
+* BE CONCISE. 1 LINE if possible
 
 ## Tight Context Execution
 
-- Load only task-applicable skills and source material; do not reload material already available in the session.
-- Read the smallest relevant symbol or range, batch independent checks, and report only decision-relevant results.
-- Re-run a check only after a related change or to reproduce an unresolved failure.
-- Resolve a stale or conflicting diagnostic once; do not repeat it in status updates.
-- Give one concise update per milestone, not narration for routine tool calls.
+* Load only task-applicable skills and source material; do not reload material already available in the session.
+* Read the smallest relevant symbol or range, batch independent checks, and report only decision-relevant results.
+* Re-run a check only after a related change or to reproduce an unresolved failure.
+* Resolve a stale or conflicting diagnostic once; do not repeat it in status updates.
+* Give one concise update per milestone, not narration for routine tool calls.
+
+## Audit and Test Scope
+
+* Audit migrations from explicitly selected legacy PR diffs and record each hunk disposition; do not infer scope from titles or scan unrelated files.
+* Use TDD only for large refactors or broad new features. For targeted migrations, fixes, and audits, use the smallest direct validation that covers the changed surface.
 
 ## Lint Rules: Do Not Disable Max Lines
 
@@ -30,6 +37,7 @@ Never use vague names like `helpers`, `utils`, `common`, `misc`, or `shared-stuf
 ## Type Declarations: Prefer `.ts` Over `.d.ts`
 
 # Considerations
+
 ## Worktree Safety
 
 Always use the primary working directory (the worktree) for all file reads and edits. Never follow absolute paths from subagent results that point to the main repo.
@@ -38,12 +46,12 @@ Always use the primary working directory (the worktree) for all file reads and e
 
 Orca targets macOS, Linux, and Windows. Keep all platform-dependent behavior behind runtime checks:
 
-- **Keyboard shortcuts**: Never hardcode `e.metaKey`. Use a platform check (`navigator.userAgent.includes('Mac')`) to pick `metaKey` on Mac and `ctrlKey` on Linux/Windows. Electron menu accelerators should use `CmdOrCtrl`.
-- **Shortcut labels in UI**: Display `⌘` / `⇧` on Mac and `Ctrl+` / `Shift+` on other platforms.
-- **File paths**: Use `path.join` or Electron/Node path utilities — never assume `/` or `\`.
-- **Windows setup scripts**: the setup/issue-command runner is a `.cmd` batch file unless the script starts with a `#!` line — never derive that from the user's terminal-shell preference, and never launch a `.cmd` runner with a bare `cmd.exe /c` from a Git Bash pane (MSYS rewrites the `/c`). See [`docs/reference/windows-setup-shell.md`](./docs/reference/windows-setup-shell.md).
-- **WSL commands**: build argv with `buildWslExecArgs` (always `--exec` — under `--`, `wsl.exe` expands `$name` in every argument and silently rewrites the script), and fence anything whose stdout you parse with `buildWslCapturedLoginShellCommand`, because the interactive login shell prints the distro banner to stdout. See [`docs/reference/wsl-command-execution.md`](./docs/reference/wsl-command-execution.md).
-- **Linux native modules**: keep the glibc floor at Ubuntu 20.04 / glibc 2.31. A module compiled from source on a newer runner can reference symbol versions absent on the floor and crash the app on startup. See [`docs/reference/linux-glibc-compatibility.md`](./docs/reference/linux-glibc-compatibility.md); packaging fails if a bundled native binary needs newer glibc.
+* **Keyboard shortcuts**: Never hardcode `e.metaKey`. Use a platform check (`navigator.userAgent.includes('Mac')`) to pick `metaKey` on Mac and `ctrlKey` on Linux/Windows. Electron menu accelerators should use `CmdOrCtrl`.
+* **Shortcut labels in UI**: Display `⌘` / `⇧` on Mac and `Ctrl+` / `Shift+` on other platforms.
+* **File paths**: Use `path.join` or Electron/Node path utilities — never assume `/` or `\`.
+* **Windows setup scripts**: the setup/issue-command runner is a `.cmd` batch file unless the script starts with a `#!` line — never derive that from the user's terminal-shell preference, and never launch a `.cmd` runner with a bare `cmd.exe /c` from a Git Bash pane (MSYS rewrites the `/c`). See [`docs/reference/windows-setup-shell.md`](./docs/reference/windows-setup-shell.md).
+* **WSL commands**: build argv with `buildWslExecArgs` (always `--exec` — under `--`, `wsl.exe` expands `$name` in every argument and silently rewrites the script), and fence anything whose stdout you parse with `buildWslCapturedLoginShellCommand`, because the interactive login shell prints the distro banner to stdout. See [`docs/reference/wsl-command-execution.md`](./docs/reference/wsl-command-execution.md).
+* **Linux native modules**: keep the glibc floor at Ubuntu 20.04 / glibc 2.31. A module compiled from source on a newer runner can reference symbol versions absent on the floor and crash the app on startup. See [`docs/reference/linux-glibc-compatibility.md`](./docs/reference/linux-glibc-compatibility.md); packaging fails if a bundled native binary needs newer glibc.
 
 ## SSH Use Case
 
@@ -63,11 +71,11 @@ Orca runs the user's Git binary on native, WSL, and SSH hosts, which may all hav
 
 When adding or changing a Git command:
 
-- Check when every subcommand and option was introduced. For newer behavior, keep a baseline-compatible fallback or degrade safely.
-- Use `GitCapabilityCache` with a narrow unsupported-error predicate so recurring operations do not retry a known-invalid command. Do not rely only on `git --version`; wrappers such as `simple-git` do not remove host-version differences.
-- Scope capability state to the host that executes Git: native, WSL distro, SSH provider, or relay connection. Cover the first fallback, later cached calls, concurrent probes, and relevant host isolation in tests.
-- Keep the real-binary compatibility contract in PR CI current. When adopting a newer Git feature, add its version boundary so the preferred command and fallback both run against representative Git releases.
-- Preserve commands that begin with global Git options such as `-c` before the subcommand, including auto-maintenance suppression used by worktree-create fetches.
+* Check when every subcommand and option was introduced. For newer behavior, keep a baseline-compatible fallback or degrade safely.
+* Use `GitCapabilityCache` with a narrow unsupported-error predicate so recurring operations do not retry a known-invalid command. Do not rely only on `git --version`; wrappers such as `simple-git` do not remove host-version differences.
+* Scope capability state to the host that executes Git: native, WSL distro, SSH provider, or relay connection. Cover the first fallback, later cached calls, concurrent probes, and relevant host isolation in tests.
+* Keep the real-binary compatibility contract in PR CI current. When adopting a newer Git feature, add its version boundary so the preferred command and fallback both run against representative Git releases.
+* Preserve commands that begin with global Git options such as `-c` before the subcommand, including auto-maintenance suppression used by worktree-create fetches.
 
 ## Git Provider Compatibility
 
@@ -76,18 +84,19 @@ Source-control and review changes must consider GitLab and other supported git p
 ## GitHub CLI Usage
 
 Be mindful of the user's `gh` CLI API rate limit — batch requests where possible and avoid unnecessary calls. All code, commands, and scripts must be compatible with macOS, Linux, and Windows.
+
 # Fork Maintenance
 
 Treat this repository as a long-lived downstream Orca fork.
 
-- Keep changes small, focused, and easy to reconcile with upstream. Avoid unrelated refactors.
-- Keep generally useful fixes and personal customizations clearly separated in code and commits.
-- Add tests proportionate to each change, and consider regressions when later upstream updates are integrated.
-- Preserve upstream and user changes; do not rewrite, discard, or overwrite them without explicit instruction.
-- Keep `upstream-sync` identical to a selected stable `stablyai/orca` release; never add downstream commits to it.
-- Keep persistent downstream behavior in isolated commits on `main` with a registered `Fork-Customization: ORCAW-NNN` trailer.
-- Treat upstream-sync and customization-replay governance as persistent customization `ORCAW-015`.
-- Treat `upstream-candidate` as replay-required until behavioral equivalence is explicitly confirmed; never retire a customization automatically.
-- Rewrite `main` only during an approved upstream adoption, preserve a recovery tag, and push only with `--force-with-lease`.
-- Record material, persistent differences from upstream in `FORK_NOTES.md`. Create or update it only when such differences exist; do not log routine fixes that remain easy to upstream or remove.
-- For tracking, adoption, retirement, validation, and rollback steps, follow [`docs/reference/fork-upstream-sync.md`](./docs/reference/fork-upstream-sync.md).
+* Keep changes small, focused, and easy to reconcile with upstream. Avoid unrelated refactors.
+* Keep generally useful fixes and personal customizations clearly separated in code and commits.
+* Add tests proportionate to each change, and consider regressions when later upstream updates are integrated.
+* Preserve upstream and user changes; do not rewrite, discard, or overwrite them without explicit instruction.
+* Keep `upstream-sync` identical to a selected stable `stablyai/orca` release; never add downstream commits to it.
+* Keep persistent downstream behavior in isolated commits on `main` with a registered `Fork-Customization: ORCAW-NNN` trailer.
+* Treat upstream-sync and customization-replay governance as persistent customization `ORCAW-015`.
+* Treat `upstream-candidate` as replay-required until behavioral equivalence is explicitly confirmed; never retire a customization automatically.
+* Rewrite `main` only during an approved upstream adoption, preserve a recovery tag, and push only with `--force-with-lease`.
+* Record material, persistent differences from upstream in `FORK_NOTES.md`. Create or update it only when such differences exist; do not log routine fixes that remain easy to upstream or remove.
+* For tracking, adoption, retirement, validation, and rollback steps, follow [`docs/reference/fork-upstream-sync.md`](./docs/reference/fork-upstream-sync.md).
