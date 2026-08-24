@@ -251,8 +251,16 @@ describe('project removal from workspace context menus', () => {
 
     expect(shouldRemoveProjectFromContextMenu(gitRepo, { isMainWorktree: true })).toBe(true)
     expect(shouldRemoveProjectFromContextMenu(folderRepo, { isMainWorktree: true })).toBe(true)
-    expect(shouldRemoveProjectFromContextMenu(gitRepo, { isMainWorktree: false })).toBe(false)
+    expect(shouldRemoveProjectFromContextMenu(gitRepo, { isMainWorktree: false })).toBe(true)
     expect(shouldRemoveProjectFromContextMenu(null, { isMainWorktree: true })).toBe(false)
+  })
+
+  it('offers both project removal and worktree deletion for child worktrees', () => {
+    const gitRepo = { id: 'repo-1', kind: 'git' as const }
+    const childWorktree = { isMainWorktree: false }
+
+    expect(shouldRemoveProjectFromContextMenu(gitRepo, childWorktree)).toBe(true)
+    expect(isContextWorktreeDeletable(childWorktree, gitRepo)).toBe(true)
   })
 
   it('treats additional folder workspace rows as deletable workspace rows', () => {

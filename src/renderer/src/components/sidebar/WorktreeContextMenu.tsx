@@ -68,6 +68,7 @@ import { translate } from '@/i18n/i18n'
 import { unnestWorktrees } from './worktree-unnest'
 import { parseWorkspaceKey, worktreeWorkspaceKey } from '../../../../shared/workspace-scope'
 import { getDeleteStateForWorktreeHost } from './worktree-delete-state-host-match'
+import { runProjectRemoveFromWorktree } from './delete-worktree-flow'
 
 type Props = {
   worktree: Worktree
@@ -200,9 +201,9 @@ function getWorktreeParentPickerAnchor(
 
 function shouldRemoveProjectFromContextMenu(
   repo: Pick<Repo, 'id'> | null | undefined,
-  worktree: Pick<Worktree, 'isMainWorktree'>
+  _worktree: Pick<Worktree, 'isMainWorktree'>
 ): boolean {
-  return repo != null && worktree.isMainWorktree
+  return repo != null
 }
 
 function isContextWorktreeDeletable(
@@ -692,6 +693,22 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
     setMenuOpenState(false)
   }, [batchDeleteWorktrees, folderWorkspaceId, isMultiContext, setMenuOpenState, worktree])
 
+  const handleRemoveProject = useCallback(() => {
+    const restoreSidebarPosition = preserveDeleteSiblingPosition(scopeRef.current)
+    scopeRef.current
+      ?.closest('[data-worktree-sidebar]')
+      ?.dispatchEvent(new Event(VIRTUALIZED_SCROLL_ANCHOR_RECORD_EVENT))
+    const options = {
+      expectedInstanceId: worktree.instanceId,
+      ...(worktree.hostId ? { expectedHostId: worktree.hostId } : {})
+    }
+    window.setTimeout(() => {
+      runProjectRemoveFromWorktree(worktree.id, options)
+      restoreSidebarPosition()
+    }, 0)
+    setMenuOpenState(false)
+  }, [setMenuOpenState, worktree.hostId, worktree.id, worktree.instanceId])
+
   const handleOpenParent = useCallback(() => {
     if (validParentWorktreeId) {
       activateAndRevealWorktree(validParentWorktreeId)
@@ -1017,10 +1034,19 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
             onSleep={handleCloseTerminals}
             onSleepSubtree={handleSleepSubtree}
           />
-          {/* Why: primary checkout rows can't be git-worktree-removed, so keep a
-             disabled Delete Worktree for parity with non-primary cards and pair
-             it with the enabled Remove Project action below. */}
           {!isMultiContext && removesProject ? (
+            <DropdownMenuItem onSelect={handleRemoveProject}>
+              <CircleX className="size-3.5" />
+              {translate(
+                'auto.components.sidebar.WorktreeContextMenu.f5ac91531d',
+                'Remove Project from Orca'
+              )}
+            </DropdownMenuItem>
+          ) : null}
+          {!isMultiContext && removesProject ? <DropdownMenuSeparator /> : null}
+          {/* Why: primary checkout rows cannot be git-worktree-removed, while
+              child rows retain permanent deletion alongside project removal. */}
+          {!isMultiContext && worktree.isMainWorktree ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <div>
@@ -1040,42 +1066,23 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
                 )}
               </TooltipContent>
             </Tooltip>
-          ) : null}
-          {/* Why: primary checkout rows remove the project from Orca instead of
-             invoking git worktree deletion. Radix forwards unknown props to the
-             DOM element, so `title` works directly without a wrapper span —
-             this preserves Radix's flat roving-tabindex keyboard navigation. */}
-          <DropdownMenuItem
-            variant="destructive"
-            onSelect={handleDelete}
-            disabled={
-              contextDeletePending ||
-              (!isMultiContext && worktree.isMainWorktree && !removesProject) ||
-              (isMultiContext && batchDeleteWorktrees.length === 0)
-            }
-            title={
-              !isMultiContext && worktree.isMainWorktree && !removesProject
-                ? translate(
-                    'auto.components.sidebar.WorktreeContextMenu.e091caab15',
-                    'The project could not be found'
-                  )
-                : undefined
-            }
-          >
-            <Trash2 className="size-3.5" />
-            {contextDeletePending
-              ? translate('auto.components.sidebar.WorktreeContextMenu.b42391d8bf', 'Deleting…')
-              : isMultiContext
-                ? deleteLabel
-                : folderWorkspaceId
-                  ? translate(
-                      'auto.components.sidebar.WorktreeContextMenu.250de158fd',
-                      'Remove Workspace'
-                    )
-                  : removesProject
+          ) : (
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={handleDelete}
+              disabled={
+                contextDeletePending || (isMultiContext && batchDeleteWorktrees.length === 0)
+              }
+            >
+              <Trash2 className="size-3.5" />
+              {contextDeletePending
+                ? translate('auto.components.sidebar.WorktreeContextMenu.b42391d8bf', 'Deleting…')
+                : isMultiContext
+                  ? deleteLabel
+                  : folderWorkspaceId
                     ? translate(
-                        'auto.components.sidebar.WorktreeContextMenu.f5ac91531d',
-                        'Remove Project from Orca'
+                        'auto.components.sidebar.WorktreeContextMenu.250de158fd',
+                        'Remove Workspace'
                       )
                     : lineageDescendantCount > 0
                       ? translate(
@@ -1083,10 +1090,11 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
                           'Delete with Descendants…'
                         )
                       : translate(
-                          'auto.components.sidebar.WorktreeContextMenu.f4475537d8',
-                          'Delete'
+                          'auto.components.sidebar.WorktreeContextMenu.deleteWorktree',
+                          'Delete Worktree'
                         )}
-          </DropdownMenuItem>
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       <ProjectGroupNameDialog

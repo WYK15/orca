@@ -28,6 +28,7 @@ describe('createWorktreeContextMenuDeleteIntent', () => {
 
     expect(mocks.runDelete).toHaveBeenCalledWith('shared', {
       expectedInstanceId: 'ssh-instance',
+      forceConfirm: true,
       expectedHostId: 'ssh:box'
     })
   })
@@ -77,7 +78,8 @@ describe('deferWorktreeContextMenuDeleteIntent', () => {
     deferred()
 
     expect(mocks.runDelete).toHaveBeenCalledWith('repo::/work/wt', {
-      expectedInstanceId: 'instance-1'
+      expectedInstanceId: 'instance-1',
+      forceConfirm: true
     })
     expect(onDispatched).toHaveBeenCalledOnce()
   })
@@ -109,7 +111,8 @@ describe('deferWorktreeContextMenuDeleteIntent', () => {
     expect(mocks.runDelete).not.toHaveBeenCalled()
     vi.runAllTimers()
     expect(mocks.runDelete).toHaveBeenCalledWith('wt-1', {
-      expectedInstanceId: 'instance-1'
+      expectedInstanceId: 'instance-1',
+      forceConfirm: true
     })
   })
 })

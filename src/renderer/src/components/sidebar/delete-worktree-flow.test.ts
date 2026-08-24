@@ -84,6 +84,7 @@ vi.mock('./delete-worktree-failure-toast', () => ({
 import { toast } from 'sonner'
 import { showDeleteWorktreeFailureToast } from './delete-worktree-failure-toast'
 import {
+  runProjectRemoveFromWorktree,
   runWorktreeBatchDelete,
   runWorktreeDelete,
   runWorktreeDeleteWithToast,
@@ -531,6 +532,20 @@ describe('delete worktree flow', () => {
     )
   })
 
+  it('keeps context-menu worktree deletion behind confirmation', () => {
+    mocks.state.settings = { skipDeleteWorktreeConfirm: true }
+    setWorktrees([{ id: 'wt-1', displayName: 'one' }])
+
+    runWorktreeDelete('wt-1', { forceConfirm: true })
+
+    expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
+    expect(mocks.state.openModal).toHaveBeenCalledWith('delete-worktree', {
+      worktreeId: 'wt-1',
+      worktreeDeleteIdentities: [{ id: 'wt-1', instanceId: 'wt-1-instance' }],
+      allowSkipConfirm: false
+    })
+  })
+
   it('opens project removal confirmation for a primary workspace', () => {
     mocks.state.settings = { skipDeleteWorktreeConfirm: true }
     setWorktrees([
@@ -546,6 +561,27 @@ describe('delete worktree flow', () => {
     runWorktreeDelete('main')
 
     expect(mocks.state.clearWorktreeDeleteState).not.toHaveBeenCalled()
+    expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
+    expect(mocks.state.openModal).toHaveBeenCalledWith('confirm-remove-folder', {
+      repoId: 'repo-1',
+      displayName: 'orca',
+      hostId: 'local'
+    })
+  })
+
+  it('opens project removal confirmation from a child worktree without deleting it', () => {
+    setWorktrees([
+      {
+        id: 'child',
+        repoId: 'repo-1',
+        displayName: 'feature',
+        isMainWorktree: false
+      }
+    ])
+    mocks.state.repos = [{ id: 'repo-1', displayName: 'orca' }]
+
+    runProjectRemoveFromWorktree('child', { expectedInstanceId: 'child-instance' })
+
     expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
     expect(mocks.state.openModal).toHaveBeenCalledWith('confirm-remove-folder', {
       repoId: 'repo-1',
