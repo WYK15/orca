@@ -6,6 +6,7 @@ import {
   createWorktreeContextMenuDeleteIntent,
   deferWorktreeContextMenuDeleteIntent
 } from './worktree-context-menu-delete-intent'
+import { runProjectRemoveFromWorktree } from './delete-worktree-flow'
 import { runSleepWorktrees } from './sleep-worktree-flow'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { VIRTUALIZED_SCROLL_ANCHOR_RECORD_EVENT } from '@/hooks/useVirtualizedScrollAnchor'
@@ -158,6 +159,21 @@ export function useWorktreeContextMenuCommands(args: {
     deferWorktreeContextMenuDeleteIntent(intent, restoreSidebarPosition)
     args.setMenuOpenState(false)
   }, [args])
+  const handleRemoveProject = useCallback(() => {
+    const restoreSidebarPosition = preserveDeleteSiblingPosition(args.scopeRef.current)
+    args.scopeRef.current
+      ?.closest('[data-worktree-sidebar]')
+      ?.dispatchEvent(new Event(VIRTUALIZED_SCROLL_ANCHOR_RECORD_EVENT))
+    const options = {
+      expectedInstanceId: args.worktree.instanceId,
+      ...(args.worktree.hostId ? { expectedHostId: args.worktree.hostId } : {})
+    }
+    window.setTimeout(() => {
+      runProjectRemoveFromWorktree(args.worktree.id, options)
+      restoreSidebarPosition()
+    }, 0)
+    args.setMenuOpenState(false)
+  }, [args])
   const handleOpenParent = useCallback(() => {
     if (args.validParentWorktreeId) {
       activateAndRevealWorktree(args.validParentWorktreeId)
@@ -171,6 +187,7 @@ export function useWorktreeContextMenuCommands(args: {
     handleCreateGroupFromRepo,
     handleDelete,
     handleMoveProjectToGroup,
+    handleRemoveProject,
     handleOpenParent,
     handleRemoveProjectFromGroup,
     handleRename,

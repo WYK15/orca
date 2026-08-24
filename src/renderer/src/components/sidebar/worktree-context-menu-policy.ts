@@ -133,9 +133,9 @@ export function getWorktreeParentPickerAnchor(
 
 export function shouldRemoveProjectFromContextMenu(
   repo: Pick<Repo, 'id'> | null | undefined,
-  worktree: Pick<Worktree, 'isMainWorktree'>
+  _worktree: Pick<Worktree, 'isMainWorktree'>
 ): boolean {
-  return repo != null && worktree.isMainWorktree
+  return repo != null
 }
 
 export function isContextWorktreeDeletable(

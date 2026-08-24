@@ -25,6 +25,38 @@ import {
 
 export { runWorktreeDeletesInParallel, runWorktreeDeleteWithToast }
 
+function openProjectRemovalModal(
+  state: ReturnType<typeof useAppStore.getState>,
+  target: NonNullable<ReturnType<typeof getWorktreeOnHostFromState>>
+): void {
+  const repo = findRepoForHost(state.repos, target.repoId, {
+    hostId: target.hostId,
+    settings: state.settings
+  })
+  const hostId = repo ? getRepoExecutionHostId(repo) : target.hostId
+  state.openModal('confirm-remove-folder', {
+    repoId: target.repoId,
+    displayName: repo?.displayName ?? target.displayName,
+    ...(hostId ? { hostId } : {})
+  })
+}
+
+export function runProjectRemoveFromWorktree(
+  worktreeId: string,
+  options: WorktreeDeleteOptions = {}
+): void {
+  const state = useAppStore.getState()
+  const target = getWorktreeOnHostFromState(state, worktreeId, options.expectedHostId) ?? null
+  const instanceChanged =
+    Object.hasOwn(options, 'expectedInstanceId') &&
+    target?.instanceId !== options.expectedInstanceId
+  if (!target || instanceChanged) {
+    showWorkspaceListChangedToast()
+    return
+  }
+  openProjectRemovalModal(state, target)
+}
+
 /**
  * Shared funnel for the standard (non-folder) delete decision tree (WorktreeContextMenu,
  * MemoryStatusSegment); branches on the `skipDeleteWorktreeConfirm` preference.
@@ -50,17 +82,8 @@ export function runWorktreeDelete(worktreeId: string, options: WorktreeDeleteOpt
     return
   }
   if (target.isMainWorktree) {
-    const repo = findRepoForHost(state.repos, target.repoId, {
-      hostId: target.hostId,
-      settings: state.settings
-    })
-    const hostId = repo ? getRepoExecutionHostId(repo) : target.hostId
     // Why: git refuses to delete the primary checkout; users can still remove the owning project from Orca (disk contents kept).
-    state.openModal('confirm-remove-folder', {
-      repoId: target.repoId,
-      displayName: repo?.displayName ?? target.displayName,
-      ...(hostId ? { hostId } : {})
-    })
+    openProjectRemovalModal(state, target)
     return
   }
   if (target.hostId) {
@@ -100,7 +123,7 @@ export function runWorktreeDelete(worktreeId: string, options: WorktreeDeleteOpt
     state.worktreeLineageById
   )
   const hasLineageChildren = deleteLineage.descendants.length > 0
-  const skipConfirm = state.settings?.skipDeleteWorktreeConfirm ?? false
+  const skipConfirm = !options.forceConfirm && (state.settings?.skipDeleteWorktreeConfirm ?? false)
   if (skipConfirm && !hasLineageChildren) {
     void runWorktreeDeleteWithToast(toWorktreeRemovalTarget(target), target.displayName)
     return
@@ -113,7 +136,7 @@ export function runWorktreeDelete(worktreeId: string, options: WorktreeDeleteOpt
           lineageDeleteIdentities: toWorktreeDeleteIdentities(deleteLineage.deleteAllTargets)
         }
       : {}),
-    ...(hasLineageChildren ? { allowSkipConfirm: false } : {})
+    ...(options.forceConfirm || hasLineageChildren ? { allowSkipConfirm: false } : {})
   })
 }
 
