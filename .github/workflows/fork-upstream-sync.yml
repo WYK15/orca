@@ -78,7 +78,9 @@ jobs:
             git fetch origin "refs/tags/$ARCHIVE_TAG:refs/tags/$ARCHIVE_TAG"
             test "$(git rev-parse "$ARCHIVE_TAG^{}")" = "$CURRENT_UPSTREAM_SYNC"
           else
-            git tag -a "$ARCHIVE_TAG" "$CURRENT_UPSTREAM_SYNC" -m "Archive upstream-sync before adopting $UPSTREAM_TAG"
+            git -c user.name=github-actions[bot] \
+              -c user.email=41898282+github-actions[bot]@users.noreply.github.com \
+              tag -a "$ARCHIVE_TAG" "$CURRENT_UPSTREAM_SYNC" -m "Archive upstream-sync before adopting $UPSTREAM_TAG"
             gh auth setup-git
             git push origin "refs/tags/$ARCHIVE_TAG"
           fi

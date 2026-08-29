@@ -44,6 +44,8 @@ describe('fork upstream sync workflow', () => {
     expect(runText).toContain('git merge-base --is-ancestor')
     expect(runText).toContain('ALLOW_NON_FAST_FORWARD')
     expect(runText).toContain('archive/upstream-sync-before-$UPSTREAM_TAG')
+    expect(runText).toContain('user.name=github-actions[bot]')
+    expect(runText).toContain('41898282+github-actions[bot]@users.noreply.github.com')
     expect(runText).toContain('--force-with-lease=refs/heads/upstream-sync:$CURRENT_UPSTREAM_SYNC')
     expect(runText).toContain('git diff --quiet')
   })
