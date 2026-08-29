@@ -18,7 +18,9 @@ Run the `Fork Upstream Sync` workflow with an explicit stable tag:
 gh workflow run fork-upstream-sync.yml -f upstream_tag=v1.4.187
 ```
 
-The workflow validates the tag and package version, requires a fast-forward from the current `upstream-sync`, and updates only that branch. It rejects release candidates and never modifies `main` or creates release tags.
+The workflow validates the tag and package version, requires a fast-forward from the current `upstream-sync` by default, and updates only that branch. It rejects release candidates and never modifies `main` or creates release tags.
+
+When two stable release histories diverge, first compare their common ancestor, the commits unique to each history, the release package versions, and the published release metadata. After explicit approval, dispatch with `allow_non_fast_forward=true`. The workflow archives the previous branch at `archive/upstream-sync-before-v<target>` and replaces `upstream-sync` with `--force-with-lease`; it refuses the replacement if the remote moved or a pre-existing archive points elsewhere. This exceptional path updates only the pure upstream tracking branch. It never adopts the release into `main`; replay, hunk audit, and the normal `main` replacement remain separate steps.
 
 Verify the result:
 
@@ -142,7 +144,7 @@ git push origin archive/pre-sync-v1.4.178-wyk.3:main \
   --force-with-lease="refs/heads/main:$OBSERVED_MAIN"
 ```
 
-Published release and upstream-base tags never move.
+Published release and upstream-base tags never move. To roll back an exceptional `upstream-sync` replacement before a `main` adoption, restore its archive tag with `--force-with-lease` after recording the observed remote head; do not move the archive tag.
 
 ## Initial migration status
 
