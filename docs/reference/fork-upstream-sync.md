@@ -110,6 +110,12 @@ node config/scripts/fork-release-contract.mjs --release \
 
 Then run the focused tests for every replayed, conflicted, or rewritten customization plus the desktop identity and workflow contract checks. The candidate must have a clean worktree.
 
+### Validation budget
+
+Run a changed customization's direct tests after its change. Run the aggregate selected matrix once after its replay milestone; do not rerun passing unrelated suites unless a dependency changes or a new failure warrants it. Test-harness changes require only the affected Node and browser-environment suites. Select the required Node version before every test command.
+
+Perform an independent contract audit before replacing `main`: verify each registry contract against the current code and selected legacy hunks, inspect workflow triggers as well as workflow tests, record deviations, and rerun only the direct test after each remediation. Registry and exact-one coverage do not prove functional equivalence.
+
 ## Replace main safely
 
 Fetch and record the live remote head immediately before replacement:
@@ -128,6 +134,8 @@ A lease failure means the remote changed. Stop and inspect the new commits inste
 ## Version and publish
 
 For the first release on a newly adopted base, use `<upstream-version>-wyk.1`. Increment `wyk.N` for later releases on the same base.
+
+Keep the candidate at the upstream package version until `main` has been replaced and verified. Then create and fast-forward the release-version commit on `main`, validate the release contract, and create the matching immutable tag. The tag triggers the signed/notarized package workflow; monitor that workflow and verify its uploaded assets before declaring the release complete.
 
 Create `upstream-base/v<upstream-version>` only after `main` adopts that base. Keep package versions, updater metadata, assets, and the `v<upstream-version>-wyk.N` release tag aligned. Follow the desktop package instructions in [`FORK_NOTES.md`](../../FORK_NOTES.md#fork-desktop-packages).
 
