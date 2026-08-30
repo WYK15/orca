@@ -10,6 +10,7 @@ import {
   getAllWorktreesFromState,
   getProjectHostSetupProjectionFromState,
   getWorktreeMapFromState,
+  getWorktreeOnHostFromState,
   resetFloatingVisibleTabCountSelectorCacheForTest,
   resetFloatingWorkspaceUnreadSelectorCacheForTest,
   selectRepoByIdForActiveWorkspace,
@@ -89,6 +90,18 @@ describe('store selectors', () => {
     expect(worktreeMap.get('wt-1')).toBe(replacement)
     expect(getAllWorktreesFromState(state)).toBe(allWorktrees)
     expect(getWorktreeMapFromState(state)).toBe(worktreeMap)
+  })
+
+  it('selects the local row explicitly when another host publishes the same worktree id', () => {
+    const local = makeWorktree({ id: 'shared', repoId: 'repo-1', displayName: 'local' })
+    const ssh = {
+      ...makeWorktree({ id: 'shared', repoId: 'repo-1', displayName: 'ssh' }),
+      hostId: toSshExecutionHostId('dev')
+    }
+    const state = { worktreesByRepo: { 'repo-1': [ssh, local] } }
+
+    expect(getWorktreeOnHostFromState(state, 'shared', 'local')).toBe(local)
+    expect(getWorktreeOnHostFromState(state, 'shared', toSshExecutionHostId('dev'))).toBe(ssh)
   })
 
   it('reuses the floating tab-count projection across unrelated store ticks', () => {

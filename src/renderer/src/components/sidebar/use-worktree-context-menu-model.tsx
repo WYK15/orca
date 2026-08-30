@@ -23,6 +23,7 @@ import {
   EMPTY_TABS_BY_WORKTREE,
   EMPTY_WORKSPACE_LINEAGE_BY_CHILD_KEY,
   EMPTY_WORKTREE_LINEAGE_BY_ID,
+  canHideWorktreeFromContextMenu,
   hasWorktreeParentLink,
   isContextWorktreeDeletable,
   selectMenuScopedMap,
@@ -179,6 +180,7 @@ export function useWorktreeContextMenuModel({
       }),
     [activeContextWorktrees, repoMap]
   )
+  const canHideWorktree = canHideWorktreeFromContextMenu(repo, worktree)
   const removesProject = shouldRemoveProjectFromContextMenu(repo, worktree)
   const sleepLabel =
     isMultiContext && sleepableWorktrees.length > 0
@@ -282,23 +284,7 @@ export function useWorktreeContextMenuModel({
     []
   )
 
-  const {
-    handleAssignWorkspaceStatus,
-    handleCloseTerminals,
-    handleCopyPath,
-    handleCreateGroupDialogOpenChange,
-    handleCreateGroupFromRepo,
-    handleDelete,
-    handleMoveProjectToGroup,
-    handleRemoveProject,
-    handleOpenParent,
-    handleRemoveProjectFromGroup,
-    handleRename,
-    handleSleepSubtree,
-    handleSubmitNewProjectGroup,
-    handleTogglePin,
-    handleToggleRead
-  } = useWorktreeContextMenuCommands({
+  const commands = useWorktreeContextMenuCommands({
     activeContextWorktrees,
     batchDeleteWorktrees,
     createGroupDialogActiveRef,
@@ -362,6 +348,7 @@ export function useWorktreeContextMenuModel({
     allWorktrees,
     batchDeleteWorktrees,
     browserTabsByWorktree,
+    canHideWorktree,
     children,
     contentClassName,
     contextDeletePending,
@@ -376,25 +363,11 @@ export function useWorktreeContextMenuModel({
     eligibleParentCount,
     effectiveSelectedWorktrees,
     folderWorkspaceId,
-    handleAssignWorkspaceStatus,
+    ...commands,
     handleCloseAutoFocus,
-    handleCloseTerminals,
-    handleCopyPath,
-    handleCreateGroupDialogOpenChange,
-    handleCreateGroupFromRepo,
-    handleDelete,
-    handleMoveProjectToGroup,
-    handleRemoveProject,
-    handleOpenParent,
     handleOpenParentPicker,
     handleParentPickerOpenChange,
     handleRemoveParentLink,
-    handleRemoveProjectFromGroup,
-    handleRename,
-    handleSleepSubtree,
-    handleSubmitNewProjectGroup,
-    handleTogglePin,
-    handleToggleRead,
     hasAnyContextLineage,
     hasParentLink,
     isDeleting,

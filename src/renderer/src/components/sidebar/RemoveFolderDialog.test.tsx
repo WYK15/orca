@@ -83,12 +83,26 @@ describe('RemoveFolderDialog', () => {
     expect(html).not.toContain('Its files stay on')
   })
 
+  it('explains how to re-add a removed local project', () => {
+    mocks.state.modalData = { repoId: 'repo-1', displayName: 'Example' }
+    mocks.state.repos = [repo(null, undefined)]
+
+    const html = renderToStaticMarkup(<RemoveFolderDialog />)
+
+    expect(html).toContain('No folders, files, Git worktrees, or branches will be deleted')
+    expect(html).toContain('use Add Project and select its original folder')
+  })
+
   it('keeps the file-preservation promise for ordinary SSH projects', () => {
     mocks.state.repos = [repo('target-1', 'ssh:target-1')]
 
     const html = renderToStaticMarkup(<RemoveFolderDialog />)
 
-    expect(html).toContain('Its files stay on Persistent host')
+    expect(html).toContain('all of its worktrees from Orca on Persistent host')
+    expect(html).toContain('No folders, files, Git worktrees, or branches will be deleted')
+    expect(html).toContain('use Add Project, choose the same host')
+    expect(html).toContain('Remove Project from Orca?')
+    expect(html).toContain('Remove from Orca')
     expect(html).not.toContain('VM recipe')
   })
 })

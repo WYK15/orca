@@ -5115,9 +5115,11 @@
           "4dc5b5065b": "Remove",
           "d36883e046": "Cancel",
           "b79b39d865": "Remove Project",
-          "removeDescriptionSsh": "This only removes {{name}} from Orca. Its files stay on {{host}} — re-add that SSH host to recover it.",
-          "removeDescriptionLocal": "This only removes {{name}} from Orca. It is still on your disk.",
-          "removeDescriptionVmRecipe": "This removes {{name}} from Orca. Its VM recipe determines whether the environment and its files are permanently deleted."
+          "removeDescriptionSsh": "This removes {{name}} and all of its worktrees from Orca on {{host}}. Open panels and terminals will close. No folders, files, Git worktrees, or branches will be deleted. To restore the project, use Add Project, choose the same host, and enter its original path.",
+          "removeDescriptionLocal": "This removes {{name}} and all of its worktrees from Orca. Open panels and terminals will close. No folders, files, Git worktrees, or branches will be deleted. To restore the project, use Add Project and select its original folder.",
+          "removeDescriptionVmRecipe": "This removes {{name}} from Orca. Its VM recipe determines whether the environment and its files are permanently deleted.",
+          "title": "Remove Project from Orca?",
+          "confirm": "Remove from Orca"
         },
         "ScrollToCurrentWorkspaceToolbarButton": {
           "23989bb663": "Reveal active workspace"
@@ -5506,7 +5508,8 @@
           "deleteWorktree": "Delete Worktree",
           "sleepWithDescendants": "Sleep with Descendants ({{value0}})",
           "sleepWithDescendantsDescription": "Close active panels in this workspace and every nested descendant to free up memory and CPU.",
-          "deleteWithDescendants": "Delete with Descendants…"
+          "deleteWithDescendants": "Delete with Descendants…",
+          "hideWorktreeFromOrca": "Hide Worktree from Orca"
         },
         "WorktreeList": {
           "7a8b9c0d1e": "Update required",
@@ -5552,7 +5555,9 @@
           "groupRenameFailedDesc": "Orca could not confirm the new name with the group's host. Recheck the group after reconnecting.",
           "failedNestWorkspace": "Failed to nest workspace",
           "sidebarRowMissing": "Target no longer exists",
-          "failedUnnestWorkspace": "Failed to unnest workspace"
+          "failedUnnestWorkspace": "Failed to unnest workspace",
+          "manageWorktreeVisibility": "Manage Worktree Visibility…",
+          "removeProjectFromOrca": "Remove Project from Orca…"
         },
         "WorktreeMetaDialog": {
           "3db0a2a593": "Cancel",
@@ -5642,7 +5647,9 @@
           "disableSource": "Disable a source to manage its worktrees individually.",
           "appearWhenDetected": "New worktrees will appear here when Orca detects them.",
           "openGlobalSettings": "Manage in Global Settings",
-          "globalSettingsSources": "These sources have a global setting you can override here:"
+          "globalSettingsSources": "These sources have a global setting you can override here:",
+          "title": "Worktree visibility",
+          "showArchivedFailed": "Could not show this worktree."
         },
         "add": {
           "repo": {
@@ -6170,6 +6177,19 @@
           "projectOnly": "Added in this project only.",
           "useGlobalFor": "Use global for {{value0}}",
           "useGlobal": "Use global"
+        },
+        "ArchivedWorktreeRecoveryList": {
+          "heading": "Worktrees hidden by you ({{count}})",
+          "description": "Showing a worktree restores it in Orca without changing its files or Git branch.",
+          "showing": "Showing…",
+          "show": "Show"
+        },
+        "worktreeHiddenState": {
+          "hideFailed": "Could not hide this worktree",
+          "hidden": "Worktree hidden from Orca",
+          "hiddenDescription": "Its files, Git worktree, branch, and running processes were not deleted.",
+          "undo": "Undo",
+          "showFailed": "Could not show this worktree"
         }
       },
       "shared": {
@@ -14843,6 +14863,30 @@
           "directoryAccessRequestOverflow": "{{folders}}, and {{count}} more",
           "directoryAccessRequestMultiple": "This preview wants to read files in {{folders}}.",
           "allowDirectories": "Allow {{count}} folders"
+        },
+        "RichMarkdownTableInsertMenu": {
+          "table": "Table",
+          "commandError": "Could not insert table",
+          "customSize": "Custom size"
+        },
+        "RichMarkdownTableSizeDialog": {
+          "title": "Insert table",
+          "description": "A header row is added automatically.",
+          "bodyRows": "Body rows",
+          "bodyRowsError": "Enter a whole number from 1 to 100",
+          "columns": "Columns",
+          "columnsError": "Enter a whole number from 1 to 50",
+          "commandError": "Could not insert table",
+          "cancel": "Cancel",
+          "insert": "Insert"
+        },
+        "RichMarkdownTableSizeGrid": {
+          "grid": "Table size",
+          "cell": "{{bodyRows}} body rows by {{columns}} columns",
+          "selection": "{{bodyRows}} body rows × {{columns}} columns, plus 1 header row"
+        },
+        "richMarkdownSafeHtml": {
+          "sourceLabel": "Edit HTML source"
         }
       },
       "diff": {

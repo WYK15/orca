@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canHideWorktreeFromContextMenu,
   isContextWorktreeDeletable,
   shouldUseNativeContextMenu,
   shouldIgnoreNestedWorktreeContextMenuScope,
@@ -249,23 +250,39 @@ describe('parent picker context menu affordance', () => {
   })
 })
 
-describe('project removal from workspace context menus', () => {
-  it('routes every project-backed workspace row to project removal', () => {
+describe('project removal and worktree hiding in context menus', () => {
+  it('keeps project removal on primary workspace rows', () => {
     const gitRepo = { id: 'repo-1' }
     const folderRepo = { id: 'folder-1' }
 
     expect(shouldRemoveProjectFromContextMenu(gitRepo, { isMainWorktree: true })).toBe(true)
     expect(shouldRemoveProjectFromContextMenu(folderRepo, { isMainWorktree: true })).toBe(true)
-    expect(shouldRemoveProjectFromContextMenu(gitRepo, { isMainWorktree: false })).toBe(true)
+    expect(shouldRemoveProjectFromContextMenu(gitRepo, { isMainWorktree: false })).toBe(false)
     expect(shouldRemoveProjectFromContextMenu(null, { isMainWorktree: true })).toBe(false)
   })
 
-  it('offers both project removal and worktree deletion for child worktrees', () => {
+  it('offers hiding and deletion, but not project removal, for child Git worktrees', () => {
     const gitRepo = { id: 'repo-1', kind: 'git' as const }
-    const childWorktree = { isMainWorktree: false }
+    const childWorktree = { isArchived: false, isMainWorktree: false }
 
-    expect(shouldRemoveProjectFromContextMenu(gitRepo, childWorktree)).toBe(true)
+    expect(canHideWorktreeFromContextMenu(gitRepo, childWorktree)).toBe(true)
+    expect(shouldRemoveProjectFromContextMenu(gitRepo, childWorktree)).toBe(false)
     expect(isContextWorktreeDeletable(childWorktree, gitRepo)).toBe(true)
+  })
+
+  it('does not offer hiding for primary, folder, or already-hidden worktrees', () => {
+    const gitRepo = { kind: 'git' as const }
+    const folderRepo = { kind: 'folder' as const }
+
+    expect(
+      canHideWorktreeFromContextMenu(gitRepo, { isArchived: false, isMainWorktree: true })
+    ).toBe(false)
+    expect(
+      canHideWorktreeFromContextMenu(folderRepo, { isArchived: false, isMainWorktree: false })
+    ).toBe(false)
+    expect(
+      canHideWorktreeFromContextMenu(gitRepo, { isArchived: true, isMainWorktree: false })
+    ).toBe(false)
   })
 
   it('treats additional folder workspace rows as deletable workspace rows', () => {

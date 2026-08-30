@@ -131,11 +131,18 @@ export function getWorktreeParentPickerAnchor(
   return scope
 }
 
+export function canHideWorktreeFromContextMenu(
+  repo: Pick<Repo, 'kind'> | null | undefined,
+  worktree: Pick<Worktree, 'isArchived' | 'isMainWorktree'>
+): boolean {
+  return repo?.kind === 'git' && !worktree.isMainWorktree && !worktree.isArchived
+}
+
 export function shouldRemoveProjectFromContextMenu(
   repo: Pick<Repo, 'id'> | null | undefined,
-  _worktree: Pick<Worktree, 'isMainWorktree'>
+  worktree: Pick<Worktree, 'isMainWorktree'>
 ): boolean {
-  return repo != null
+  return repo != null && worktree.isMainWorktree
 }
 
 export function isContextWorktreeDeletable(

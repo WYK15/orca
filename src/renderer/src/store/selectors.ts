@@ -6,6 +6,7 @@ import type { Worktree } from '../../../shared/worktree/types'
 import type { AppState } from './types'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
 import {
+  LOCAL_EXECUTION_HOST_ID,
   getRepoExecutionHostId,
   parseExecutionHostId,
   type ExecutionHostId
@@ -211,7 +212,11 @@ export function getWorktreeOnHostFromState(
   hostId: ExecutionHostId | undefined
 ): Worktree | undefined {
   const rows = getCachedWorktreesById(state.worktreesByRepo, worktreeId)
-  return hostId ? rows.find((row) => row.hostId === hostId) : rows[0]
+  return hostId
+    ? rows.find(
+        (row) => row.hostId === hostId || (hostId === LOCAL_EXECUTION_HOST_ID && row.hostId == null)
+      )
+    : rows[0]
 }
 
 export function getHasAnyWorktreesFromState(state: Pick<AppState, 'worktreesByRepo'>): boolean {

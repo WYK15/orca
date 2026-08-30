@@ -21,4 +21,16 @@ describe('Chinese menu action localization', () => {
     expect(labels['b5d436aa30']).toBe('复制路径')
     expect(labels['66a29dde82']).toBe('复制相对路径')
   })
+
+  it('distinguishes worktree hiding from project removal', () => {
+    const sidebar = zh.auto.components.sidebar
+
+    expect(sidebar.WorktreeContextMenu.hideWorktreeFromOrca).toBe('从 Orca 中隐藏工作树')
+    expect(sidebar.WorktreeList.manageWorktreeVisibility).toBe('管理工作树可见性…')
+    expect(sidebar.WorktreeList.removeProjectFromOrca).toBe('从 Orca 中移除项目…')
+    expect(sidebar.ArchivedWorktreeRecoveryList.show).toBe('显示')
+    expect(sidebar.worktreeHiddenState.undo).toBe('撤销')
+    expect(sidebar.RemoveFolderDialog.title).toBe('从 Orca 中移除项目？')
+    expect(sidebar.RemoveFolderDialog.confirm).toBe('从 Orca 中移除')
+  })
 })

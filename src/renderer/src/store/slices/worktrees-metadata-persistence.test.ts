@@ -37,13 +37,13 @@ describe('worktree remote runtime mutations', () => {
     resetRemoteRuntimeMocks()
   })
 
-  it('persists worktree metadata through the active remote runtime environment', async () => {
+  it('persists hidden worktree state through the active remote runtime environment', async () => {
     const store = createTestStore()
     const wt = makeWorktree({ id: 'repo1::/path/wt1', repoId: 'repo1', path: '/path/wt1' })
     runtimeEnvironmentCall.mockResolvedValue({
       id: 'rpc-set',
       ok: true,
-      result: { worktree: { ...wt, comment: 'remote note' } },
+      result: { worktree: { ...wt, isArchived: true } },
       _meta: { runtimeId: 'runtime-remote' }
     })
     store.setState({
@@ -51,16 +51,16 @@ describe('worktree remote runtime mutations', () => {
       worktreesByRepo: { repo1: [wt] }
     } as Partial<AppState>)
 
-    await store.getState().updateWorktreeMeta(wt.id, { comment: 'remote note' })
+    await store.getState().updateWorktreeMeta(wt.id, { isArchived: true })
 
     expect(runtimeEnvironmentCall).toHaveBeenCalledWith({
       selector: 'env-1',
       method: 'worktree.set',
-      params: expect.objectContaining({ worktree: `id:${wt.id}`, comment: 'remote note' }),
+      params: expect.objectContaining({ worktree: `id:${wt.id}`, isArchived: true }),
       timeoutMs: 15_000
     })
     expect(mockApi.worktrees.updateMeta).not.toHaveBeenCalled()
-    expect(store.getState().worktreesByRepo.repo1[0]?.comment).toBe('remote note')
+    expect(store.getState().worktreesByRepo.repo1[0]?.isArchived).toBe(true)
   })
 
   it('force-deletes a preserved HUB-owned SSH branch through its HUB', async () => {
@@ -150,13 +150,14 @@ describe('worktree remote runtime mutations', () => {
     expect(mockApi.worktrees.forceDeletePreservedBranch).not.toHaveBeenCalled()
   })
 
-  it('persists SSH-owned worktree metadata through local IPC even when a runtime is focused', async () => {
+  it('restores SSH-owned worktree visibility through local IPC when a runtime is focused', async () => {
     const store = createTestStore()
     const wt = makeWorktree({
       id: 'repo-ssh::/home/orca/wt1',
       repoId: 'repo-ssh',
       path: '/home/orca/wt1',
-      hostId: 'ssh:ssh-1'
+      hostId: 'ssh:ssh-1',
+      isArchived: true
     })
     store.setState({
       settings: { activeRuntimeEnvironmentId: 'env-1' } as never,
@@ -173,15 +174,15 @@ describe('worktree remote runtime mutations', () => {
       worktreesByRepo: { 'repo-ssh': [wt] }
     } as Partial<AppState>)
 
-    await store.getState().updateWorktreeMeta(wt.id, { comment: 'ssh note' })
+    await store.getState().updateWorktreeMeta(wt.id, { isArchived: false })
 
     expect(mockApi.worktrees.updateMeta).toHaveBeenCalledWith({
       worktreeId: wt.id,
       executionHostId: 'ssh:ssh-1',
-      updates: expect.objectContaining({ comment: 'ssh note' })
+      updates: expect.objectContaining({ isArchived: false })
     })
     expect(runtimeEnvironmentCall).not.toHaveBeenCalled()
-    expect(store.getState().worktreesByRepo['repo-ssh'][0]?.comment).toBe('ssh note')
+    expect(store.getState().worktreesByRepo['repo-ssh'][0]?.isArchived).toBe(false)
   })
 
   it('clears pending first-agent rename when the title is updated', async () => {

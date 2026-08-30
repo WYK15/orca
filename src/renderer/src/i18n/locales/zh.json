@@ -4336,8 +4336,11 @@
           "4dc5b5065b": "移除",
           "d36883e046": "取消",
           "b79b39d865": "删除项目",
-          "removeDescriptionSsh": "此操作仅将 {{name}} 从 Orca 中移除。文件仍保留在 {{host}} 上 — 重新添加该 SSH 主机即可恢复。",
-          "removeDescriptionLocal": "此操作仅将 {{name}} 从 Orca 中移除。文件仍保留在您的磁盘上。"
+          "removeDescriptionSsh": "这会从 {{host}} 上的 Orca 中移除 {{name}} 及其所有工作树。打开的面板和终端将关闭。不会删除任何文件夹、文件、Git 工作树或分支。要恢复项目，请使用“添加项目”，选择同一主机，然后输入原路径。",
+          "removeDescriptionLocal": "这会从 Orca 中移除 {{name}} 及其所有工作树。打开的面板和终端将关闭。不会删除任何文件夹、文件、Git 工作树或分支。要恢复项目，请使用“添加项目”并选择原项目文件夹。",
+          "removeDescriptionVmRecipe": "这会从 Orca 中移除 {{name}}。其虚拟机配置决定是否永久删除环境及其中的文件。",
+          "title": "从 Orca 中移除项目？",
+          "confirm": "从 Orca 中移除"
         },
         "ScrollToCurrentWorkspaceToolbarButton": {
           "23989bb663": "显示活动工作区"
@@ -4711,7 +4714,8 @@
           "setParentWorkspace": "设置父工作树...",
           "workspaceSection": "工作区",
           "primaryDeleteDisabled": "主工作树不能删除。请改为移除项目。",
-          "deleteWorktree": "删除工作树"
+          "deleteWorktree": "删除工作树",
+          "hideWorktreeFromOrca": "从 Orca 中隐藏工作树"
         },
         "WorktreeList": {
           "d880ea0744": "创建一个组并将该项目移入其中。",
@@ -4755,7 +4759,9 @@
           "hostDisconnected": "已断开连接",
           "failedNestWorkspace": "无法嵌套工作区",
           "sidebarRowMissing": "目标不再存在",
-          "failedUnnestWorkspace": "展开工作区失败"
+          "failedUnnestWorkspace": "展开工作区失败",
+          "manageWorktreeVisibility": "管理工作树可见性…",
+          "removeProjectFromOrca": "从 Orca 中移除项目…"
         },
         "WorktreeMetaDialog": {
           "3db0a2a593": "取消",
@@ -4844,7 +4850,9 @@
           "disableSource": "禁用来源后可单独管理其工作树。",
           "appearWhenDetected": "Orca 检测到新工作树后，它们会显示在这里。",
           "openGlobalSettings": "在全局设置中管理",
-          "globalSettingsSources": "以下来源有全局设置，可在此处覆盖："
+          "globalSettingsSources": "以下来源有全局设置，可在此处覆盖：",
+          "title": "工作树可见性",
+          "showArchivedFailed": "无法显示此工作树。"
         },
         "WorktreeVisibilitySourceList": {
           "claude": "Claude Code",
@@ -4871,6 +4879,19 @@
           "projectOnly": "仅在此项目中添加。",
           "useGlobalFor": "为 {{value0}} 使用全局设置",
           "useGlobal": "使用全局设置"
+        },
+        "ArchivedWorktreeRecoveryList": {
+          "heading": "你隐藏的工作树（{{count}}）",
+          "description": "显示工作树只会将其恢复到 Orca，不会更改文件或 Git 分支。",
+          "showing": "正在显示…",
+          "show": "显示"
+        },
+        "worktreeHiddenState": {
+          "hideFailed": "无法隐藏此工作树",
+          "hidden": "已从 Orca 中隐藏工作树",
+          "hiddenDescription": "未删除其文件、Git 工作树、分支或正在运行的进程。",
+          "undo": "撤销",
+          "showFailed": "无法显示此工作树"
         },
         "add": {
           "repo": {
