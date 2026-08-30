@@ -29,6 +29,7 @@ Before writing new logic at any scale — a function, component, IPC channel, st
 
 * Audit migrations from explicitly selected legacy PR diffs and record each hunk disposition; do not infer scope from titles or scan unrelated files.
 * Use TDD only for large refactors or broad new features. For targeted migrations, fixes, and audits, use the smallest direct validation that covers the changed surface.
+* Validate each localized change with only its direct tests. Run an aggregate selected suite once per completed milestone; reserve full-suite runs for a final gate, an explicit request, or evidence that the change has broad effects. Do not rerun already-passing or unrelated suites without a changed dependency or a newly observed failure.
 
 ## Strategy and Documentation Changes
 
