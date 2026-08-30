@@ -126,10 +126,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin refs/heads/upstream-sync:refs/remotes/origin/upstream-sync
-          git merge-base --is-ancestor origin/upstream-sync HEAD
-          upstream_version="$(git show origin/upstream-sync:package.json | node -p "JSON.parse(require('node:fs').readFileSync(0, 'utf8')).version")"
           fork_version="$(node -p "require('./package.json').version")"
+          upstream_version="${fork_version%%-wyk.*}"
+          upstream_base="upstream-base/v$upstream_version"
+          git fetch origin "refs/tags/$upstream_base:refs/tags/$upstream_base"
+          git merge-base --is-ancestor "$upstream_base" HEAD
+          upstream_version="$(git show "$upstream_base:package.json" | node -p "JSON.parse(require('node:fs').readFileSync(0, 'utf8')).version")"
           node config/scripts/fork-release-contract.mjs --release \
             "v$upstream_version" "$upstream_version" "$fork_version" "$GITHUB_REF_NAME"
 

@@ -93,22 +93,20 @@ After approval, omit the commit from replay and change its registry status to `r
 
 ## Validate a candidate
 
-Validate registry structure and replay coverage:
+Run the single candidate gate from a clean worktree:
 
 ```bash
-pnpm run verify:fork-customizations
-pnpm run verify:fork-replay -- \
-  FORK_NOTES.md upstream-base/v1.4.187 HEAD
+pnpm verify:fork-upstream-adoption -- v1.4.187 HEAD
 ```
 
-Validate the new release version:
+The gate verifies the stable tag and package version, candidate ancestry, registry structure, exact-one customization replay coverage, and owned commits. It runs one deduplicated Vitest invocation for the registry's verification paths. To rerun one customization's tests after a local remediation, use `--id ORCAW-NNN`; global registry and replay checks still run.
+
+Validate the new release version only after `main` replacement:
 
 ```bash
 node config/scripts/fork-release-contract.mjs --release \
   v1.4.187 1.4.187 1.4.187-wyk.1 v1.4.187-wyk.1
 ```
-
-Then run the focused tests for every replayed, conflicted, or rewritten customization plus the desktop identity and workflow contract checks. The candidate must have a clean worktree.
 
 ### Validation budget
 

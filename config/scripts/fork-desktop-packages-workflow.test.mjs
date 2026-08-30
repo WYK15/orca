@@ -124,15 +124,20 @@ describe('fork desktop package workflow', () => {
     expect(publish.run).toContain('--draft=false')
   })
 
-  it('validates the selected upstream base and fork tag before packaging', () => {
+  it('validates the immutable upstream base and fork tag before packaging', () => {
     const workflow = parse(readFileSync(workflowPath, 'utf8'))
     const validation = workflow.jobs.package.steps.find(
       (step) => step.name === 'Validate fork release contract'
     )
 
     expect(validation.if).toBe("github.event_name == 'push'")
-    expect(validation.run).toContain('git fetch origin refs/heads/upstream-sync')
-    expect(validation.run).toContain('git merge-base --is-ancestor origin/upstream-sync HEAD')
+    expect(validation.run).toContain('upstream_base="upstream-base/v$upstream_version"')
+    expect(validation.run).toContain(
+      'git fetch origin "refs/tags/$upstream_base:refs/tags/$upstream_base"'
+    )
+    expect(validation.run).toContain('git merge-base --is-ancestor "$upstream_base" HEAD')
+    expect(validation.run).toContain('git show "$upstream_base:package.json"')
+    expect(validation.run).not.toContain('origin/upstream-sync')
     expect(validation.run).toContain('config/scripts/fork-release-contract.mjs --release')
     expect(validation.run).toContain('"$GITHUB_REF_NAME"')
   })

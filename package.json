@@ -41,6 +41,7 @@
     "verify:skill-bundle-manifest": "node config/scripts/generate-skill-bundle-manifest.mjs",
     "verify:fork-customizations": "node config/scripts/fork-customization-registry.mjs FORK_NOTES.md",
     "verify:fork-replay": "node config/scripts/fork-customization-commit-coverage.mjs FORK_NOTES.md upstream-sync",
+    "verify:fork-upstream-adoption": "node config/scripts/fork-upstream-adoption.mjs",
     "verify:macos-entitlements": "node config/scripts/verify-macos-entitlements.mjs",
     "vendor:feature-wall-assets": "node config/scripts/vendor-feature-wall-assets.mjs",
     "tc:node": "pnpm run typecheck:node",

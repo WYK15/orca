@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getForkCustomizationVerificationPaths,
   parseForkCustomizationRegistry,
   validateForkCustomizationRegistry
 } from './fork-customization-registry.mjs'
@@ -30,6 +31,20 @@ describe('fork customization registry', () => {
         verification: '`config/scripts/electron-builder-product-identity.test.mjs`',
         upstream: 'none'
       }
+    ])
+  })
+
+  it('extracts only code-span verification paths', () => {
+    const entries = parseForkCustomizationRegistry(
+      registry(
+        '| ORCAW-001 | Identity | active | 1.4.165-wyk.4 | Contract | scope | `test/identity.test.ts`, prose | none |',
+        '| ORCAW-002 | Delivery | active | 1.4.165-wyk.4 | Contract | scope | `test/delivery.test.ts` | none |'
+      )
+    )
+
+    expect(getForkCustomizationVerificationPaths(entries)).toEqual([
+      'test/identity.test.ts',
+      'test/delivery.test.ts'
     ])
   })
 

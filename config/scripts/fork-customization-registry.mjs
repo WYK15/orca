@@ -35,6 +35,12 @@ export function parseForkCustomizationRegistry(markdown) {
   )
 }
 
+export function getForkCustomizationVerificationPaths(entries) {
+  return entries.flatMap(({ verification }) =>
+    Array.from(verification.matchAll(/`([^`\r\n]+)`/g), ([, path]) => path)
+  )
+}
+
 export function validateForkCustomizationRegistry(entries) {
   const errors = []
   const seen = new Set()
