@@ -1,5 +1,12 @@
 import { getRichMarkdownRoundTripOutput } from './markdown-round-trip'
 import { extractFrontMatter } from './markdown-frontmatter'
+import {
+  createDetailsHtmlBlockMatcher,
+  detailsBodyHtmlToMarkdown,
+  extractDetailsSummaryHtml,
+  isEditableDetailsHtmlBlock
+} from './details-markdown-html'
+import { RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS } from './rich-markdown-source-reconcile'
 import { translate } from '@/i18n/i18n'
 
 export type MarkdownRichModeUnsupportedReason =
@@ -29,16 +36,6 @@ const UNSUPPORTED_PATTERNS: UnsupportedMatch[] = [
     pattern: /<\/?[A-Za-z][\w.:-]*(?:\s[^<>]*)?\/?>|<!--[\s\S]*?-->/
   },
   {
-    reason: 'reference-links',
-    get message() {
-      return translate(
-        'auto.components.editor.markdown.rich.mode.2fd2b44073',
-        'Editable only in code mode because this file contains reference-style links.'
-      )
-    },
-    pattern: /^\[[^\]]+\]:\s+\S+/m
-  },
-  {
     reason: 'footnotes',
     get message() {
       return translate(
@@ -47,6 +44,16 @@ const UNSUPPORTED_PATTERNS: UnsupportedMatch[] = [
       )
     },
     pattern: /^\[\^[^\]]+\]:\s+/m
+  },
+  {
+    reason: 'reference-links',
+    get message() {
+      return translate(
+        'auto.components.editor.markdown.rich.mode.2fd2b44073',
+        'Editable only in code mode because this file contains reference-style links.'
+      )
+    },
+    pattern: /^\[[^\]]+\]:\s+\S+/m
   }
 ]
 
@@ -58,6 +65,8 @@ export function getMarkdownRichModeUnsupportedMessage(content: string): string |
   const body = fm ? fm.body : content
 
   const contentWithoutCode = stripMarkdownCode(body)
+  const supportedDetails = stripEditableDetailsHtml(body)
+  const contentWithoutCodeOrEditableDetails = stripMarkdownCode(supportedDetails.content)
 
   // Why: run cheap regex checks first. If no unsupported syntax is detected,
   // rich mode is safe — no need for the expensive round-trip check. The
@@ -66,7 +75,7 @@ export function getMarkdownRichModeUnsupportedMessage(content: string): string |
   // opinion when HTML is detected, to verify the HTML survives the round-trip
   // before blocking the user from rich mode.
   const htmlMatcher = UNSUPPORTED_PATTERNS.find((m) => m.reason === 'html-or-jsx')
-  const hasHtml = htmlMatcher && htmlMatcher.pattern.test(contentWithoutCode)
+  const hasHtml = htmlMatcher && htmlMatcher.pattern.test(contentWithoutCodeOrEditableDetails)
 
   for (const matcher of UNSUPPORTED_PATTERNS) {
     if (matcher.reason === 'html-or-jsx') {
@@ -77,18 +86,72 @@ export function getMarkdownRichModeUnsupportedMessage(content: string): string |
     }
   }
 
-  if (hasHtml) {
+  if (hasHtml || supportedDetails.didStrip) {
     // Why: the round-trip check creates a throwaway TipTap Editor synchronously
-    // on the main thread. For large files this blocks for seconds, so we skip it and conservatively block rich mode for HTML files
-    // above this threshold.
-    const roundTripOutput = body.length <= 50_000 ? getRichMarkdownRoundTripOutput(body) : null
-    if (roundTripOutput && preservesEmbeddedHtml(contentWithoutCode, roundTripOutput)) {
+    // on the main thread. Keep unknown HTML at the original small limit; editable
+    // details may use the larger bound that also guarantees source-preserving saves.
+    const roundTripLimit =
+      supportedDetails.didStrip && !hasHtml ? RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS : 50_000
+    const roundTripOutput =
+      body.length <= roundTripLimit ? getRichMarkdownRoundTripOutput(body) : null
+    const outputFitsSourcePreservation =
+      !supportedDetails.didStrip ||
+      (roundTripOutput?.length ?? Number.POSITIVE_INFINITY) <=
+        RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS
+    if (
+      roundTripOutput &&
+      outputFitsSourcePreservation &&
+      (!hasHtml || preservesEmbeddedHtml(contentWithoutCodeOrEditableDetails, roundTripOutput))
+    ) {
       return null
     }
     return htmlMatcher!.message
   }
 
   return null
+}
+
+function stripEditableDetailsHtml(content: string): { content: string; didStrip: boolean } {
+  const matchDetailsHtmlBlock = createDetailsHtmlBlockMatcher(content)
+  let sanitized = ''
+  let cursor = 0
+  let didStrip = false
+
+  while (cursor < content.length) {
+    const tagStart = content.indexOf('<', cursor)
+    if (tagStart === -1) {
+      sanitized += content.slice(cursor)
+      break
+    }
+
+    sanitized += content.slice(cursor, tagStart)
+    if (content.slice(tagStart, tagStart + 8).toLowerCase() !== '<details') {
+      sanitized += '<'
+      cursor = tagStart + 1
+      continue
+    }
+
+    const block = matchDetailsHtmlBlock(tagStart)
+    if (!block || !isEditableDetailsHtmlBlock(block)) {
+      sanitized += '<'
+      cursor = tagStart + 1
+      continue
+    }
+
+    const summary = extractDetailsSummaryHtml(block.inner)
+    if (!summary) {
+      sanitized += '<'
+      cursor = tagStart + 1
+      continue
+    }
+
+    sanitized += `${summary.content}\n`
+    sanitized += detailsBodyHtmlToMarkdown(block.inner.slice(summary.rawLength))
+    cursor = tagStart + block.raw.length
+    didStrip = true
+  }
+
+  return { content: sanitized, didStrip }
 }
 
 function stripMarkdownCode(content: string): string {

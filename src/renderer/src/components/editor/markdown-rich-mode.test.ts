@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getMarkdownRichModeUnsupportedMessage } from './markdown-rich-mode'
+import { RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS } from './rich-markdown-source-reconcile'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -49,6 +50,66 @@ describe('getMarkdownRichModeUnsupportedMessage', () => {
   it('allows block html and mdx-like tags by preserving them as passthrough nodes', () => {
     expect(getMarkdownRichModeUnsupportedMessage('<Widget />\n')).toBeNull()
     expect(getMarkdownRichModeUnsupportedMessage('<div>block</div>\n')).toBeNull()
+  })
+
+  it('allows large editable details blocks within the source-preservation limit', () => {
+    const content = [
+      '<details>',
+      '<summary>Raw response</summary>',
+      '',
+      '```json',
+      `{"payload":"${'x'.repeat(75_000)}"}`,
+      '```',
+      '',
+      '</details>',
+      ''
+    ].join('\n')
+
+    expect(getMarkdownRichModeUnsupportedMessage(content)).toBeNull()
+  })
+
+  it('allows editable details blocks with supported paragraph and break tags', () => {
+    const content = `<details>\n<summary>Raw response</summary>\n<p>${'x'.repeat(
+      75_000
+    )}<br>tail</p>\n</details>\n`
+
+    expect(getMarkdownRichModeUnsupportedMessage(content)).toBeNull()
+  })
+
+  it('keeps the 50k limit when editable details are mixed with unknown html', () => {
+    const content = `<details>\n<summary>Known</summary>\nBody\n</details>\n<div>Unknown</div>\n${'x'.repeat(
+      50_000
+    )}`
+
+    expect(getMarkdownRichModeUnsupportedMessage(content)).not.toBeNull()
+  })
+
+  it('allows large editable details containing html-like fenced code', () => {
+    const content = `<details>\n<summary>Example</summary>\n\n\`\`\`html\n<Widget />\n\`\`\`\n${'x'.repeat(
+      50_000
+    )}\n</details>\n`
+
+    expect(getMarkdownRichModeUnsupportedMessage(content)).toBeNull()
+  })
+
+  it('blocks editable details blocks beyond the source-preservation limit', () => {
+    const content = `<details>\n<summary>Raw</summary>\n${'x'.repeat(
+      RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS
+    )}\n</details>\n`
+
+    expect(getMarkdownRichModeUnsupportedMessage(content)).not.toBeNull()
+  })
+
+  it('still detects unsupported syntax inside editable details blocks', () => {
+    const content = '<details>\n<summary>Links</summary>\n\n[guide]: ./guide.md\n</details>\n'
+
+    expect(getMarkdownRichModeUnsupportedMessage(content)).toContain('reference-style links')
+  })
+
+  it('still detects footnotes inside editable details blocks', () => {
+    const content = '<details>\n<summary>Notes</summary>\n\n[^note]: Detail\n</details>\n'
+
+    expect(getMarkdownRichModeUnsupportedMessage(content)).toContain('footnotes')
   })
 
   it('allows markdown files with front-matter', () => {

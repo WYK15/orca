@@ -172,7 +172,7 @@ describe('rich markdown round trip', () => {
     expect(roundTripMarkdown(input)).toBe(input.trimEnd())
   })
 
-  it('preserves details blocks with closing tags inside fenced code as passthrough html', () => {
+  it('keeps closing tags inside fenced code editable and preserves the code', () => {
     const input = [
       '<details><summary>Toggle</summary>',
       '',
@@ -183,7 +183,18 @@ describe('rich markdown round trip', () => {
       '</details>',
       ''
     ].join('\n')
-    expect(roundTripMarkdown(input)).toBe(input.trimEnd())
+    expect(roundTripMarkdown(input)).toBe(
+      [
+        '<details class="orca-details">',
+        '<summary>Toggle</summary>',
+        '',
+        '```',
+        '</details>',
+        '```',
+        '',
+        '</details>'
+      ].join('\n')
+    )
   })
 
   it('preserves nested details blocks as passthrough html', () => {

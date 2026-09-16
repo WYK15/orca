@@ -3,6 +3,7 @@ import { reconcileSerializedMarkdown } from './rich-markdown-source-reconcile'
 import { serializeRichMarkdownForReconcile } from './rich-markdown-reconcile-serializer'
 import { createRichMarkdownHtmlSuperscriptLinkContext } from './rich-markdown-html-superscript-link-context'
 import type { RichMarkdownImageResolverContext } from './rich-markdown-image-context'
+import { getMarkdownRichModeUnsupportedMessage } from './markdown-rich-mode'
 
 // A deterministic stand-in for the live editor's canonicalization, covering the
 // exact style rewrites #6080 reports. Used both to derive baseCanonical/edited
@@ -92,8 +93,16 @@ describe('reconcileSerializedMarkdown', () => {
     expect(reconciled).toBe(originalSource)
   })
 
+  it('preserves source style for a small edit in a document above the old size cap', () => {
+    const big = 'line of text\n'.repeat(6000) // ~78 KB
+    const originalSource = `${big}_x_\n`
+    const edited = `${big}*x* y\n`
+
+    expect(reconcileWithFake(originalSource, edited)).toBe(`${big}_x_ y\n`)
+  })
+
   it('falls back to canonical when either string exceeds the size cap (branch 3)', () => {
-    const big = 'line of text\n'.repeat(9000) // ~117 KB, above the size cap
+    const big = 'line of text\n'.repeat(13_000) // ~169 KB, above the size cap
     const originalSource = `${big}_x_\n`
     const edited = `${big}*x* y\n`
 
@@ -273,7 +282,7 @@ describe('reconcileSerializedMarkdown', () => {
   })
 
   it('restores CRLF on the oversize fallback so a uniform-CRLF file never flips to LF (branch 3)', () => {
-    const big = 'line of text\r\n'.repeat(9000) // ~130 KB, above the cap, all CRLF
+    const big = 'line of text\r\n'.repeat(12_000) // ~168 KB, above the cap, all CRLF
     const originalSource = `${big}_x_\r\n` // non-canonical emphasis, oversize
     const editedLf = `${big.replace(/\r\n/g, '\n')}*x* y\n`
 
@@ -426,6 +435,38 @@ describe('serializeRichMarkdownForReconcile (real editor pipeline)', () => {
     expect(reconciled).toContain('# Title!') // edit applied
     // Safety invariant: reconciled renders exactly to the editor's canonical output.
     expect(serialize(reconciled)!.trimEnd()).toBe(edited.trimEnd())
+  })
+
+  it('admits and source-preserves a six-details document shaped like the reported file', () => {
+    const blocks = Array.from({ length: 6 }, (_, index) =>
+      [
+        '<details>',
+        `<summary>Raw response ${index + 1}</summary>`,
+        '',
+        '```json',
+        `{"stack":"<anonymous>","payload":"${String(index).repeat(12_500)}"}`,
+        '```',
+        '',
+        '</details>'
+      ].join('\n')
+    )
+    const originalSource = `# Report\n\n${blocks.join('\n\n')}\n`
+
+    expect(originalSource.length).toBeGreaterThan(75_000)
+    expect(getMarkdownRichModeUnsupportedMessage(originalSource)).toBeNull()
+
+    const baseCanonical = serialize(originalSource)!
+    const edited = baseCanonical.replace('# Report', '# Report!')
+    const reconciled = reconcileSerializedMarkdown({
+      originalSource,
+      baseCanonical,
+      edited,
+      roundTrip: serialize
+    })
+
+    expect(reconciled).toBe(originalSource.replace('# Report', '# Report!'))
+    expect(reconciled.match(/^<details>$/gm)).toHaveLength(6)
+    expect(reconciled).not.toContain('class="orca-details"')
   })
 
   it('minimizes the diff for the exact #6080 repro (real serializer)', () => {

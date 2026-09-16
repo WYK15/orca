@@ -6,8 +6,8 @@ import {
   makePatches
 } from '@sanity/diff-match-patch'
 
-// Why: cap document size in UTF-16 code units (`.length`) since re-parse cost scales with length — the per-commit throwaway TipTap safety re-parse (~50-67ms here) must stay under the 300ms serialize debounce so it can't stall the main thread on slow/SSH hosts.
-const RECONCILE_SIZE_CAP_CODE_UNITS = 50_000
+// Why: keep safety re-parses bounded while covering medium documents that the editor handles without noticeable input delay.
+export const RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS = 150_000
 
 // Why: dmp's default 1s search freezes the renderer on replacement-heavy paths; a coarse timed-out diff is safe since the round-trip proof below rejects bad placements.
 const RECONCILE_DIFF_TIMEOUT_SECONDS = 0.01
@@ -64,7 +64,7 @@ export function reconcileSerializedMarkdown({
   // Branch 3: oversize → bounded-cost canonical fallback (today's behavior).
   if (
     Math.max(originalSource.length, baseCanonical.length, edited.length) >
-    RECONCILE_SIZE_CAP_CODE_UNITS
+    RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS
   ) {
     return restoreEol(editedLf, eol)
   }

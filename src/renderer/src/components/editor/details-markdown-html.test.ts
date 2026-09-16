@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  createDetailsHtmlBlockMatcher,
+  detailsBodyHtmlToMarkdown,
   extractDetailsSummaryHtml,
   isEditableDetailsHtmlBlock,
+  matchDetailsHtmlBlock,
   parseDetailsAttributes,
   parseToggleHeadingVariant,
   type DetailsHtmlBlock
@@ -12,6 +15,22 @@ afterEach(() => {
 })
 
 describe('details markdown html', () => {
+  it('reuses one fence scan while matching multiple details blocks', () => {
+    const matchAll = vi.spyOn(String.prototype, 'matchAll')
+    const first = '<details><summary>One</summary>Body</details>'
+    const second = '<details><summary>Two</summary>Body</details>'
+    const content = `${first}\n\n${second}\n`
+    const matchDetails = createDetailsHtmlBlockMatcher(content)
+
+    expect(matchDetails(0)?.raw).toBe(first)
+    expect(matchDetails(content.indexOf(second))?.raw).toBe(second)
+
+    const fenceScans = matchAll.mock.calls.filter(
+      ([pattern]) => pattern instanceof RegExp && pattern.source.startsWith('[^\\r\\n]*')
+    )
+    expect(fenceScans).toHaveLength(1)
+  })
+
   it('extracts leading summary html without regex capture', () => {
     const matchSpy = vi.spyOn(String.prototype, 'match')
     const inner = `\n<SUMMARY>${'Heading line\n'.repeat(1_000)}</SUMMARY><p>Body</p>`
@@ -46,6 +65,31 @@ describe('details markdown html', () => {
         pattern.source.includes('[\\s\\S]')
     )
     expect(usedSummaryCapture).toBe(false)
+  })
+
+  it('ignores html-like tags inside fenced code when classifying editable details', () => {
+    const content = [
+      '<details>',
+      '<summary>Example</summary>',
+      '',
+      '```html',
+      '<Widget />',
+      '```',
+      'Body',
+      '</details>'
+    ].join('\n')
+    const block = matchDetailsHtmlBlock(content, 0)
+
+    expect(block).not.toBeNull()
+    expect(isEditableDetailsHtmlBlock(block!)).toBe(true)
+  })
+
+  it('converts supported body html without rewriting fenced code', () => {
+    const body = ['<p>Before<br>After</p>', '', '```html', '<p>literal</p>', '```'].join('\n')
+
+    expect(detailsBodyHtmlToMarkdown(body)).toBe(
+      ['Before', 'After', '', '', '', '```html', '<p>literal</p>', '```'].join('\n')
+    )
   })
 
   it('accepts heading-5 toggle variants and rejects unsupported levels', () => {
