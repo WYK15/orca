@@ -79,6 +79,9 @@ describe('fork desktop package workflow', () => {
     expect(workflow.jobs.package.env.ORCA_WINDOWS_ARM64_RELEASE).toBe(
       "${{ matrix.platform == 'windows-arm64' && '1' || '0' }}"
     )
+    expect(workflow.jobs.package.env.ELECTRON_BUILDER_7Z_FILTER).toBe(
+      "${{ matrix.platform == 'windows-arm64' && 'BCJ' || '' }}"
+    )
     expect(windowsArm64.artifact_paths).toContain('dist/orcaw-windows-arm64-setup.exe')
     expect(windowsArm64.artifact_paths).toContain('dist/orcaw-windows-arm64-setup.exe.blockmap')
     expect(windowsArm64.artifact_paths).not.toContain('dist/latest.yml')
@@ -163,5 +166,10 @@ describe('fork desktop package workflow', () => {
     expect(verify.run).toContain('dist/win-arm64-unpacked/Orcaw.exe')
     expect(verify.run).toContain('node-pty/build/Release/conpty.node')
     expect(verify.run).toContain('0xAA64')
+    const install = workflow.jobs.package.steps.find(
+      (step) => step.name === 'Verify Windows ARM64 installer'
+    )
+    expect(install.if).toBe("matrix.platform == 'windows-arm64'")
+    expect(install.run).toContain('verify-windows-arm64-installer.ps1')
   })
 })

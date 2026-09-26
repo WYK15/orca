@@ -105,6 +105,7 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       ORCA_WINDOWS_ARM64_RELEASE: ${{ matrix.platform == 'windows-arm64' && '1' || '0' }}
+      ELECTRON_BUILDER_7Z_FILTER: ${{ matrix.platform == 'windows-arm64' && 'BCJ' || '' }}
       CSC_LINK: ${{ matrix.platform == 'macos' && secrets.CSC_LINK || '' }}
       CSC_KEY_PASSWORD: ${{ matrix.platform == 'macos' && secrets.CSC_KEY_PASSWORD || '' }}
       APPLE_API_KEY_BASE64: ${{ matrix.platform == 'macos' && secrets.APPLE_API_KEY || '' }}
@@ -223,6 +224,11 @@ jobs:
               throw "Expected ARM64 PE binary at $file; machine=0x$($machine.ToString('X4'))"
             }
           }
+
+      - name: Verify Windows ARM64 installer
+        if: matrix.platform == 'windows-arm64'
+        shell: pwsh
+        run: ./config/scripts/verify-windows-arm64-installer.ps1
 
       - name: Upload desktop packages
         uses: actions/upload-artifact@v7
