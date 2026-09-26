@@ -4,7 +4,11 @@ import { Worker } from 'node:worker_threads'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
-import { getCatalogModel } from './model-catalog'
+import {
+  getCatalogModel,
+  isLocalSpeechSupported,
+  LOCAL_SPEECH_UNAVAILABLE_MESSAGE
+} from './model-catalog'
 import type { ModelManager } from './model-manager'
 import { OpenAiTranscriptionSession } from './openai-transcription-client'
 import { readOpenAiSpeechApiKey } from './openai-api-key-store'
@@ -120,6 +124,10 @@ export class SttService {
       this.eventSink = sink
       sink({ type: 'ready' })
       return
+    }
+
+    if (!isLocalSpeechSupported()) {
+      throw new Error(LOCAL_SPEECH_UNAVAILABLE_MESSAGE)
     }
 
     if (this.cloudSession) {

@@ -24,6 +24,7 @@ const isMacHourly = process.env.ORCA_MAC_HOURLY === '1'
 const isMacAdhoc = process.env.ORCA_MAC_ADHOC === '1'
 const isMacRelease = process.env.ORCA_MAC_RELEASE === '1' || isMacHourly || isMacAdhoc
 const isLinuxArm64Release = process.env.ORCA_LINUX_ARM64_RELEASE === '1'
+const isWindowsArm64Release = process.env.ORCA_WINDOWS_ARM64_RELEASE === '1'
 const releaseAutoUpdateEnabled = isMacRelease || process.env.ORCA_RELEASE_AUTO_UPDATE === '1'
 const localBuildVersion = isMacRelease ? undefined : process.env.ORCA_LOCAL_BUILD_VERSION
 const devChannelBuildVersion = isMacHourly
@@ -135,7 +136,8 @@ module.exports = {
     // app.asar too lets asarUnpack:['resources/**'] extract a second copy at
     // app.asar.unpacked/resources/win32/bin/orcaw.cmd with no adjacent orcaw.exe,
     // which fails to launch the CLI (#7351).
-    '!resources/win32{,/**/*}'
+    '!resources/win32{,/**/*}',
+    ...(isWindowsArm64Release ? ['!node_modules/sherpa-onnx-win-x64/**'] : [])
   ],
   // Why: the CLI entry-point lives in out/cli/ but imports shared modules
   // from out/shared/ and local hook mutators from out/main/. These paths must be
@@ -285,7 +287,7 @@ module.exports = {
     extraResources: [
       ...commonExtraResources,
       ...createPackagedRuntimeNodeModuleResources('win32'),
-      winSpeechNativeResource,
+      ...(isWindowsArm64Release ? [] : [winSpeechNativeResource]),
       {
         from: 'resources/win32/bin/orcaw.cmd',
         to: 'bin/orcaw.cmd'
@@ -306,7 +308,9 @@ module.exports = {
     ]
   },
   nsis: {
-    artifactName: `${productIdentity.artifactPrefix}-windows-setup.\${ext}`,
+    artifactName: isWindowsArm64Release
+      ? `${productIdentity.artifactPrefix}-windows-arm64-setup.\${ext}`
+      : `${productIdentity.artifactPrefix}-windows-setup.\${ext}`,
     shortcutName: '${productName}',
     uninstallDisplayName: '${productName}',
     createDesktopShortcut: 'always',

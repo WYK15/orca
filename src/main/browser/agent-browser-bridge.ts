@@ -9,6 +9,7 @@ import { captureFullPageScreenshot } from './cdp-screenshot'
 import { acquireElectronDebugger } from './electron-debugger-lease'
 import type { BrowserManager } from './browser-manager'
 import { BrowserError } from './cdp-bridge'
+import { agentBrowserBinaryName } from './agent-browser-binary-name'
 import type {
   BrowserTabInfo,
   BrowserTabListResult,
@@ -173,8 +174,7 @@ type AgentBrowserBridgeOptions = {
 }
 
 function agentBrowserNativeName(): string {
-  const ext = process.platform === 'win32' ? '.exe' : ''
-  return `agent-browser-${platform()}-${arch()}${ext}`
+  return agentBrowserBinaryName(platform(), arch())
 }
 
 function resolveAgentBrowserBinary(): string {

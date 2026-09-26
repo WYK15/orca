@@ -24,12 +24,14 @@ describe('fork desktop package workflow', () => {
     expect(checkout.with.ref).toBe('${{ inputs.ref || github.ref }}')
     expect(entries.map(({ platform }) => platform)).toEqual([
       'windows-x64',
+      'windows-arm64',
       'linux-x64',
       'linux-arm64',
       'macos'
     ])
     expect(entries.map(({ os }) => os)).toEqual([
       'windows-2022',
+      'windows-11-arm',
       'ubuntu-24.04',
       'ubuntu-24.04-arm',
       'macos-15-intel'
@@ -57,6 +59,9 @@ describe('fork desktop package workflow', () => {
     const windows = workflow.jobs.package.strategy.matrix.include.find(
       ({ platform }) => platform === 'windows-x64'
     )
+    const windowsArm64 = workflow.jobs.package.strategy.matrix.include.find(
+      ({ platform }) => platform === 'windows-arm64'
+    )
     const linuxX64 = workflow.jobs.package.strategy.matrix.include.find(
       ({ platform }) => platform === 'linux-x64'
     )
@@ -70,6 +75,13 @@ describe('fork desktop package workflow', () => {
     expect(windows.artifact_paths).toContain('dist/orcaw-windows-setup.exe')
     expect(windows.artifact_paths).toContain('dist/orcaw-windows-setup.exe.blockmap')
     expect(windows.artifact_paths).toContain('dist/latest.yml')
+    expect(windowsArm64.package_command).toContain('--win --arm64 --publish never')
+    expect(workflow.jobs.package.env.ORCA_WINDOWS_ARM64_RELEASE).toBe(
+      "${{ matrix.platform == 'windows-arm64' && '1' || '0' }}"
+    )
+    expect(windowsArm64.artifact_paths).toContain('dist/orcaw-windows-arm64-setup.exe')
+    expect(windowsArm64.artifact_paths).toContain('dist/orcaw-windows-arm64-setup.exe.blockmap')
+    expect(windowsArm64.artifact_paths).not.toContain('dist/latest.yml')
     expect(linuxX64.artifact_paths).not.toContain('dist/*.AppImage.blockmap')
     expect(linuxX64.artifact_paths).toContain('dist/latest-linux.yml')
     expect(linuxX64.package_command).toContain('ORCA_RELEASE_AUTO_UPDATE=1')
@@ -116,7 +128,7 @@ describe('fork desktop package workflow', () => {
     expect(upload.run).toContain('gh release upload "$TAG_NAME"')
     expect(upload.run).toContain('--clobber')
     expect(verify.run).toContain(
-      'node config/scripts/verify-release-required-assets.mjs "$TAG_NAME"'
+      'node config/scripts/verify-release-required-assets.mjs "$TAG_NAME" --windows-arm64'
     )
     expect(publish.run).toContain('gh release edit "$TAG_NAME"')
     expect(publish.run).toContain('--draft=false')
@@ -139,5 +151,17 @@ describe('fork desktop package workflow', () => {
     )
     expect(upload.with.path).toBe('${{ matrix.artifact_paths }}')
     expect(upload.with['if-no-files-found']).toBe('error')
+  })
+
+  it('checks the ARM64 Electron and terminal binaries before upload', () => {
+    const workflow = parse(readFileSync(workflowPath, 'utf8'))
+    const verify = workflow.jobs.package.steps.find(
+      (step) => step.name === 'Verify Windows ARM64 package binaries'
+    )
+
+    expect(verify.if).toBe("matrix.platform == 'windows-arm64'")
+    expect(verify.run).toContain('dist/win-arm64-unpacked/Orcaw.exe')
+    expect(verify.run).toContain('node-pty/build/Release/conpty.node')
+    expect(verify.run).toContain('0xAA64')
   })
 })

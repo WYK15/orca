@@ -39,6 +39,19 @@ jobs:
             electron_cache: |-
               ~\AppData\Local\electron\Cache
               ~\AppData\Local\electron-builder\Cache
+          - os: windows-11-arm
+            platform: windows-arm64
+            package_command: >-
+              node config/scripts/ensure-native-runtime.mjs --runtime=electron;
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE };
+              pnpm exec electron-builder --config config/electron-builder.config.cjs
+              --win --arm64 --publish never
+            artifact_paths: |-
+              dist/orcaw-windows-arm64-setup.exe
+              dist/orcaw-windows-arm64-setup.exe.blockmap
+            electron_cache: |-
+              ~\AppData\Local\electron\Cache
+              ~\AppData\Local\electron-builder\Cache
           - os: ubuntu-24.04
             platform: linux-x64
             package_command: >-
@@ -91,6 +104,7 @@ jobs:
     timeout-minutes: 180
     env:
       NODE_OPTIONS: --max-old-space-size=4096
+      ORCA_WINDOWS_ARM64_RELEASE: ${{ matrix.platform == 'windows-arm64' && '1' || '0' }}
       CSC_LINK: ${{ matrix.platform == 'macos' && secrets.CSC_LINK || '' }}
       CSC_KEY_PASSWORD: ${{ matrix.platform == 'macos' && secrets.CSC_KEY_PASSWORD || '' }}
       APPLE_API_KEY_BASE64: ${{ matrix.platform == 'macos' && secrets.APPLE_API_KEY || '' }}
@@ -183,6 +197,33 @@ jobs:
           retry_wait_seconds: 30
           command: ${{ matrix.package_command }}
 
+      - name: Verify Windows ARM64 package binaries
+        if: matrix.platform == 'windows-arm64'
+        shell: pwsh
+        run: |
+          $files = @(
+            'dist/win-arm64-unpacked/Orcaw.exe',
+            'dist/win-arm64-unpacked/resources/node_modules/node-pty/build/Release/conpty.node',
+            'dist/win-arm64-unpacked/resources/node_modules/node-pty/build/Release/conpty_console_list.node'
+          )
+          foreach ($file in $files) {
+            $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $file).Path)
+            if ($bytes.Length -lt 64 -or [System.BitConverter]::ToUInt16($bytes, 0) -ne 0x5A4D) {
+              throw "Invalid PE binary: $file"
+            }
+            $header = [System.BitConverter]::ToInt32($bytes, 0x3C)
+            if ($header -lt 0 -or $header + 6 -gt $bytes.Length) {
+              throw "Invalid PE header offset: $file"
+            }
+            if ([System.BitConverter]::ToUInt32($bytes, $header) -ne 0x00004550) {
+              throw "Invalid PE header: $file"
+            }
+            $machine = [System.BitConverter]::ToUInt16($bytes, $header + 4)
+            if ($machine -ne 0xAA64) {
+              throw "Expected ARM64 PE binary at $file; machine=0x$($machine.ToString('X4'))"
+            }
+          }
+
       - name: Upload desktop packages
         uses: actions/upload-artifact@v7
         with:
@@ -270,7 +311,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.ref_name }}
         shell: bash
-        run: node config/scripts/verify-release-required-assets.mjs "$TAG_NAME"
+        run: node config/scripts/verify-release-required-assets.mjs "$TAG_NAME" --windows-arm64
 
       - name: Publish release
         env:

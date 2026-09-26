@@ -17,7 +17,13 @@ import type {
   SpeechModelState,
   SpeechModelStatus
 } from '../../shared/speech-types'
-import { SPEECH_MODEL_CATALOG, getCatalogModel, isLocalSpeechModel } from './model-catalog'
+import {
+  LOCAL_SPEECH_UNAVAILABLE_MESSAGE,
+  SPEECH_MODEL_CATALOG,
+  getCatalogModel,
+  isLocalSpeechModel,
+  isLocalSpeechSupported
+} from './model-catalog'
 import { hasOpenAiSpeechApiKey } from './openai-api-key-store'
 import {
   getSpeechModelCacheDirCandidates,
@@ -280,6 +286,9 @@ export class ModelManager {
     }
     if (!isLocalSpeechModel(manifest)) {
       throw new Error(`Model does not support downloads: ${modelId}`)
+    }
+    if (!isLocalSpeechSupported()) {
+      throw new Error(LOCAL_SPEECH_UNAVAILABLE_MESSAGE)
     }
     if (!manifest.downloadFiles?.length || !manifest.sizeBytes) {
       throw new Error(`Model download metadata missing: ${modelId}`)

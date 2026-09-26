@@ -33,7 +33,7 @@ Remove an entry after an upstream sync contains its equivalent commits.
 
 For a temporary test build, run `Fork Desktop Packages` from the Actions tab
 and optionally enter a branch, tag, or SHA. The workflow uploads Windows x64,
-Linux x64/ARM64, and macOS x64/ARM64 installers for 14 days.
+Windows ARM64, Linux x64/ARM64, and macOS x64/ARM64 installers for 14 days.
 
 For a permanent GitHub Release, create and push a `v*` tag:
 
@@ -53,9 +53,15 @@ installers remain available until the Release or assets are deleted. A failed
 asset upload leaves an unpublished draft that can be retried.
 
 Release assets use Orcaw names such as `orcaw-windows-setup.exe`,
+`orcaw-windows-arm64-setup.exe`,
 `orcaw-linux.AppImage`, `orcaw-ide_<version>_amd64.deb`, and
 `Orcaw-<version>-arm64-mac.zip`. The workflow verifies installers, blockmaps,
 and updater manifests before publishing the draft.
+
+The Windows ARM64 package omits native speech recognition because the pinned
+Sherpa ONNX release has no Windows ARM64 npm addon. The model picker offers
+cloud transcription instead. The bundled x64 browser helper runs through
+Windows 11 emulation; Electron and node-pty use ARM64 binaries.
 
 These personal Windows and macOS builds are unsigned, so SmartScreen or
 Gatekeeper can warn when opening them. They do not replace the app

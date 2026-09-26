@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 
 const API_VERSION = '2022-11-28'
 
-export function getRequiredReleaseAssetNames(tag) {
+export function getRequiredReleaseAssetNames(tag, { requireWindowsArm64 = false } = {}) {
   const version = tag.replace(/^v/i, '')
   return [
     'latest-linux.yml',
@@ -19,6 +19,9 @@ export function getRequiredReleaseAssetNames(tag) {
     `orcaw-ide-${version}.aarch64.rpm`,
     'orcaw-windows-setup.exe',
     'orcaw-windows-setup.exe.blockmap',
+    ...(requireWindowsArm64
+      ? ['orcaw-windows-arm64-setup.exe', 'orcaw-windows-arm64-setup.exe.blockmap']
+      : []),
     `Orcaw-${version}-mac.zip`,
     `Orcaw-${version}-mac.zip.blockmap`,
     `Orcaw-${version}-arm64-mac.zip`,
@@ -85,11 +88,16 @@ async function fetchAssetText(repo, asset, token) {
   return res.text()
 }
 
-export async function verifyRequiredReleaseAssets({ repo, tag, token }) {
+export async function verifyRequiredReleaseAssets({
+  repo,
+  tag,
+  token,
+  requireWindowsArm64 = false
+}) {
   const release = await fetchRelease(repo, tag, token)
   const assetsByName = new Map(release.assets.map((asset) => [asset.name, asset]))
 
-  const requiredNames = new Set(getRequiredReleaseAssetNames(tag))
+  const requiredNames = new Set(getRequiredReleaseAssetNames(tag, { requireWindowsArm64 }))
   const manifestNames = [
     'latest-linux.yml',
     'latest-linux-arm64.yml',
@@ -144,14 +152,17 @@ export async function verifyRequiredReleaseAssets({ repo, tag, token }) {
 async function main() {
   const tag = process.argv[2]
   if (!tag) {
-    throw new Error('Usage: node config/scripts/verify-release-required-assets.mjs <tag>')
+    throw new Error(
+      'Usage: node config/scripts/verify-release-required-assets.mjs <tag> [--windows-arm64]'
+    )
   }
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN
   if (!token) {
     throw new Error('GH_TOKEN or GITHUB_TOKEN must be set')
   }
   const repo = process.env.GITHUB_REPOSITORY || 'WYK15/orca'
-  const result = await verifyRequiredReleaseAssets({ repo, tag, token })
+  const requireWindowsArm64 = process.argv.includes('--windows-arm64')
+  const result = await verifyRequiredReleaseAssets({ repo, tag, token, requireWindowsArm64 })
   console.log(`Verified ${result.checked.length} required release assets for ${repo}@${tag}`)
 }
 

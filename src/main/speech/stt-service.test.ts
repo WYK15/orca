@@ -128,6 +128,8 @@ vi.mock('worker_threads', () => ({
 }))
 
 vi.mock('./model-catalog', () => ({
+  LOCAL_SPEECH_UNAVAILABLE_MESSAGE: 'Local speech recognition is unavailable on Windows ARM64.',
+  isLocalSpeechSupported: vi.fn(() => true),
   getCatalogModel: (id: string) =>
     id === 'openai-model'
       ? {

@@ -34,6 +34,16 @@ afterEach(() => {
 })
 
 describe('getRequiredReleaseAssetNames', () => {
+  it('requires the separate Windows ARM64 installer for fork releases', () => {
+    expect(getRequiredReleaseAssetNames('v1.4.27', { requireWindowsArm64: true })).toEqual(
+      expect.arrayContaining([
+        'orcaw-windows-setup.exe',
+        'orcaw-windows-arm64-setup.exe',
+        'orcaw-windows-arm64-setup.exe.blockmap'
+      ])
+    )
+    expect(getRequiredReleaseAssetNames('v1.4.27')).not.toContain('orcaw-windows-arm64-setup.exe')
+  })
   it('includes both mac updater ZIP names for the tag version', () => {
     expect(getRequiredReleaseAssetNames('v1.4.27')).toEqual(
       expect.arrayContaining([
