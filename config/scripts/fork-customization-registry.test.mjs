@@ -1,0 +1,99 @@
+import { readFileSync } from 'node:fs'
+import { describe, expect, it } from 'vitest'
+import {
+  getForkCustomizationVerificationPaths,
+  parseForkCustomizationRegistry,
+  validateForkCustomizationRegistry
+} from './fork-customization-registry.mjs'
+
+const HEADER = `| ID | Title | Status | Introduced | Contract | Scope | Verification | Upstream |
+| --- | --- | --- | --- | --- | --- | --- | --- |`
+
+function registry(...rows) {
+  return `# Fork Notes\n\n## Customization Registry\n\n${HEADER}\n${rows.join('\n')}\n`
+}
+
+describe('fork customization registry', () => {
+  it('retains all 17 replay-required contracts in the repository registry', () => {
+    const entries = parseForkCustomizationRegistry(readFileSync('FORK_NOTES.md', 'utf8'))
+
+    expect(validateForkCustomizationRegistry(entries)).toEqual([])
+    expect(entries.map(({ id }) => id).sort()).toEqual(
+      Array.from({ length: 17 }, (_, index) => `ORCAW-${String(index + 1).padStart(3, '0')}`)
+    )
+    expect(entries.every(({ status }) => status !== 'retired')).toBe(true)
+    expect(
+      entries.every((entry) => getForkCustomizationVerificationPaths([entry]).length > 0)
+    ).toBe(true)
+  })
+
+  it('parses an active customization', () => {
+    const entries = parseForkCustomizationRegistry(
+      registry(
+        '| ORCAW-001 | Independent identity | active | 1.4.165-wyk.4 | Keep isolated identity | `config/orcaw-product-identity.json` | `config/scripts/electron-builder-product-identity.test.mjs` | none |'
+      )
+    )
+
+    expect(entries).toEqual([
+      {
+        id: 'ORCAW-001',
+        title: 'Independent identity',
+        status: 'active',
+        introduced: '1.4.165-wyk.4',
+        contract: 'Keep isolated identity',
+        scope: '`config/orcaw-product-identity.json`',
+        verification: '`config/scripts/electron-builder-product-identity.test.mjs`',
+        upstream: 'none'
+      }
+    ])
+  })
+
+  it('extracts only code-span verification paths', () => {
+    const entries = parseForkCustomizationRegistry(
+      registry(
+        '| ORCAW-001 | Identity | active | 1.4.165-wyk.4 | Contract | scope | `test/identity.test.ts`, prose | none |',
+        '| ORCAW-002 | Delivery | active | 1.4.165-wyk.4 | Contract | scope | `test/delivery.test.ts` | none |'
+      )
+    )
+
+    expect(getForkCustomizationVerificationPaths(entries)).toEqual([
+      'test/identity.test.ts',
+      'test/delivery.test.ts'
+    ])
+  })
+
+  it.each(['active', 'upstream-candidate', 'retired'])('accepts status %s', (status) => {
+    const entries = parseForkCustomizationRegistry(
+      registry(
+        `| ORCAW-001 | Identity | ${status} | 1.4.165-wyk.4 | Contract | scope | test | none |`
+      )
+    )
+
+    expect(validateForkCustomizationRegistry(entries)).toEqual([])
+  })
+
+  it('rejects duplicate IDs, missing fields, malformed IDs, and unknown statuses', () => {
+    const entries = parseForkCustomizationRegistry(
+      registry(
+        '| ORCAW-001 | Identity | active | 1.4.165-wyk.4 | Contract | scope | test | none |',
+        '| ORCAW-001 | Duplicate | unknown | | Contract | scope | test | none |',
+        '| FORK-2 | Invalid | active | 1.4.165-wyk.4 | Contract | scope | test | none |'
+      )
+    )
+
+    expect(validateForkCustomizationRegistry(entries)).toEqual(
+      expect.arrayContaining([
+        'Duplicate customization ID: ORCAW-001',
+        'ORCAW-001 has invalid status: unknown',
+        'ORCAW-001 is missing introduced',
+        'Invalid customization ID: FORK-2'
+      ])
+    )
+  })
+
+  it('fails when the registry section is absent', () => {
+    expect(() => parseForkCustomizationRegistry('# Fork Notes\n')).toThrow(
+      'Missing ## Customization Registry table'
+    )
+  })
+})

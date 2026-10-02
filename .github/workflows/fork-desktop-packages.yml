@@ -30,7 +30,8 @@ jobs:
             package_command: >-
               node config/scripts/ensure-native-runtime.mjs --runtime=electron;
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE };
-              pnpm exec electron-builder --config config/electron-builder.config.cjs
+              pnpm exec electron-builder
+              --config config/electron-builder.config.cjs
               --win --x64 --publish never
             artifact_paths: |-
               dist/orcaw-windows-setup.exe
@@ -44,7 +45,8 @@ jobs:
             package_command: >-
               node config/scripts/ensure-native-runtime.mjs --runtime=electron;
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE };
-              pnpm exec electron-builder --config config/electron-builder.config.cjs
+              pnpm exec electron-builder
+              --config config/electron-builder.config.cjs
               --win --arm64 --publish never
             artifact_paths: |-
               dist/orcaw-windows-arm64-setup.exe
@@ -55,7 +57,8 @@ jobs:
           - os: ubuntu-24.04
             platform: linux-x64
             package_command: >-
-              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
+              node config/scripts/ensure-native-runtime.mjs
+              --runtime=electron &&
               ORCA_RELEASE_AUTO_UPDATE=1 pnpm exec electron-builder
               --config config/electron-builder.config.cjs
               --linux AppImage deb rpm --x64 --publish never
@@ -70,7 +73,8 @@ jobs:
           - os: ubuntu-24.04-arm
             platform: linux-arm64
             package_command: >-
-              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
+              node config/scripts/ensure-native-runtime.mjs
+              --runtime=electron &&
               ORCA_RELEASE_AUTO_UPDATE=1 ORCA_LINUX_ARM64_RELEASE=1
               pnpm exec electron-builder
               --config config/electron-builder.config.cjs
@@ -86,7 +90,8 @@ jobs:
           - os: macos-15-intel
             platform: macos
             package_command: >-
-              node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
+              node config/scripts/ensure-native-runtime.mjs
+              --runtime=electron &&
               node config/scripts/verify-macos-release-env.mjs &&
               ORCA_MAC_RELEASE=1 pnpm exec electron-builder
               --config config/electron-builder.config.cjs
@@ -105,13 +110,19 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       ORCA_BACKGROUND_LAUNCH: '1'
-      ORCA_WINDOWS_ARM64_RELEASE: ${{ matrix.platform == 'windows-arm64' && '1' || '0' }}
-      ELECTRON_BUILDER_7Z_FILTER: ${{ matrix.platform == 'windows-arm64' && 'BCJ' || '' }}
+      ORCA_WINDOWS_ARM64_RELEASE: >-
+        ${{ matrix.platform == 'windows-arm64' && '1' || '0' }}
+      ELECTRON_BUILDER_7Z_FILTER: >-
+        ${{ matrix.platform == 'windows-arm64' && 'BCJ' || '' }}
       CSC_LINK: ${{ matrix.platform == 'macos' && secrets.CSC_LINK || '' }}
-      CSC_KEY_PASSWORD: ${{ matrix.platform == 'macos' && secrets.CSC_KEY_PASSWORD || '' }}
-      APPLE_API_KEY_BASE64: ${{ matrix.platform == 'macos' && secrets.APPLE_API_KEY || '' }}
-      APPLE_API_KEY_ID: ${{ matrix.platform == 'macos' && secrets.APPLE_API_KEY_ID || '' }}
-      APPLE_API_ISSUER: ${{ matrix.platform == 'macos' && secrets.APPLE_API_ISSUER || '' }}
+      CSC_KEY_PASSWORD: >-
+        ${{ matrix.platform == 'macos' && secrets.CSC_KEY_PASSWORD || '' }}
+      APPLE_API_KEY_BASE64: >-
+        ${{ matrix.platform == 'macos' && secrets.APPLE_API_KEY || '' }}
+      APPLE_API_KEY_ID: >-
+        ${{ matrix.platform == 'macos' && secrets.APPLE_API_KEY_ID || '' }}
+      APPLE_API_ISSUER: >-
+        ${{ matrix.platform == 'macos' && secrets.APPLE_API_ISSUER || '' }}
 
     steps:
       - name: Checkout requested ref
@@ -124,7 +135,8 @@ jobs:
       - name: Identify checked-out source
         id: source
         shell: bash
-        run: echo "short_sha=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+        run: >-
+          echo "short_sha=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
@@ -142,25 +154,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin refs/heads/upstream-sync:refs/remotes/origin/upstream-sync
-          git merge-base --is-ancestor origin/upstream-sync HEAD
-          upstream_version="$(git show origin/upstream-sync:package.json | node -p "JSON.parse(require('node:fs').readFileSync(0, 'utf8')).version")"
           fork_version="$(node -p "require('./package.json').version")"
+          upstream_version="${fork_version%%-wyk.*}"
+          upstream_base="upstream-base/v$upstream_version"
+          git fetch origin "refs/tags/$upstream_base:refs/tags/$upstream_base"
+          git merge-base --is-ancestor "$upstream_base" HEAD
+          upstream_version="$(git show "$upstream_base:package.json" | \
+            node -p \
+            "JSON.parse(require('node:fs').readFileSync(0, 'utf8')).version")"
           node config/scripts/fork-release-contract.mjs --release \
-            "v$upstream_version" "$upstream_version" "$fork_version" "$GITHUB_REF_NAME"
+            "v$upstream_version" "$upstream_version" "$fork_version" \
+            "$GITHUB_REF_NAME"
 
       - name: Use external node-gyp on Linux
         if: runner.os == 'Linux'
         shell: bash
         run: |
           npm install -g node-gyp@11.5.0
-          echo "npm_config_node_gyp=$(npm root -g)/node-gyp/bin/node-gyp.js" >> "$GITHUB_ENV"
+          echo "npm_config_node_gyp=$(npm root -g)/node-gyp/bin/node-gyp.js" \
+            >> "$GITHUB_ENV"
 
       - name: Cache Electron Builder downloads
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ${{ matrix.electron_cache }}
-          key: fork-electron-builder-${{ matrix.platform }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: >-
+            fork-electron-builder-${{ matrix.platform }}-${{
+            hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             fork-electron-builder-${{ matrix.platform }}-
 
@@ -170,9 +190,13 @@ jobs:
           timeout_minutes: 10
           max_attempts: 3
           retry_wait_seconds: 30
-          command: ${{ matrix.platform == 'macos' && 'pnpm install --frozen-lockfile --cpu=current,x64,arm64' || 'pnpm install --frozen-lockfile' }}
+          command: >-
+            ${{ matrix.platform == 'macos' &&
+            'pnpm install --frozen-lockfile --cpu=current,x64,arm64' ||
+            'pnpm install --frozen-lockfile' }}
 
-      # `build:release` imports AT-SPI bindings, and rpm packaging needs fpm's rpm backend.
+      # `build:release` imports AT-SPI bindings;
+      # rpm packaging needs fpm's rpm backend.
       - name: Install Linux package dependencies
         if: runner.os == 'Linux'
         shell: bash
@@ -198,9 +222,12 @@ jobs:
           security create-keychain -p "$keychain_password" "$keychain_path"
           security unlock-keychain -p "$keychain_password" "$keychain_path"
           security set-keychain-settings "$keychain_path"
-          security import "$certificate_path" -k "$keychain_path" -T /usr/bin/codesign -P "$CSC_KEY_PASSWORD"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain_path"
-          printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
+          security import "$certificate_path" -k "$keychain_path" \
+            -T /usr/bin/codesign -P "$CSC_KEY_PASSWORD"
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$keychain_password" "$keychain_path"
+          printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode \
+            > "$api_key_path"
           chmod 600 "$certificate_path" "$api_key_path"
           echo "ORCA_MACOS_SIGNING_KEYCHAIN=$keychain_path" >> "$GITHUB_ENV"
           echo "APPLE_API_KEY=$api_key_path" >> "$GITHUB_ENV"
@@ -219,24 +246,39 @@ jobs:
         run: |
           $files = @(
             'dist/win-arm64-unpacked/Orcaw.exe',
-            'dist/win-arm64-unpacked/resources/node_modules/node-pty/build/Release/conpty.node',
-            'dist/win-arm64-unpacked/resources/node_modules/node-pty/build/Release/conpty_console_list.node'
+            (
+              'dist/win-arm64-unpacked/resources/' +
+              'node_modules/node-pty/build/Release/conpty.node'
+            ),
+            (
+              'dist/win-arm64-unpacked/resources/' +
+              'node_modules/node-pty/prebuilds/' +
+              'win32-arm64/conpty_console_list.node'
+            )
           )
           foreach ($file in $files) {
             $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $file).Path)
-            if ($bytes.Length -lt 64 -or [System.BitConverter]::ToUInt16($bytes, 0) -ne 0x5A4D) {
+            if (
+              $bytes.Length -lt 64 -or
+              [System.BitConverter]::ToUInt16($bytes, 0) -ne 0x5A4D
+            ) {
               throw "Invalid PE binary: $file"
             }
             $header = [System.BitConverter]::ToInt32($bytes, 0x3C)
             if ($header -lt 0 -or $header + 6 -gt $bytes.Length) {
               throw "Invalid PE header offset: $file"
             }
-            if ([System.BitConverter]::ToUInt32($bytes, $header) -ne 0x00004550) {
+            if (
+              [System.BitConverter]::ToUInt32($bytes, $header) -ne 0x00004550
+            ) {
               throw "Invalid PE header: $file"
             }
             $machine = [System.BitConverter]::ToUInt16($bytes, $header + 4)
             if ($machine -ne 0xAA64) {
-              throw "Expected ARM64 PE binary at $file; machine=0x$($machine.ToString('X4'))"
+              throw (
+                "Expected ARM64 PE binary at $file; " +
+                "machine=0x$($machine.ToString('X4'))"
+              )
             }
           }
 
@@ -246,9 +288,12 @@ jobs:
         run: ./config/scripts/verify-windows-arm64-installer.ps1
 
       - name: Upload desktop packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: >- # v7
+          actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: orcaw-${{ matrix.platform }}-${{ github.run_number }}-${{ steps.source.outputs.short_sha }}
+          name: >-
+            orcaw-${{ matrix.platform }}-${{ github.run_number }}-${{
+            steps.source.outputs.short_sha }}
           path: ${{ matrix.artifact_paths }}
           if-no-files-found: error
           retention-days: 14
@@ -268,7 +313,8 @@ jobs:
           persist-credentials: false
 
       - name: Download desktop packages
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: >- # v8
+          actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: orcaw-*-${{ github.run_number }}-*
           path: release-assets
@@ -332,7 +378,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.ref_name }}
         shell: bash
-        run: node config/scripts/verify-release-required-assets.mjs "$TAG_NAME" --windows-arm64
+        run: >-
+          node config/scripts/verify-release-required-assets.mjs
+          "$TAG_NAME" --windows-arm64
 
       - name: Publish release
         env:

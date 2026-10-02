@@ -15,7 +15,10 @@ $files = @(
   'Orcaw.exe',
   'ffmpeg.dll',
   'resources/node_modules/node-pty/build/Release/conpty.node',
-  'resources/node_modules/node-pty/build/Release/conpty_console_list.node'
+  (
+    'resources/node_modules/node-pty/prebuilds/' +
+    'win32-arm64/conpty_console_list.node'
+  )
 )
 foreach ($file in $files) {
   $installedPath = Join-Path $installDir $file

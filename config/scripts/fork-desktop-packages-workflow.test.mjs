@@ -152,15 +152,20 @@ describe('fork desktop package workflow', () => {
     expect(publish.run).toContain('--draft=false')
   })
 
-  it('validates the selected upstream base and fork tag before packaging', () => {
+  it('validates the immutable upstream base and fork tag before packaging', () => {
     const workflow = parse(readFileSync(workflowPath, 'utf8'))
     const validation = workflow.jobs.package.steps.find(
       (step) => step.name === 'Validate fork release contract'
     )
 
     expect(validation.if).toBe("github.event_name == 'push'")
-    expect(validation.run).toContain('git fetch origin refs/heads/upstream-sync')
-    expect(validation.run).toContain('git merge-base --is-ancestor origin/upstream-sync HEAD')
+    expect(validation.run).toContain('upstream_base="upstream-base/v$upstream_version"')
+    expect(validation.run).toContain(
+      'git fetch origin "refs/tags/$upstream_base:refs/tags/$upstream_base"'
+    )
+    expect(validation.run).toContain('git merge-base --is-ancestor "$upstream_base" HEAD')
+    expect(validation.run).toContain('git show "$upstream_base:package.json"')
+    expect(validation.run).not.toContain('origin/upstream-sync')
     expect(validation.run).toContain('config/scripts/fork-release-contract.mjs --release')
     expect(validation.run).toContain('"$GITHUB_REF_NAME"')
   })
@@ -193,6 +198,17 @@ describe('fork desktop package workflow', () => {
     expect(verify.if).toBe("matrix.platform == 'windows-arm64'")
     expect(verify.run).toContain('dist/win-arm64-unpacked/Orcaw.exe')
     expect(verify.run).toContain('node-pty/build/Release/conpty.node')
+    const unpackedCheck = verify.run.replace(/'\s*\+\s*'/g, '')
+    const installedCheck = readFileSync(
+      'config/scripts/verify-windows-arm64-installer.ps1',
+      'utf8'
+    ).replace(/'\s*\+\s*'/g, '')
+    const consoleListPath = 'node_modules/node-pty/prebuilds/win32-arm64/conpty_console_list.node'
+    for (const check of [unpackedCheck, installedCheck]) {
+      expect(check).toContain(consoleListPath)
+      expect(check).toContain('node-pty/build/Release/conpty.node')
+      expect(check).not.toContain('build/Release/conpty_console_list.node')
+    }
     expect(verify.run).toContain('0xAA64')
     const install = workflow.jobs.package.steps.find(
       (step) => step.name === 'Verify Windows ARM64 installer'
