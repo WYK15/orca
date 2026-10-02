@@ -14,12 +14,12 @@ function registry(...rows) {
 }
 
 describe('fork customization registry', () => {
-  it('retains all 17 replay-required contracts in the repository registry', () => {
+  it('retains all 18 replay-required contracts in the repository registry', () => {
     const entries = parseForkCustomizationRegistry(readFileSync('FORK_NOTES.md', 'utf8'))
 
     expect(validateForkCustomizationRegistry(entries)).toEqual([])
     expect(entries.map(({ id }) => id).sort()).toEqual(
-      Array.from({ length: 17 }, (_, index) => `ORCAW-${String(index + 1).padStart(3, '0')}`)
+      Array.from({ length: 18 }, (_, index) => `ORCAW-${String(index + 1).padStart(3, '0')}`)
     )
     expect(entries.every(({ status }) => status !== 'retired')).toBe(true)
     expect(

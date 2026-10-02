@@ -92,8 +92,7 @@ jobs:
             package_command: >-
               node config/scripts/ensure-native-runtime.mjs
               --runtime=electron &&
-              node config/scripts/verify-macos-release-env.mjs &&
-              ORCA_MAC_RELEASE=1 pnpm exec electron-builder
+              ORCA_MAC_SELF_SIGNED=1 pnpm exec electron-builder
               --config config/electron-builder.config.cjs
               --mac --publish never
             artifact_paths: |-
@@ -114,15 +113,8 @@ jobs:
         ${{ matrix.platform == 'windows-arm64' && '1' || '0' }}
       ELECTRON_BUILDER_7Z_FILTER: >-
         ${{ matrix.platform == 'windows-arm64' && 'BCJ' || '' }}
-      CSC_LINK: ${{ matrix.platform == 'macos' && secrets.CSC_LINK || '' }}
-      CSC_KEY_PASSWORD: >-
-        ${{ matrix.platform == 'macos' && secrets.CSC_KEY_PASSWORD || '' }}
-      APPLE_API_KEY_BASE64: >-
-        ${{ matrix.platform == 'macos' && secrets.APPLE_API_KEY || '' }}
-      APPLE_API_KEY_ID: >-
-        ${{ matrix.platform == 'macos' && secrets.APPLE_API_KEY_ID || '' }}
-      APPLE_API_ISSUER: >-
-        ${{ matrix.platform == 'macos' && secrets.APPLE_API_ISSUER || '' }}
+      ORCA_MAC_SELF_SIGNED: >-
+        ${{ matrix.platform == 'macos' && '1' || '0' }}
 
     steps:
       - name: Checkout requested ref
@@ -210,28 +202,6 @@ jobs:
       - name: Build package inputs
         run: pnpm run build:release
 
-      - name: Prepare macOS signing and notarization keys
-        if: matrix.platform == 'macos'
-        shell: bash
-        run: |
-          certificate_path="$RUNNER_TEMP/orcaw-developer-id.p12"
-          keychain_path="$RUNNER_TEMP/orcaw-signing.keychain-db"
-          keychain_password="$(openssl rand -base64 32)"
-          api_key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
-          printf '%s' "$CSC_LINK" | base64 --decode > "$certificate_path"
-          security create-keychain -p "$keychain_password" "$keychain_path"
-          security unlock-keychain -p "$keychain_password" "$keychain_path"
-          security set-keychain-settings "$keychain_path"
-          security import "$certificate_path" -k "$keychain_path" \
-            -T /usr/bin/codesign -P "$CSC_KEY_PASSWORD"
-          security set-key-partition-list -S apple-tool:,apple: -s \
-            -k "$keychain_password" "$keychain_path"
-          printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode \
-            > "$api_key_path"
-          chmod 600 "$certificate_path" "$api_key_path"
-          echo "ORCA_MACOS_SIGNING_KEYCHAIN=$keychain_path" >> "$GITHUB_ENV"
-          echo "APPLE_API_KEY=$api_key_path" >> "$GITHUB_ENV"
-
       - name: Package desktop app
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4
         with:
@@ -239,6 +209,13 @@ jobs:
           max_attempts: 2
           retry_wait_seconds: 30
           command: ${{ matrix.package_command }}
+
+      - name: Verify macOS self-signed packages
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: >-
+          node config/scripts/verify-computer-native.mjs --self-signed
+          dist/mac/Orcaw.app dist/mac-arm64/Orcaw.app
 
       - name: Verify Windows ARM64 package binaries
         if: matrix.platform == 'windows-arm64'

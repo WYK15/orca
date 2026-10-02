@@ -96,8 +96,20 @@ const checks = [
   }
 ]
 
+const selfSignedPaths = process.argv[2] === '--self-signed' ? process.argv.slice(3) : null
+const selectedChecks = selfSignedPaths
+  ? (selfSignedPaths.length
+      ? selfSignedPaths
+      : ['dist/mac/Orcaw.app', 'dist/mac-arm64/Orcaw.app']
+    ).map((appPath) => ({
+      name: `self-signed macOS package ${appPath}`,
+      run: () => verifySelfSignedMacOSApp(resolve(repoRoot, appPath)),
+      enabled: true
+    }))
+  : checks
+
 let failed = false
-for (const check of checks) {
+for (const check of selectedChecks) {
   if (!check.enabled) {
     console.log(`[computer-native] skip ${check.name}`)
     continue
@@ -140,6 +152,24 @@ function hasCommand(command) {
     stdio: 'ignore'
   })
   return result.status === 0
+}
+
+function verifySelfSignedMacOSApp(appPath) {
+  const signature = spawnSync('codesign', ['--display', '--verbose=4', appPath], {
+    encoding: 'utf8'
+  })
+  if (
+    signature.error ||
+    signature.status !== 0 ||
+    !/^Signature=adhoc$/m.test(signature.stderr ?? '')
+  ) {
+    console.error(`[computer-native] expected ad-hoc signature at ${appPath}`)
+    return false
+  }
+  const verification = spawnSync('codesign', ['--verify', '--deep', '--strict', appPath], {
+    stdio: 'inherit'
+  })
+  return verification.status === 0 && !verification.error
 }
 
 function verifyMacOSHelperApp() {

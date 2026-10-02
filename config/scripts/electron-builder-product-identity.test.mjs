@@ -7,6 +7,8 @@ const MUTABLE_BUILD_ENV = [
   'ORCA_MAC_HOURLY',
   'ORCA_MAC_ADHOC',
   'ORCA_MAC_RELEASE',
+  'ORCA_MAC_DAILY',
+  'ORCA_MAC_SELF_SIGNED',
   'ORCA_HOURLY_BUILD_VERSION',
   'ORCA_ADHOC_BUILD_VERSION',
   'ORCA_LOCAL_BUILD_VERSION',
@@ -125,6 +127,22 @@ describe('electron-builder product identity', () => {
         })
       }
     )
+  })
+
+  it.each([
+    'ORCA_MAC_RELEASE',
+    'ORCA_MAC_HOURLY',
+    'ORCA_MAC_DAILY',
+    'ORCA_MAC_ADHOC',
+    'ORCA_RELEASE_AUTO_UPDATE'
+  ])('keeps self-signed packages manual-only even with %s', (flag) => {
+    withEnv({ ORCA_MAC_SELF_SIGNED: '1', [flag]: '1' }, (config) => {
+      expect(config.mac.identity).toBeNull()
+      expect(config.mac.hardenedRuntime).toBe(false)
+      expect(config.mac.notarize).toBe(false)
+      expect(config.extraMetadata.orcawMacAutoUpdate).toBe(false)
+      expect(config.extraMetadata.orcawReleaseAutoUpdate).toBe(false)
+    })
   })
 
   it('stamps explicitly auto-updatable release packages', () => {

@@ -48,10 +48,15 @@ const isWinHourly = process.env.ORCA_WIN_HOURLY === '1'
 const isWinDaily = process.env.ORCA_WIN_DAILY === '1'
 const isWinAdhoc = process.env.ORCA_WIN_ADHOC === '1'
 const isWinDevChannel = isWinHourly || isWinDaily || isWinAdhoc
-const isMacRelease = process.env.ORCA_MAC_RELEASE === '1' || isMacHourly || isMacDaily || isMacAdhoc
+// Personal self-signing is separate from the Developer ID adhoc channel.
+const isMacSelfSigned = process.env.ORCA_MAC_SELF_SIGNED === '1'
+const isMacRelease =
+  !isMacSelfSigned &&
+  (process.env.ORCA_MAC_RELEASE === '1' || isMacHourly || isMacDaily || isMacAdhoc)
 const isLinuxArm64Release = process.env.ORCA_LINUX_ARM64_RELEASE === '1'
 const isWindowsArm64Release = process.env.ORCA_WINDOWS_ARM64_RELEASE === '1'
-const releaseAutoUpdateEnabled = isMacRelease || process.env.ORCA_RELEASE_AUTO_UPDATE === '1'
+const releaseAutoUpdateEnabled =
+  !isMacSelfSigned && (isMacRelease || process.env.ORCA_RELEASE_AUTO_UPDATE === '1')
 const localBuildVersion =
   isMacRelease || isWinDevChannel ? undefined : process.env.ORCA_LOCAL_BUILD_VERSION
 const isHourlyChannel = isMacHourly || isWinHourly
@@ -423,6 +428,9 @@ module.exports = {
         'orca-keyboard-layout',
         context.packager
       )
+      if (isMacSelfSigned) {
+        signMacSelfSignedApp(join(resourcesDir, '..', '..'))
+      }
     }
   },
   win: {
@@ -526,6 +534,8 @@ module.exports = {
     // credentials. Hardened runtime + notarization stay enabled only on the
     // explicit release path so production artifacts remain strict while dev
     // artifacts do not fail with broken ad-hoc launch behavior.
+    // Skip identity discovery and CSC import; afterPack explicitly seals and verifies.
+    ...(isMacSelfSigned ? { identity: null } : {}),
     hardenedRuntime: isMacRelease,
     // Why dev builds notarize too, despite the ~10min notary round trip: TCC
     // anchors a notarized Developer ID app's permission grants on identifier +
@@ -730,7 +740,7 @@ function chmodMacServeSimHelpers(resourcesDir, electronPlatformName) {
 
 async function signMacComputerUseHelper(helperAppPath, packager) {
   if (!existsSync(helperAppPath)) {
-    if (isMacRelease) {
+    if (isMacRelease || isMacSelfSigned) {
       throw new Error(
         `Missing ${productIdentity.computerUseAppName} helper app at ${helperAppPath}`
       )
@@ -742,6 +752,7 @@ async function signMacComputerUseHelper(helperAppPath, packager) {
       ? await packager.codeSigningInfo.value
       : null
   const identity =
+    (isMacSelfSigned ? '-' : undefined) ??
     process.env.ORCA_COMPUTER_MACOS_SIGN_IDENTITY ??
     process.env.CSC_NAME ??
     findInstalledMacSigningIdentity(
@@ -761,7 +772,7 @@ async function signMacComputerUseHelper(helperAppPath, packager) {
 
 async function signMacStandaloneHelper(helperPath, helperName, packager) {
   if (!existsSync(helperPath)) {
-    if (isMacRelease) {
+    if (isMacRelease || isMacSelfSigned) {
       throw new Error(`Missing ${helperName} helper at ${helperPath}`)
     }
     return
@@ -771,6 +782,7 @@ async function signMacStandaloneHelper(helperPath, helperName, packager) {
       ? await packager.codeSigningInfo.value
       : null
   const identity =
+    (isMacSelfSigned ? '-' : undefined) ??
     process.env.CSC_NAME ??
     findInstalledMacSigningIdentity(
       process.env.ORCA_MACOS_SIGNING_KEYCHAIN ?? codeSigningInfo?.keychainFile
@@ -787,6 +799,28 @@ async function signMacStandaloneHelper(helperPath, helperName, packager) {
   args.push(helperPath)
   execFileSync('codesign', args, { stdio: 'inherit' })
   execFileSync('codesign', ['--verify', '--strict', helperPath], { stdio: 'inherit' })
+}
+
+function signMacSelfSignedApp(appPath) {
+  // Preserve nested Electron JIT entitlements; apply Orcaw entitlements only to the outer app.
+  execFileSync(
+    'codesign',
+    ['--force', '--deep', '--sign', '-', '--preserve-metadata=entitlements', appPath],
+    { stdio: 'inherit' }
+  )
+  execFileSync(
+    'codesign',
+    [
+      '--force',
+      '--sign',
+      '-',
+      '--entitlements',
+      resolve(__dirname, '../resources/build/entitlements.mac.plist'),
+      appPath
+    ],
+    { stdio: 'inherit' }
+  )
+  execFileSync('codesign', ['--verify', '--deep', '--strict', appPath], { stdio: 'inherit' })
 }
 
 function codesignArgs(identity, targetPath) {

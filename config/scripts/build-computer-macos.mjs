@@ -71,6 +71,9 @@ function codesignArgs(identity, targetPath) {
 }
 
 function resolveSigningIdentity() {
+  if (process.env.ORCA_MAC_SELF_SIGNED === '1') {
+    return '-'
+  }
   const explicitIdentity = process.env.ORCA_COMPUTER_MACOS_SIGN_IDENTITY ?? process.env.CSC_NAME
   if (explicitIdentity) {
     return explicitIdentity

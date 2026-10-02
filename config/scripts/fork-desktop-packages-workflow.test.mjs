@@ -106,8 +106,9 @@ describe('fork desktop package workflow', () => {
     expect(linuxArm64.package_command).toContain('ORCA_RELEASE_AUTO_UPDATE=1')
     expect(windows.package_command).not.toContain('ORCA_RELEASE_AUTO_UPDATE=1')
     expect(macos.package_command).toContain('--mac --publish never')
-    expect(macos.package_command).toContain('node config/scripts/verify-macos-release-env.mjs')
-    expect(macos.package_command).toContain('ORCA_MAC_RELEASE=1')
+    expect(macos.package_command).not.toContain('verify-macos-release-env')
+    expect(macos.package_command).toContain('ORCA_MAC_SELF_SIGNED=1')
+    expect(macos.package_command).not.toContain('ORCA_MAC_RELEASE=1')
     expect(macos.package_command).not.toContain('ORCA_RELEASE_AUTO_UPDATE=1')
     expect(macos.package_command).not.toMatch(/--(?:x64|arm64)/)
     expect(macos.artifact_paths).toContain('dist/orcaw-macos-*.dmg')
@@ -115,6 +116,30 @@ describe('fork desktop package workflow', () => {
     expect(macos.artifact_paths).toContain('dist/Orcaw-*-mac.zip')
     expect(macos.artifact_paths).toContain('dist/Orcaw-*-mac.zip.blockmap')
     expect(macos.artifact_paths).toContain('dist/latest-mac.yml')
+  })
+
+  it('uses no Apple credentials and verifies actual self-signed macOS bundles before upload', () => {
+    const source = readFileSync(workflowPath, 'utf8')
+    const workflow = parse(source)
+    const steps = workflow.jobs.package.steps
+    expect(workflow.jobs.package.env.ORCA_MAC_SELF_SIGNED).toBe(
+      "${{ matrix.platform == 'macos' && '1' || '0' }}"
+    )
+    for (const secret of ['CSC_LINK', 'CSC_KEY_PASSWORD', 'APPLE_API_KEY', 'APPLE_API_ISSUER']) {
+      expect(source).not.toContain(secret)
+    }
+    expect(source).not.toContain('security import')
+    const verify = steps.find((step) => step.name === 'Verify macOS self-signed packages')
+    expect(verify?.if).toBe("matrix.platform == 'macos'")
+    expect(verify?.run).toContain('verify-computer-native.mjs --self-signed')
+    expect(verify?.run).toContain('dist/mac/Orcaw.app')
+    expect(verify?.run).toContain('dist/mac-arm64/Orcaw.app')
+    expect(steps.indexOf(verify)).toBeGreaterThan(
+      steps.findIndex((step) => step.name === 'Package desktop app')
+    )
+    expect(steps.indexOf(verify)).toBeLessThan(
+      steps.findIndex((step) => step.name === 'Upload desktop packages')
+    )
   })
 
   it('publishes complete tag builds through one least-privilege release job', () => {
