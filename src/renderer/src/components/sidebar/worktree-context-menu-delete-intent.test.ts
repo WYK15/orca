@@ -28,6 +28,7 @@ describe('createWorktreeContextMenuDeleteIntent', () => {
 
     expect(mocks.runDelete).toHaveBeenCalledWith('shared', {
       expectedInstanceId: 'ssh-instance',
+      forceConfirm: true,
       expectedHostId: 'ssh:box'
     })
   })
@@ -45,7 +46,7 @@ describe('createWorktreeContextMenuDeleteIntent', () => {
 
     runWorktreeContextMenuDeleteIntent(intent)
 
-    expect(mocks.runBatchDelete).toHaveBeenCalledWith(worktrees)
+    expect(mocks.runBatchDelete).toHaveBeenCalledWith(worktrees, { forceConfirm: true })
   })
 
   it('preserves the folder owner host in a context-menu delete intent', () => {
@@ -96,7 +97,8 @@ describe('deferWorktreeContextMenuDeleteIntent', () => {
     deferred()
 
     expect(mocks.runDelete).toHaveBeenCalledWith('repo::/work/wt', {
-      expectedInstanceId: 'instance-1'
+      expectedInstanceId: 'instance-1',
+      forceConfirm: true
     })
     expect(onDispatched).toHaveBeenCalledOnce()
   })
@@ -112,7 +114,20 @@ describe('deferWorktreeContextMenuDeleteIntent', () => {
 
     deferWorktreeContextMenuDeleteIntent(intent, undefined, (callback) => callback())
 
-    expect(mocks.runBatchDelete).toHaveBeenCalledWith(intent.worktrees)
+    expect(mocks.runBatchDelete).toHaveBeenCalledWith(intent.worktrees, { forceConfirm: true })
+  })
+
+  it('forces confirmation when a multi-context menu has only one eligible target', () => {
+    const worktree = { id: 'child', instanceId: 'child-instance' }
+    const intent = createWorktreeContextMenuDeleteIntent({
+      worktree,
+      batchDeleteWorktrees: [worktree],
+      isMultiContext: true
+    })
+
+    runWorktreeContextMenuDeleteIntent(intent)
+
+    expect(mocks.runBatchDelete).toHaveBeenCalledWith([worktree], { forceConfirm: true })
   })
 
   it('dispatches on the next macrotask by default', () => {
@@ -128,7 +143,8 @@ describe('deferWorktreeContextMenuDeleteIntent', () => {
     expect(mocks.runDelete).not.toHaveBeenCalled()
     vi.runAllTimers()
     expect(mocks.runDelete).toHaveBeenCalledWith('wt-1', {
-      expectedInstanceId: 'instance-1'
+      expectedInstanceId: 'instance-1',
+      forceConfirm: true
     })
   })
 })
