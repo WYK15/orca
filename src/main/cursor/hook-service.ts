@@ -7,6 +7,7 @@ import {
   createManagedCommandMatcher,
   getSharedManagedScriptPath,
   readHooksJson,
+  readHooksJsonWithRaw,
   removeManagedCommands,
   writeHooksJson,
   writeManagedScript,
@@ -260,7 +261,11 @@ export class CursorHookService {
 
   remove(): AgentHookInstallStatus {
     const configPath = getConfigPath()
-    const config = readHooksJson(configPath)
+    const snapshot = readHooksJsonWithRaw(configPath)
+    if (snapshot.state === 'missing') {
+      return this.getStatus()
+    }
+    const config = snapshot.config
     if (!config) {
       return {
         agent: 'cursor',

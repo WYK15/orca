@@ -5,6 +5,7 @@ import type { AgentHookInstallState, AgentHookInstallStatus } from '../../shared
 import {
   getSharedManagedScriptPath,
   readHooksJson,
+  readHooksJsonWithRaw,
   wrapPosixHookCommand,
   wrapWindowsCmdHookCommand,
   writeHooksJson,
@@ -213,7 +214,11 @@ export class AntigravityHookService {
 
   remove(): AgentHookInstallStatus {
     const configPath = getConfigPath()
-    const config = readHooksJson(configPath)
+    const snapshot = readHooksJsonWithRaw(configPath)
+    if (snapshot.state === 'missing') {
+      return this.getStatus()
+    }
+    const config = snapshot.config
     if (!config) {
       return {
         agent: 'antigravity',
