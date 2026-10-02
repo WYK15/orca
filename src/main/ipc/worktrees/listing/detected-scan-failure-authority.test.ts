@@ -87,6 +87,27 @@ describe('detected worktree listing authority', () => {
     expect(removeWorktreeLineage).not.toHaveBeenCalled()
   })
 
+  it('retries the real strict listing immediately after a failed WSL scan (ORCAW-010)', async () => {
+    gitExecFileAsyncMock.mockRejectedValueOnce(wslHostFailure()).mockResolvedValueOnce({
+      stdout: `worktree ${REPO_PATH}\u0000HEAD recovered\u0000branch refs/heads/main\u0000\u0000`,
+      stderr: ''
+    })
+
+    expect(await listDetected()).toMatchObject({
+      authoritative: false,
+      source: 'metadata-fallback'
+    })
+    expect(isRegisteredWorktreePath(REPO_PATH, store)).toBe(false)
+    expect(removeWorktreeLineage).not.toHaveBeenCalled()
+    expect(await listDetected()).toMatchObject({
+      authoritative: true,
+      source: 'git',
+      worktrees: [expect.objectContaining({ path: REPO_PATH, head: 'recovered' })]
+    })
+    expect(gitExecFileAsyncMock).toHaveBeenCalledTimes(2)
+    expect(isRegisteredWorktreePath(REPO_PATH, store)).toBe(true)
+  })
+
   it('surfaces the annotated wsl.exe diagnostic as the unavailable reason', async () => {
     gitExecFileAsyncMock.mockRejectedValue(
       Object.assign(
