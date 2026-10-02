@@ -56,6 +56,9 @@ export function AiVaultSessionVirtualList({
   onOpenLog,
   onRevealLog,
   onOpenCwd,
+  selectionMode,
+  selectedSessionIds,
+  onToggleSessionSelection,
   onRequestDelete,
   searchHits
 }: {
@@ -87,6 +90,9 @@ export function AiVaultSessionVirtualList({
   onOpenLog: (session: AiVaultSession) => void
   onRevealLog: (session: AiVaultSession) => void
   onOpenCwd: (session: AiVaultSession) => void
+  selectionMode?: boolean
+  selectedSessionIds?: ReadonlySet<string>
+  onToggleSessionSelection?: (session: AiVaultSession) => void
   onRequestDelete: (session: AiVaultSession) => void
   searchHits?: ReadonlyMap<string, AiVaultSearchHit>
 }): React.JSX.Element {
@@ -233,6 +239,9 @@ export function AiVaultSessionVirtualList({
                 onOpenLog={onOpenLog}
                 onRevealLog={onRevealLog}
                 onOpenCwd={onOpenCwd}
+                selectionMode={selectionMode}
+                selectedSessionIds={selectedSessionIds}
+                onToggleSessionSelection={onToggleSessionSelection}
                 onRequestDelete={onRequestDelete}
               />
             ))}

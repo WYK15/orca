@@ -71,6 +71,9 @@ function renderRow(
     onResume?: () => void
     resumeHidden?: boolean
     onRequestDelete?: () => void
+    selectionMode?: boolean
+    selected?: boolean
+    onToggleSelection?: () => void
   } = {}
 ) {
   return render(
@@ -100,6 +103,9 @@ function renderRow(
         onResumeInNewTab={vi.fn()}
         onCopyId={vi.fn()}
         onCopyPath={vi.fn()}
+        selectionMode={overrides.selectionMode}
+        selected={overrides.selected}
+        onToggleSelection={overrides.onToggleSelection}
         onRequestDelete={overrides.onRequestDelete ?? vi.fn()}
       />
     </TooltipProvider>
@@ -113,6 +119,19 @@ function expectAgentIdentity(): void {
   expect(within(metadata).getByText('Gemini')).toBeTruthy()
   expect(within(metadata).getByText('2 msgs')).toBeTruthy()
 }
+
+describe('VaultSessionRow selection', () => {
+  it('toggles selection without expanding the row', async () => {
+    const onToggleDetails = vi.fn()
+    const onToggleSelection = vi.fn()
+    renderRow({ selectionMode: true, selected: false, onToggleDetails, onToggleSelection })
+    await userEvent
+      .setup()
+      .click(screen.getByRole('checkbox', { name: 'Select session "A session"' }))
+    expect(onToggleSelection).toHaveBeenCalledTimes(1)
+    expect(onToggleDetails).not.toHaveBeenCalled()
+  })
+})
 
 describe('VaultSessionRow details toggle', () => {
   it('does not expand the row when a menu action is chosen', async () => {

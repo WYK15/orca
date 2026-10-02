@@ -7,6 +7,7 @@ import type { ExecutionHostScope } from '../../../../shared/execution-host'
 import { VaultHostScopeMenu, VaultScopeSwitch, VaultViewMenu } from './AiVaultPanelControls'
 import type { AiVaultHostScopeOption } from './ai-vault-host-scope'
 import type { AiVaultSessionLimit } from './ai-vault-session-limit'
+import { AiVaultSessionSelectionButton } from './AiVaultSessionSelectionToolbar'
 
 type AiVaultPanelHeaderProps = {
   searching?: boolean
@@ -35,6 +36,7 @@ type AiVaultPanelHeaderProps = {
   onSessionLimitChange: (limit: AiVaultSessionLimit) => void
   onReset: () => void
   onRefresh: () => void
+  onSelectSessions?: () => void
 }
 
 export function AiVaultPanelHeader({
@@ -62,7 +64,8 @@ export function AiVaultPanelHeader({
   onHideEmptySessionsChange,
   onSessionLimitChange,
   onReset,
-  onRefresh
+  onRefresh,
+  onSelectSessions
 }: AiVaultPanelHeaderProps): React.JSX.Element {
   const searchInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -116,6 +119,7 @@ export function AiVaultPanelHeader({
             onSessionLimitChange={onSessionLimitChange}
             onReset={onReset}
           />
+          {onSelectSessions ? <AiVaultSessionSelectionButton onClick={onSelectSessions} /> : null}
           <Button
             type="button"
             variant="ghost"

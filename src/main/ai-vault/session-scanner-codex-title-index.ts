@@ -19,6 +19,12 @@ type CodexSessionIndexTitleCacheEntry = {
 
 const codexSessionIndexTitleCache = new Map<string, Promise<CodexSessionIndexTitleCacheEntry>>()
 
+export function invalidateCodexSessionIndexTitleCache(homes: readonly string[]): void {
+  for (const home of homes) {
+    codexSessionIndexTitleCache.delete(home)
+  }
+}
+
 export function resetCodexSessionIndexTitleCacheForTests(): void {
   codexSessionIndexTitleCache.clear()
 }

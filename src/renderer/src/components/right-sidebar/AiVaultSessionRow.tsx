@@ -1,6 +1,7 @@
 import type { AiVaultSubagentResumeActions } from './AiVaultSessionSubagents'
 import { useCallback } from 'react'
 import type React from 'react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { cn } from '@/lib/utils'
 import {
@@ -55,6 +56,9 @@ export function VaultSessionRow({
   onOpenLog,
   onRevealLog,
   onOpenCwd,
+  selectionMode = false,
+  selected = false,
+  onToggleSelection,
   onRequestDelete,
   searchHit
 }: {
@@ -85,6 +89,9 @@ export function VaultSessionRow({
   onOpenLog?: () => void
   onRevealLog?: () => void
   onOpenCwd?: () => void
+  selectionMode?: boolean
+  selected?: boolean
+  onToggleSelection?: () => void
   onRequestDelete?: (session: AiVaultSession) => void
   searchHit?: AiVaultSearchHit
 }) {
@@ -152,7 +159,27 @@ export function VaultSessionRow({
             onToggleDetails()
           }}
         >
-          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-1">
+          <div
+            className={cn(
+              'grid min-w-0 items-center gap-x-1',
+              selectionMode
+                ? 'grid-cols-[auto_minmax(0,1fr)_auto]'
+                : 'grid-cols-[minmax(0,1fr)_auto]'
+            )}
+          >
+            {selectionMode ? (
+              <Checkbox
+                checked={selected}
+                disabled={deleteBlockedReason !== null || Boolean(session.structuredSession)}
+                aria-label={translate(
+                  'auto.components.right.sidebar.AiVaultSessionRow.selectSession',
+                  'Select session "{{title}}"',
+                  { title: session.title }
+                )}
+                onCheckedChange={onToggleSelection}
+                onClick={(event) => event.stopPropagation()}
+              />
+            ) : null}
             <div
               className={cn(
                 'min-w-0 text-[13px] font-medium leading-5 text-foreground',

@@ -4,6 +4,8 @@ import {
   invalidateAiVaultSessionListCache
 } from '../ai-vault/cached-session-list'
 import { deleteAiVaultSessionFile } from '../ai-vault/session-delete'
+import { deleteCodexAiVaultSession } from '../ai-vault/codex-session-delete'
+import { invalidateCodexSessionIndexTitleCache } from '../ai-vault/session-scanner-codex-title-index'
 import { invalidateSessionParseCacheEntry } from '../ai-vault/session-scanner-parse-cache'
 import { invalidateAiVaultBackgroundCache } from '../ai-vault/session-scanner-background'
 import type { AiVaultAgent } from '../../shared/ai-vault-types'
@@ -17,6 +19,7 @@ import type {
 type AiVaultDeleteDeps = {
   invalidateMultiHostListCache: () => void
   invalidateBackgroundCache?: (paths: string[]) => Promise<void>
+  getAdditionalCodexHomePaths?: () => readonly string[]
 }
 
 // Binds the delete orchestration to the caller's cache-invalidation seam.
@@ -35,14 +38,24 @@ export async function deleteAiVaultSession(
 ): Promise<AiVaultDeleteSessionResult> {
   // The validator tolerates a malformed agent/filePath but destructures `args`,
   // so an absent payload is defaulted here to keep the never-throws boundary.
-  const wslHomeDirs = await getAiVaultWslHomeDirs()
-  const result = await deleteAiVaultSessionFile({
-    agent: args?.agent as AiVaultAgent,
-    sessionId: args?.sessionId,
-    filePath: args?.filePath ?? '',
-    executionHostId: args?.executionHostId,
-    wslHomeDirs
-  })
+  let deletedPaths = [args?.filePath ?? '']
+  let codexHomes: string[] = []
+  const result =
+    args?.agent === 'codex'
+      ? await deleteCodexAiVaultSession(args, {
+          additionalCodexHomePaths: deps.getAdditionalCodexHomePaths?.(),
+          onDeleted: (paths, homes) => {
+            deletedPaths = [...new Set([...deletedPaths, ...paths])]
+            codexHomes = homes
+          }
+        })
+      : await deleteAiVaultSessionFile({
+          agent: args?.agent as AiVaultAgent,
+          sessionId: args?.sessionId,
+          filePath: args?.filePath ?? '',
+          executionHostId: args?.executionHostId,
+          wslHomeDirs: await getAiVaultWslHomeDirs()
+        })
 
   if (result.outcome === 'deleted') {
     // Three caches could otherwise resurrect it: the desktop per-host leg
@@ -53,12 +66,17 @@ export async function deleteAiVaultSession(
     // The parse cache is keyed by the raw path the scanner discovered (which is
     // what the renderer echoes back as filePath), so invalidate with that exact
     // key — resolve() could normalise it away from the stored key and miss.
-    invalidateSessionParseCacheEntry(args?.filePath ?? '')
-    await (deps.invalidateBackgroundCache ?? invalidateAiVaultBackgroundCache)([
-      args?.filePath ?? ''
-    ]).catch((error) => {
-      console.warn('[ai-vault] background cache invalidation failed:', error)
-    })
+    for (const path of deletedPaths) {
+      invalidateSessionParseCacheEntry(path)
+    }
+    if (codexHomes.length > 0) {
+      invalidateCodexSessionIndexTitleCache(codexHomes)
+    }
+    await (deps.invalidateBackgroundCache ?? invalidateAiVaultBackgroundCache)(deletedPaths).catch(
+      (error) => {
+        console.warn('[ai-vault] background cache invalidation failed:', error)
+      }
+    )
   }
 
   return result

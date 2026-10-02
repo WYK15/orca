@@ -4,9 +4,10 @@ import type { ExecutionHostId } from './execution-host'
 // IPC payload for aiVault:deleteSession.
 export type AiVaultDeleteSessionArgs = {
   agent: AiVaultAgent
-  // Optional for mixed renderer/main versions. Main ignores this field on delete
-  // (path + host + agent validation only; no identity/liveness check).
+  // Optional for mixed versions; required and verified for Codex aliases.
   sessionId?: string
+  // Hint only: main allowlists homes independently of this renderer value.
+  codexHome?: string | null
   filePath: string
   // The session's host; only a local session may be deleted.
   executionHostId?: ExecutionHostId
@@ -26,8 +27,8 @@ export type AiVaultDeleteSessionResult =
 // - antigravity, kimi: a separate registry (history.jsonl / session_index.jsonl)
 //   would keep a dangling entry. Antigravity's carries no conversation id, so
 //   which line to drop can't be determined at all.
-// - codex: session_index.jsonl plus hardlink aliases between the Orca-managed
-//   home and ~/.codex, so a one-sided delete reappears on the next scan.
+// Codex is supported through its separate identity/index/alias executor, not
+// this generic path-only list.
 // - opencode 1.17.x: a SQLite row, not a file.
 export const AI_VAULT_DELETABLE_AGENTS = [
   'gemini',
@@ -52,6 +53,10 @@ export function isAiVaultDeletableAgent(agent: AiVaultAgent): agent is AiVaultDe
   return (AI_VAULT_DELETABLE_AGENTS as readonly AiVaultAgent[]).includes(agent)
 }
 
+export function isAiVaultSessionDeleteSupportedAgent(agent: AiVaultAgent): boolean {
+  return agent === 'codex' || isAiVaultDeletableAgent(agent)
+}
+
 // A '#' marks an OpenCode 1.17.x SQLite row's synthetic `<dbPath>#<sessionId>`
 // identity — no real file to open or delete. '#' never appears in a genuine
 // transcript path.
@@ -74,6 +79,7 @@ export type AiVaultSessionDeleteRejectionCode =
   // fs-side guard: lstat disagrees with the removal's declared kind (a symlink,
   // or a file where the plan expects a directory).
   | 'unexpected-target-kind'
+  | 'file-predicate-mismatch'
 
 // One path the executor removes. A `kind` mismatch on disk is a rejection,
 // never a coerced delete. `roots` are what the path's realpath must still

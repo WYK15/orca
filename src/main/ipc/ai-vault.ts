@@ -72,8 +72,9 @@ let handlerOptions: AiVaultHandlerOptions = {}
 const listCancellations = createSenderScopedRequestCancellations()
 // Shared by the IPC registration and the test internals: a delete must drop
 // the multi-host leg cache, which this module owns the only caller of.
-const aiVaultDeleteDeps = {
-  invalidateMultiHostListCache: invalidateAiVaultHostLegCache
+const deleteDeps = {
+  invalidateMultiHostListCache: invalidateAiVaultHostLegCache,
+  getAdditionalCodexHomePaths: () => handlerOptions.getAdditionalCodexHomePaths?.() ?? []
 }
 
 const resolveAiVaultSessionTitles = (
@@ -313,7 +314,7 @@ export function registerAiVaultHandlers(options: AiVaultHandlerOptions = {}): vo
   ipcMain.handle('aiVault:getFirstUserPrompt', (_event, args?: AiVaultFirstUserPromptArgs) =>
     handleAiVaultGetFirstUserPrompt(args)
   )
-  registerAiVaultDeleteHandler(aiVaultDeleteDeps)
+  registerAiVaultDeleteHandler(deleteDeps)
   // macOS app activation skips DOM focus events, so emit the refresh signal here.
   app.on('browser-window-focus', (_event, window) => {
     if (!window.isDestroyed()) {
@@ -334,7 +335,6 @@ export const _internals = {
   listAiVaultSessions,
   resolveAiVaultSessionTitles,
   listAiVaultSubagentSessions,
-  deleteAiVaultSession: (args?: AiVaultDeleteSessionArgs) =>
-    deleteAiVaultSession(args, aiVaultDeleteDeps),
+  deleteAiVaultSession: (args?: AiVaultDeleteSessionArgs) => deleteAiVaultSession(args, deleteDeps),
   resetAiVaultCacheForTests
 }

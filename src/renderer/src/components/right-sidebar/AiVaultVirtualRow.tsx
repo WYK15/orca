@@ -60,6 +60,9 @@ export function AiVaultVirtualRow({
   onOpenLog,
   onRevealLog,
   onOpenCwd,
+  selectionMode,
+  selectedSessionIds,
+  onToggleSessionSelection,
   onRequestDelete,
   searchHits
 }: {
@@ -92,6 +95,9 @@ export function AiVaultVirtualRow({
   onOpenLog: (session: AiVaultSession) => void
   onRevealLog: (session: AiVaultSession) => void
   onOpenCwd: (session: AiVaultSession) => void
+  selectionMode?: boolean
+  selectedSessionIds?: ReadonlySet<string>
+  onToggleSessionSelection?: (session: AiVaultSession) => void
   onRequestDelete: (session: AiVaultSession) => void
   searchHits?: ReadonlyMap<string, AiVaultSearchHit>
 }): React.JSX.Element | null {
@@ -234,6 +240,11 @@ export function AiVaultVirtualRow({
             searchPathAllowed && canOpenLocalSessionPaths && row.session.cwd
               ? () => onOpenCwd(row.session)
               : undefined
+          }
+          selectionMode={selectionMode}
+          selected={selectedSessionIds?.has(row.session.id)}
+          onToggleSelection={
+            onToggleSessionSelection ? () => onToggleSessionSelection(row.session) : undefined
           }
           onRequestDelete={searchPathAllowed ? onRequestDelete : undefined}
         />

@@ -8,6 +8,7 @@ import {
   _readCachedCodexSessionIndexTitlesForTest,
   _storeCodexSessionIndexTitleCacheEntryForTest,
   readCodexSessionIndexTitle,
+  invalidateCodexSessionIndexTitleCache,
   resetCodexSessionIndexTitleCacheForTests
 } from './session-scanner-codex-title-index'
 
@@ -42,6 +43,14 @@ async function readTitle(codexHome: string, index: number): Promise<string | nul
 }
 
 describe('codex session index title cache', () => {
+  it('invalidates only deleted session homes', () => {
+    for (const home of ['deleted-home', 'other-home']) {
+      _storeCodexSessionIndexTitleCacheEntryForTest(home, 'stable', Promise.resolve(new Map()))
+    }
+    invalidateCodexSessionIndexTitleCache(['deleted-home'])
+    expect(_hasCodexSessionIndexTitleCacheEntryForTest('deleted-home')).toBe(false)
+    expect(_hasCodexSessionIndexTitleCacheEntryForTest('other-home')).toBe(true)
+  })
   it('caps cached title indexes by Codex home', async () => {
     const homes: string[] = []
 
