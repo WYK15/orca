@@ -8,8 +8,7 @@ import {
   Plus,
   // `Shapes` is lucide-react's own export name; exempted in config/oxlint-anti-slop.json.
   Shapes,
-  SlidersHorizontal,
-  Trash2
+  SlidersHorizontal
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -31,10 +30,6 @@ import type { Repo } from '../../../../../../shared/repo-types'
 import type { WorktreeVisibilityDefaults } from '../../../../../../shared/global-settings-types'
 import { isGitRepoKind } from '../../../../../../shared/repo-kind'
 import {
-  effectiveExternalWorktreeVisibility,
-  isLegacyRepoForExternalWorktreeVisibility
-} from '../../../../../../shared/worktree/ownership'
-import {
   REPO_HEADER_ACTION_BUTTON_CLASS,
   REPO_HEADER_ACTION_REVEAL_CLASS
 } from '../../repo-header-action-button-class'
@@ -44,18 +39,6 @@ import {
   stopRepoHeaderKeyboardToggle,
   stopRepoHeaderMenuEvent
 } from './header-event-guards'
-
-function getWorktreeVisibilityMenuLabel(
-  repo: Repo,
-  visibilityDefaults?: WorktreeVisibilityDefaults
-): string {
-  const visibility = effectiveExternalWorktreeVisibility(
-    repo,
-    isLegacyRepoForExternalWorktreeVisibility(repo),
-    visibilityDefaults
-  )
-  return visibility === 'show' ? 'Hide non-Orca worktrees' : 'Show hidden worktrees'
-}
 
 export type RepoHeaderProjectActions = {
   getWorktreeVisibilityDefaults: (repo: Repo) => WorktreeVisibilityDefaults | undefined
@@ -132,7 +115,10 @@ export function RepoHeaderProjectActionsMenu({
         {isGitRepoKind(repo) ? (
           <DropdownMenuItem onSelect={() => actions.onOpenWorktreeVisibility(repo)}>
             <Eye className="size-3.5" />
-            {getWorktreeVisibilityMenuLabel(repo, actions.getWorktreeVisibilityDefaults(repo))}
+            {translate(
+              'auto.components.sidebar.WorktreeList.manageWorktreeVisibility',
+              'Manage Worktree Visibility…'
+            )}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onSelect={() => actions.onCreateGroupFromRepo(repo)}>
@@ -166,9 +152,12 @@ export function RepoHeaderProjectActionsMenu({
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={() => actions.onRemoveProject(repo)}>
-          <Trash2 className="size-3.5" />
-          {translate('auto.components.sidebar.WorktreeList.c83968f87f', 'Remove Project')}
+        <DropdownMenuItem onSelect={() => actions.onRemoveProject(repo)}>
+          <CircleX className="size-3.5" />
+          {translate(
+            'auto.components.sidebar.WorktreeList.removeProjectFromOrca',
+            'Remove Project from Orca…'
+          )}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

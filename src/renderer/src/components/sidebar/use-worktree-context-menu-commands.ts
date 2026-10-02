@@ -6,6 +6,7 @@ import {
   createWorktreeContextMenuDeleteIntent,
   deferWorktreeContextMenuDeleteIntent
 } from './worktree-context-menu-delete-intent'
+import { hideWorktreeFromOrca } from './worktree-hidden-state-actions'
 import { runProjectRemoveFromWorktree } from './delete-worktree-flow'
 import { runSleepWorktrees } from './sleep-worktree-flow'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
@@ -163,6 +164,10 @@ export function useWorktreeContextMenuCommands(args: {
     deferWorktreeContextMenuDeleteIntent(intent, restoreSidebarPosition)
     args.setMenuOpenState(false)
   }, [args])
+  const handleHideWorktree = useCallback(() => {
+    args.setMenuOpenState(false)
+    void hideWorktreeFromOrca(args.worktree)
+  }, [args])
   const handleRemoveProject = useCallback(() => {
     const restoreSidebarPosition = preserveDeleteSiblingPosition(args.scopeRef.current)
     args.scopeRef.current
@@ -170,7 +175,7 @@ export function useWorktreeContextMenuCommands(args: {
       ?.dispatchEvent(new Event(VIRTUALIZED_SCROLL_ANCHOR_RECORD_EVENT))
     const options = {
       expectedInstanceId: args.worktree.instanceId,
-      ...(args.worktree.hostId ? { expectedHostId: args.worktree.hostId } : {})
+      expectedHostId: args.worktree.hostId ?? 'local'
     }
     window.setTimeout(() => {
       runProjectRemoveFromWorktree(args.worktree.id, options)
@@ -191,6 +196,7 @@ export function useWorktreeContextMenuCommands(args: {
     handleCreateGroupDialogOpenChange,
     handleCreateGroupFromRepo,
     handleDelete,
+    handleHideWorktree,
     handleMoveProjectToGroup,
     handleRemoveProject,
     handleOpenParent,

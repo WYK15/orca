@@ -41,6 +41,8 @@ import {
   buildWorktreeSourcePreferenceUpdate,
   removeCustomWorktreeSourcePreference
 } from '../../../../shared/worktree/visibility-source-preferences'
+import ArchivedWorktreeRecoveryList from './ArchivedWorktreeRecoveryList'
+import { useArchivedWorktreeRecovery } from './use-archived-worktree-recovery'
 import HiddenWorktreeRecoveryList from './HiddenWorktreeRecoveryList'
 import { worktreeVisibilityUpdateError } from './worktree-visibility-update-error'
 import { useRepoOwnerVisibilityDefaults } from './use-repo-owner-visibility-defaults'
@@ -83,6 +85,10 @@ export default function WorktreeVisibilityDialog(): React.JSX.Element | null {
     { repos, settings, detectedWorktreesByRepo },
     repoId,
     modalData.hostId
+  )
+  const { busyArchivedWorktreeId, showArchivedWorktree } = useArchivedWorktreeRecovery(
+    setActionState,
+    isOpen ? mutationScope : ''
   )
   const currentMutationScopeRef = useRef(mutationScope)
   const activeMutation = getActiveVisibilityMutation(mutationScope)
@@ -346,8 +352,8 @@ export default function WorktreeVisibilityDialog(): React.JSX.Element | null {
           <div className="flex items-center gap-1.5">
             <DialogTitle>
               {translate(
-                'auto.components.sidebar.WorktreeVisibilityDialog.83a5ba8dd1',
-                'Non-Orca worktrees'
+                'auto.components.sidebar.WorktreeVisibilityDialog.title',
+                'Worktree visibility'
               )}
             </DialogTitle>
             <WorktreeVisibilityHelpPopover />
@@ -360,7 +366,12 @@ export default function WorktreeVisibilityDialog(): React.JSX.Element | null {
           worktrees={detected?.authoritative ? detected.worktrees : []}
           visibilityDefaults={visibilityDefaults}
           removableSourceIds={removableSourceIds}
-          disabled={effectiveBusyPath !== null || effectivelyToggling || listState === 'checking'}
+          disabled={
+            busyArchivedWorktreeId !== null ||
+            effectiveBusyPath !== null ||
+            effectivelyToggling ||
+            listState === 'checking'
+          }
           onAdd={handleAddSource}
           onRemove={handleRemoveSource}
           onToggle={handleSourceToggle}
@@ -371,8 +382,17 @@ export default function WorktreeVisibilityDialog(): React.JSX.Element | null {
 
         <WorktreeVisibilityScanStatus
           state={listState}
-          retryDisabled={effectiveBusyPath !== null || effectivelyToggling}
+          retryDisabled={
+            busyArchivedWorktreeId !== null || effectiveBusyPath !== null || effectivelyToggling
+          }
           onRetry={handleRetryList}
+        />
+
+        <ArchivedWorktreeRecoveryList
+          worktrees={detected?.authoritative && listState === 'ready' ? detected.worktrees : []}
+          busyWorktreeId={busyArchivedWorktreeId}
+          disabled={effectiveBusyPath !== null || effectivelyToggling || listState !== 'ready'}
+          onShow={(worktree) => void showArchivedWorktree(worktree)}
         />
 
         <HiddenWorktreeRecoveryList
@@ -380,7 +400,7 @@ export default function WorktreeVisibilityDialog(): React.JSX.Element | null {
           detected={detected}
           listState={listState}
           busyPath={effectiveBusyPath}
-          toggling={effectivelyToggling}
+          toggling={busyArchivedWorktreeId !== null || effectivelyToggling}
           onShow={handleShowWorktree}
         />
 

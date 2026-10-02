@@ -26,6 +26,18 @@ describe('Chinese menu action localization', () => {
     })
   })
 
+  it('distinguishes hiding, showing, permanent deletion and project removal', () => {
+    const sidebar = zh.auto.components.sidebar
+    expect(sidebar.WorktreeContextMenu.hideWorktreeFromOrca).toBe('从 Orca 中隐藏工作树')
+    expect(sidebar.WorktreeContextMenu.deleteWorktree).toBe('删除工作树')
+    expect(sidebar.WorktreeList.manageWorktreeVisibility).toBe('管理工作树可见性…')
+    expect(sidebar.WorktreeList.removeProjectFromOrca).toBe('从 Orca 中移除项目…')
+    expect(sidebar.ArchivedWorktreeRecoveryList.show).toBe('显示')
+    expect(sidebar.worktreeHiddenState.undo).toBe('撤销')
+    expect(sidebar.RemoveFolderDialog.title).toBe('从 Orca 中移除项目？')
+    expect(sidebar.RemoveFolderDialog.confirm).toBe('从 Orca 中移除')
+  })
+
   it('distinguishes clipboard copy from duplicate', () => {
     const labels = zh.auto.components.right.sidebar.FileExplorerRow
 

@@ -24,7 +24,8 @@ import {
   Workflow,
   FolderInput,
   FolderPlus,
-  FolderTree
+  FolderTree,
+  EyeOff
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { WorktreeOpenInSubMenu } from './WorktreeOpenInMenu'
@@ -49,6 +50,7 @@ import {
 export default function WorktreeContextMenuView({ model }: { model: WorktreeContextMenuModel }) {
   const {
     batchDeleteWorktrees,
+    canHideWorktree,
     children,
     contentClassName,
     contextDeletePending,
@@ -68,6 +70,7 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
     handleCopyPath,
     handleCreateGroupFromRepo,
     handleDelete,
+    handleHideWorktree,
     handleMoveProjectToGroup,
     handleRemoveProject,
     handleOpenParent,
@@ -314,6 +317,15 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
             onSleep={handleCloseTerminals}
             onSleepSubtree={handleSleepSubtree}
           />
+          {!isMultiContext && canHideWorktree ? (
+            <DropdownMenuItem onSelect={handleHideWorktree}>
+              <EyeOff className="size-3.5" />
+              {translate(
+                'auto.components.sidebar.WorktreeContextMenu.hideWorktreeFromOrca',
+                'Hide Worktree from Orca'
+              )}
+            </DropdownMenuItem>
+          ) : null}
           {!isMultiContext && removesProject ? (
             <DropdownMenuItem onSelect={handleRemoveProject}>
               <CircleX className="size-3.5" />
@@ -323,7 +335,9 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
               )}
             </DropdownMenuItem>
           ) : null}
-          {!isMultiContext && removesProject ? <DropdownMenuSeparator /> : null}
+          {!isMultiContext && (canHideWorktree || removesProject) ? (
+            <DropdownMenuSeparator />
+          ) : null}
           {/* Why: primary checkouts cannot be permanently deleted; child deletion is separate. */}
           {!isMultiContext && worktree.isMainWorktree ? (
             <Tooltip>

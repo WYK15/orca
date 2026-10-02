@@ -23,6 +23,7 @@ import {
   EMPTY_TABS_BY_WORKTREE,
   EMPTY_WORKSPACE_LINEAGE_BY_CHILD_KEY,
   EMPTY_WORKTREE_LINEAGE_BY_ID,
+  canHideWorktreeFromContextMenu,
   hasWorktreeParentLink,
   isContextWorktreeDeletable,
   selectMenuScopedMap,
@@ -179,6 +180,7 @@ export function useWorktreeContextMenuModel({
       }),
     [activeContextWorktrees, repoMap]
   )
+  const canHideWorktree = canHideWorktreeFromContextMenu(repo, worktree)
   const removesProject = shouldRemoveProjectFromContextMenu(repo, worktree)
   const sleepLabel =
     isMultiContext && sleepableWorktrees.length > 0
@@ -347,6 +349,7 @@ export function useWorktreeContextMenuModel({
     allWorktrees,
     batchDeleteWorktrees,
     browserTabsByWorktree,
+    canHideWorktree,
     children,
     contentClassName,
     contextDeletePending,

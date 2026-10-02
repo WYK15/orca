@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canHideWorktreeFromContextMenu,
   isContextWorktreeDeletable,
   shouldUseNativeContextMenu,
   shouldIgnoreNestedWorktreeContextMenuScope,
@@ -258,6 +259,21 @@ describe('project removal from workspace context menus', () => {
     expect(shouldRemoveProjectFromContextMenu(folderRepo, { isMainWorktree: true })).toBe(true)
     expect(shouldRemoveProjectFromContextMenu(gitRepo, { isMainWorktree: false })).toBe(false)
     expect(shouldRemoveProjectFromContextMenu(null, { isMainWorktree: true })).toBe(false)
+  })
+
+  it('offers reversible hiding only for visible non-primary Git worktrees', () => {
+    const child = { isArchived: false, isMainWorktree: false }
+    expect(canHideWorktreeFromContextMenu({ kind: 'git' }, child)).toBe(true)
+    expect(shouldRemoveProjectFromContextMenu({ id: 'repo' }, child)).toBe(false)
+    expect(isContextWorktreeDeletable(child, { kind: 'git' })).toBe(true)
+    expect(canHideWorktreeFromContextMenu({ kind: 'folder' }, child)).toBe(false)
+    expect(
+      canHideWorktreeFromContextMenu({ kind: 'git' }, { ...child, isMainWorktree: true })
+    ).toBe(false)
+    expect(canHideWorktreeFromContextMenu({ kind: 'git' }, { ...child, isArchived: true })).toBe(
+      false
+    )
+    expect(canHideWorktreeFromContextMenu(null, child)).toBe(false)
   })
 
   it('treats additional folder workspace rows as deletable workspace rows', () => {

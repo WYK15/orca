@@ -236,21 +236,33 @@ describe('registerWorktreeHandlers', () => {
     expect(store.setWorktreeMeta).not.toHaveBeenCalled()
   })
 
-  it('pushes a remote-client invalidation for renames but not read-state updates', () => {
+  it('pushes remote-client invalidations for visibility and renames but not read state', () => {
     store.setWorktreeMeta.mockImplementation((_worktreeId, meta) => meta)
 
     handlers['worktrees:updateMeta'](null, {
       worktreeId: 'repo-1::/workspace/feature-wt',
       updates: { isUnread: false }
     })
-    // Why: per-click isUnread writes must stay event-free (PR #209), while a rename must reach paired remote clients that no longer poll for titles.
+    // Why: paired clients do not share optimistic visibility/title writes; read-state clicks remain event-free.
     expect(runtimeStub.notifyWorktreesChangedForRemoteClients).not.toHaveBeenCalled()
 
     handlers['worktrees:updateMeta'](null, {
       worktreeId: 'repo-1::/workspace/feature-wt',
+      executionHostId: 'ssh:build-box',
+      updates: { isArchived: true }
+    })
+    expect(store.setWorktreeMetaForHost).toHaveBeenCalledWith(
+      'repo-1::/workspace/feature-wt',
+      'ssh:build-box',
+      { isArchived: true }
+    )
+    handlers['worktrees:updateMeta'](null, {
+      worktreeId: 'repo-1::/workspace/feature-wt',
       updates: { displayName: 'Renamed workspace' }
     })
-    expect(runtimeStub.notifyWorktreesChangedForRemoteClients).toHaveBeenCalledWith('repo-1')
+    expect(runtimeStub.notifyWorktreesChangedForRemoteClients).toHaveBeenCalledTimes(2)
+    expect(runtimeStub.notifyWorktreesChangedForRemoteClients).toHaveBeenNthCalledWith(1, 'repo-1')
+    expect(runtimeStub.notifyWorktreesChangedForRemoteClients).toHaveBeenNthCalledWith(2, 'repo-1')
   })
 
   it('persists display-name provenance at the host boundary', () => {

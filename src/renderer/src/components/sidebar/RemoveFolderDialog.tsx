@@ -64,12 +64,12 @@ const RemoveFolderDialog = React.memo(function RemoveFolderDialog() {
     : sshHostLabel
       ? translate(
           'auto.components.sidebar.RemoveFolderDialog.removeDescriptionSsh',
-          'This only removes {{name}} from Orca. Its files stay on {{host}} — re-add that SSH host to recover it.',
+          'This removes {{name}} and all of its worktrees from Orca on {{host}}. Open panels and terminals will close. No folders, files, Git worktrees, or branches will be deleted. To restore the project, use Add Project, choose the same host, and enter its original path.',
           { name: NAME_TOKEN, host: sshHostLabel }
         )
       : translate(
           'auto.components.sidebar.RemoveFolderDialog.removeDescriptionLocal',
-          'This only removes {{name}} from Orca. It is still on your disk.',
+          'This removes {{name}} and all of its worktrees from Orca. Open panels and terminals will close. No folders, files, Git worktrees, or branches will be deleted. To restore the project, use Add Project and select its original folder.',
           { name: NAME_TOKEN }
         )
   const [descriptionBeforeName, descriptionAfterName] = description.split(NAME_TOKEN)
@@ -98,7 +98,10 @@ const RemoveFolderDialog = React.memo(function RemoveFolderDialog() {
       <DialogContent className="max-w-sm sm:max-w-sm" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="text-sm">
-            {translate('auto.components.sidebar.RemoveFolderDialog.b79b39d865', 'Remove Project')}
+            {translate(
+              'auto.components.sidebar.RemoveFolderDialog.title',
+              'Remove Project from Orca?'
+            )}
           </DialogTitle>
           <DialogDescription className="text-xs">
             {descriptionBeforeName}
@@ -111,7 +114,7 @@ const RemoveFolderDialog = React.memo(function RemoveFolderDialog() {
             {translate('auto.components.sidebar.RemoveFolderDialog.d36883e046', 'Cancel')}
           </Button>
           <Button variant="destructive" onClick={handleConfirm}>
-            {translate('auto.components.sidebar.RemoveFolderDialog.4dc5b5065b', 'Remove')}
+            {translate('auto.components.sidebar.RemoveFolderDialog.confirm', 'Remove from Orca')}
           </Button>
         </DialogFooter>
       </DialogContent>
