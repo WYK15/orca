@@ -5,6 +5,17 @@ import type { ChangelogData, UpdateStatus } from '../shared/types'
 
 export type ReleaseUpdateDelivery = 'automatic' | 'manual'
 
+export function readPackagedAutomaticUpdatesEnabled(appPath: string): boolean {
+  try {
+    const metadata = JSON.parse(readFileSync(join(appPath, 'package.json'), 'utf8')) as {
+      orcawAutomaticUpdates?: unknown
+    }
+    return metadata.orcawAutomaticUpdates !== false
+  } catch {
+    return true
+  }
+}
+
 export function getReleaseUpdateDelivery(
   platform: NodeJS.Platform,
   releaseAutoUpdateEnabled: boolean

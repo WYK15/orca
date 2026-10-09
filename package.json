@@ -1,6 +1,6 @@
 {
   "name": "orcaw",
-  "version": "1.4.165-wyk.14",
+  "version": "1.4.165-wyk.15",
   "description": "Next-gen IDE for parallel agentic development",
   "homepage": "https://github.com/WYK15/orca",
   "author": "stablyai",
@@ -304,6 +304,7 @@
       "@xterm/xterm@6.1.0-beta.287": "config/patches/@xterm__xterm@6.1.0-beta.287.patch"
     }
   },
+  "orcawAutomaticUpdates": false,
   "reactDoctor": {
     "rules": {
       "react-doctor/js-combine-iterations": "off"

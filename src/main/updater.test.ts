@@ -1977,6 +1977,55 @@ describe('updater', () => {
     expect(isQuittingForUpdate()).toBe(true)
   })
 
+  it.each(['darwin', 'win32', 'linux'] as const)(
+    'keeps maintenance builds manual on %s without background checks or downloads',
+    async (platform) => {
+      vi.useFakeTimers()
+      const policy = await import('./updater-delivery-policy')
+      const policySpy = vi
+        .spyOn(policy, 'readPackagedAutomaticUpdatesEnabled')
+        .mockReturnValue(false)
+      const platformSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+      try {
+        const { setupAutoUpdater, checkForUpdates, checkForUpdatesFromMenu, downloadUpdate } =
+          await import('./updater')
+        const send = vi.fn()
+        setupAutoUpdater({ webContents: { send } } as never)
+        checkForUpdates()
+        appMock.emit('browser-window-focus')
+        await vi.advanceTimersByTimeAsync(2 * AUTO_UPDATE_CHECK_INTERVAL_MS)
+
+        expect(powerMonitorOnMock).not.toHaveBeenCalled()
+        expect(fetchNudgeMock).not.toHaveBeenCalled()
+        expect(autoUpdaterMock.checkForUpdates).not.toHaveBeenCalled()
+        expect(autoUpdaterMock.autoDownload).toBe(false)
+        expect(autoUpdaterMock.autoInstallOnAppQuit).toBe(false)
+
+        checkForUpdatesFromMenu()
+        await vi.advanceTimersByTimeAsync(0)
+        expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
+        autoUpdaterMock.emit('checking-for-update')
+        autoUpdaterMock.emit('update-available', { version: '1.4.218-wyk.1' })
+        await vi.advanceTimersByTimeAsync(0)
+        expect(send).toHaveBeenCalledWith(
+          'updater:status',
+          expect.objectContaining({
+            state: 'available',
+            delivery: 'manual'
+          })
+        )
+        downloadUpdate()
+        await vi.advanceTimersByTimeAsync(2 * AUTO_UPDATE_CHECK_INTERVAL_MS)
+        expect(autoUpdaterMock.downloadUpdate).not.toHaveBeenCalled()
+        expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
+      } finally {
+        policySpy.mockRestore()
+        platformSpy.mockRestore()
+        vi.useRealTimers()
+      }
+    }
+  )
+
   it('runs a startup check immediately when the last background check is stale', async () => {
     const mainWindow = { webContents: { send: vi.fn() } }
     const setLastUpdateCheckAt = vi.fn()

@@ -50,6 +50,7 @@ import {
 } from './linux-package-update-recovery'
 import {
   getReleaseUpdateDelivery,
+  readPackagedAutomaticUpdatesEnabled,
   readPackagedReleaseAutoUpdateEnabled,
   type ReleaseUpdateDelivery
 } from './updater-delivery-policy'
@@ -189,6 +190,7 @@ let pinnedBuildSelectionInProgress = false
 let isPinnedBuildActive = false
 let getReleaseChannelOverride: (() => ReleaseChannel | null) | null = null
 let releaseUpdateDelivery: ReleaseUpdateDelivery = 'automatic'
+let automaticUpdatesEnabled = true
 
 function getAutoUpdater(): ElectronAutoUpdater {
   if (!autoUpdater) {
@@ -1183,6 +1185,9 @@ export function installRemoteServerUpdate(runtimeId: string): RemoteServerUpdate
 let consecutiveAutomaticRetrySchedules = 0
 
 function scheduleAutomaticUpdateCheck(delayMs: number): void {
+  if (!automaticUpdatesEnabled) {
+    return
+  }
   let effectiveDelayMs = delayMs
   // All retry-cadence callers pass exactly this constant, so keying backoff on it keeps one choke point instead of threading a flag through every schedule site.
   if (delayMs === AUTO_UPDATE_RETRY_INTERVAL_MS) {
@@ -1454,6 +1459,9 @@ function retryPrereleaseFallbackAfterMissingManifest(
 function runBackgroundUpdateCheck(
   nudgeId: string | null = getPersistedPendingUpdateNudgeId()
 ): boolean {
+  if (!automaticUpdatesEnabled) {
+    return false
+  }
   // Why: a pinned dev jump owns the feed until it settles; a background check
   // would repoint it mid-flight and download the wrong build.
   if (
@@ -1891,6 +1899,9 @@ export function quitAndInstall(): void {
 }
 
 async function checkForUpdateNudge(): Promise<void> {
+  if (!automaticUpdatesEnabled) {
+    return
+  }
   if (!app.isPackaged || is.dev) {
     return
   }
@@ -1938,6 +1949,9 @@ async function checkForUpdateNudge(): Promise<void> {
 }
 
 function scheduleUpdateNudgeCheck(): void {
+  if (!automaticUpdatesEnabled) {
+    return
+  }
   if (nudgeCheckTimer) {
     clearTimeout(nudgeCheckTimer)
   }
@@ -2019,10 +2033,13 @@ export function setupAutoUpdater(
   if (is.dev) {
     return
   }
-  releaseUpdateDelivery = getReleaseUpdateDelivery(
-    process.platform,
-    readPackagedReleaseAutoUpdateEnabled(app.getAppPath(), process.platform)
-  )
+  automaticUpdatesEnabled = readPackagedAutomaticUpdatesEnabled(app.getAppPath())
+  releaseUpdateDelivery = automaticUpdatesEnabled
+    ? getReleaseUpdateDelivery(
+        process.platform,
+        readPackagedReleaseAutoUpdateEnabled(app.getAppPath(), process.platform)
+      )
+    : 'manual'
 
   const autoUpdater = getAutoUpdater()
   autoUpdater.autoDownload = process.platform === 'darwin' && releaseUpdateDelivery === 'automatic'
@@ -2033,7 +2050,9 @@ export function setupAutoUpdater(
   // Why: supervised serve installs require an explicit handoff; ordinary service quits must never install implicitly.
   // Root Linux packages also opt out: an implicit quit-time escalation would fail after the UI is gone, leaving no recovery surface.
   autoUpdater.autoInstallOnAppQuit =
-    updateInstallMode === 'interactive' && getLinuxRootPackageType() === null
+    automaticUpdatesEnabled &&
+    updateInstallMode === 'interactive' &&
+    getLinuxRootPackageType() === null
   // Why: MacUpdater ignores quitAndInstall arguments; the surviving CLI supervisor must be the only serve relaunch owner.
   autoUpdater.autoRunAppAfterInstall = updateInstallMode === 'interactive'
 
@@ -2103,6 +2122,10 @@ export function setupAutoUpdater(
       userInitiatedCheck = value
     }
   })
+
+  if (!automaticUpdatesEnabled) {
+    return
+  }
 
   void checkForUpdateNudge()
   scheduleUpdateNudgeCheck()

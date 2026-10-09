@@ -23,8 +23,11 @@ Remove an entry after an upstream sync contains its equivalent commits.
   application identity, isolated user data, `orcaw` / `orcaw-ide` commands,
   and updates sourced only from `WYK15/orca`. Preserve these seams during
   upstream synchronization. Unsigned macOS and Windows builds open the matching
-  Release for manual installation; Linux and explicitly signed builds retain
-  automatic updates.
+  Release for manual installation. The `1.4.165` maintenance line sets
+  `orcawAutomaticUpdates: false` in package metadata: no startup, timed,
+  wake/focus, or nudge checks, automatic downloads, or quit-time installs on
+  any platform. Manual checks remain available and open the matching Release
+  for manual installation, including Linux and signed macOS builds.
 - Inherited cron schedules are disabled in this fork. Tag pushes still build
   and publish desktop releases; manual, pull-request, and release event
   triggers remain available where their workflows define them.
@@ -63,8 +66,7 @@ Sherpa ONNX release has no Windows ARM64 npm addon. The model picker offers
 cloud transcription instead. The bundled x64 browser helper runs through
 Windows 11 emulation; Electron and node-pty use ARM64 binaries.
 
-These personal Windows and macOS builds are unsigned, so SmartScreen or
-Gatekeeper can warn when opening them. They do not replace the app
-automatically; use Orcaw's update prompt to open the exact Release, download
-the matching installer, and install it manually. Linux packages retain the
-existing automatic update path.
+Windows builds are unsigned and can trigger SmartScreen; macOS releases use
+Developer ID signing and Apple notarization. Maintenance builds do not check
+for or install updates automatically. Use a manual check to open the exact
+Release, download the matching installer, and install it manually.

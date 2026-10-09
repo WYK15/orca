@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createAvailableReleaseStatus,
   getReleaseUpdateDelivery,
+  readPackagedAutomaticUpdatesEnabled,
   readPackagedReleaseAutoUpdateEnabled
 } from './updater-delivery-policy'
 
@@ -33,6 +34,18 @@ function appPathWith(metadata: Record<string, unknown>): string {
   writeFileSync(join(appPath, 'package.json'), JSON.stringify(metadata))
   return appPath
 }
+
+describe('readPackagedAutomaticUpdatesEnabled', () => {
+  it('disables automatic updates only with explicit package metadata', () => {
+    expect(readPackagedAutomaticUpdatesEnabled(appPathWith({ orcawAutomaticUpdates: false }))).toBe(
+      false
+    )
+    expect(readPackagedAutomaticUpdatesEnabled(appPathWith({ orcawAutomaticUpdates: true }))).toBe(
+      true
+    )
+    expect(readPackagedAutomaticUpdatesEnabled(appPathWith({}))).toBe(true)
+  })
+})
 
 describe('readPackagedReleaseAutoUpdateEnabled', () => {
   it('uses explicit packaged release metadata on Windows', () => {
