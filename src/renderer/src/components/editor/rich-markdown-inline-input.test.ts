@@ -47,6 +47,65 @@ function expectTextMark(editor: Editor, text: string, markName: string): void {
 }
 
 describe('rich Markdown inline input', () => {
+  it.each(['前文`代码`', '前文`代码`后文'])(
+    'exits inline code with ArrowRight at its end without changing text: %s',
+    (source) => {
+      const editor = createEditor(source)
+      editor.commands.setTextSelection(5)
+      const before = editor.getMarkdown()
+      const handled = editor.view.someProp('handleKeyDown', (handler) =>
+        handler(editor.view, new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+      )
+
+      expect(handled).toBe(true)
+      expect(editor.getMarkdown()).toBe(before)
+      expect(editor.state.selection.from).toBe(5)
+      expect(editor.isActive('code')).toBe(false)
+      const handledAgain = editor.view.someProp('handleKeyDown', (handler) =>
+        handler(editor.view, new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+      )
+      expect(handledAgain).not.toBe(true)
+      expect(editor.getMarkdown()).toBe(before)
+      typeText(editor, '普通文本')
+      expect(editor.getMarkdown()).toBe(source.replace('`代码`', '`代码`普通文本'))
+      editor.destroy()
+    }
+  )
+
+  it.each([
+    { position: 4, event: {} },
+    { position: { from: 3, to: 5 }, event: {} },
+    { position: 5, event: { shiftKey: true } },
+    { position: 5, event: { ctrlKey: true } },
+    { position: 5, event: { metaKey: true } },
+    { position: 5, event: { altKey: true } },
+    { position: 5, event: { isComposing: true } }
+  ])('preserves native navigation for $position / $event', ({ position, event }) => {
+    const editor = createEditor('前文`代码`后文')
+    editor.commands.setTextSelection(position)
+    const before = editor.state
+    const handled = editor.view.someProp('handleKeyDown', (handler) =>
+      handler(editor.view, new KeyboardEvent('keydown', { key: 'ArrowRight', ...event }))
+    )
+
+    expect(handled).not.toBe(true)
+    expect(editor.state).toBe(before)
+    editor.destroy()
+  })
+
+  it('preserves the link when exiting a code-styled link label', () => {
+    const editor = createEditor('[`代码`](./guide.md)')
+    editor.commands.setTextSelection(3)
+    editor.view.someProp('handleKeyDown', (handler) =>
+      handler(editor.view, new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+    )
+
+    expect(editor.isActive('code')).toBe(false)
+    expect(editor.isActive('link')).toBe(true)
+    expect(editor.getMarkdown()).toBe('[`代码`](./guide.md)')
+    editor.destroy()
+  })
+
   it.each([
     { source: '前文**重点', closing: '**', mark: 'bold' },
     { source: '前文__重点', closing: '__', mark: 'bold' },

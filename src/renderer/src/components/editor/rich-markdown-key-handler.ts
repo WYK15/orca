@@ -26,6 +26,7 @@ import type { RichMarkdownHtmlSuperscriptLinkContext } from './rich-markdown-htm
 import { handleRichMarkdownLinkShortcut } from './rich-markdown-link-shortcut'
 import { handleRichMarkdownSaveShortcut } from './rich-markdown-save-shortcut'
 import { flushPendingProseMirrorSelection } from './rich-markdown-selection-flush'
+import { removeEmptyBulletMarker } from './rich-markdown-bullet-backspace'
 
 export type KeyHandlerContext = {
   isMac: boolean
@@ -130,7 +131,8 @@ export function createRichMarkdownKeyHandler(
       if (
         ed &&
         !isComposingMarkdownInput(event, ed) &&
-        (convertEmptyNestedOrderedItemToContinuation(ed) ||
+        (removeEmptyBulletMarker(ed) ||
+          convertEmptyNestedOrderedItemToContinuation(ed) ||
           collapseEmptyListContinuationParagraph(ed) ||
           deleteAdjacentEmptyParagraph(ed, 'backward') ||
           handleRichMarkdownTableBackspace(ed))

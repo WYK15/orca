@@ -147,6 +147,42 @@ function emptyTopLevelOrderedList(): object {
 }
 
 describe('rich markdown key handler', () => {
+  it.each([false, true])(
+    'handles an empty bullet without collapsing its line (IME=%s)',
+    (isComposing) => {
+      const editor = createEditor({
+        type: 'doc',
+        content: [
+          {
+            type: 'bulletList',
+            content: [
+              {
+                type: 'listItem',
+                content: [{ type: 'paragraph', content: [{ type: 'text', text: '说明' }] }]
+              },
+              { type: 'listItem', content: [{ type: 'paragraph' }] }
+            ]
+          }
+        ]
+      })
+      try {
+        editor.commands.setTextSelection(firstEmptyParagraphPosition(editor))
+        const event = keyEvent('Backspace', { isComposing })
+        const handled = createRichMarkdownKeyHandler(createContext(editor, false))(null, event)
+        expect(handled).toBe(!isComposing)
+        if (!isComposing) {
+          expect(event.preventDefault).toHaveBeenCalledOnce()
+          expect(editor.state.doc.firstChild!.childCount).toBe(1)
+          expect(editor.state.selection.$from.nodeBefore!.type.name).toBe('hardBreak')
+        } else {
+          expect(editor.state.doc.firstChild!.childCount).toBe(2)
+        }
+      } finally {
+        editor.destroy()
+      }
+    }
+  )
+
   it('opens the review-note composer on the add-review-note shortcut', () => {
     const editor = createEditor(emptyTopLevelOrderedList())
 

@@ -35,6 +35,7 @@ import type { RichMarkdownHtmlSuperscriptLinkContext } from './rich-markdown-htm
 import { RichMarkdownTaskList } from './rich-markdown-task-list'
 import { createRichMarkdownSafeHtmlExtensions } from './rich-markdown-safe-html'
 import { RichMarkdownInlineInput } from './rich-markdown-inline-input'
+import { RichMarkdownSoftLineCodeBlock } from './rich-markdown-soft-line-code-block'
 
 const lowlight = createLowlight(common)
 
@@ -45,6 +46,7 @@ const RichMarkdownLink = Link.extend({
 })
 
 const RichMarkdownCode = Code.extend({
+  exitable: false,
   // Why: Markdown supports linked code labels, so code cannot exclude the link
   // mark even though it should still stay exclusive with emphasis marks.
   excludes: 'code bold italic strike underline'
@@ -225,6 +227,7 @@ export function createRichMarkdownExtensions({
     createRawMarkdownHtmlBlock(codec.transport),
     createMarkdownDocLink(codec.transport),
     RichMarkdownInlineInput,
+    RichMarkdownSoftLineCodeBlock,
     DragSelectionGuard,
     Markdown.configure({
       marked: codec.marked,

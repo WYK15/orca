@@ -48,6 +48,39 @@ export const RichMarkdownInlineInput = Extension.create({
     return [
       new Plugin({
         props: {
+          handleKeyDown: (view, event) => {
+            if (
+              event.key !== 'ArrowRight' ||
+              event.shiftKey ||
+              event.altKey ||
+              event.ctrlKey ||
+              event.metaKey ||
+              event.isComposing ||
+              view.composing
+            ) {
+              return false
+            }
+            const { selection, storedMarks, schema } = view.state
+            if (!(selection instanceof TextSelection) || !selection.empty) {
+              return false
+            }
+            const code = schema.marks.code
+            const { $from } = selection
+            const activeMarks = storedMarks ?? $from.marks()
+            if (
+              !code.isInSet(activeMarks) ||
+              !$from.nodeBefore ||
+              !code.isInSet($from.nodeBefore.marks) ||
+              ($from.nodeAfter && code.isInSet($from.nodeAfter.marks))
+            ) {
+              return false
+            }
+            // Leave the mark at the same text position, without inserting a spacer.
+            view.dispatch(
+              view.state.tr.setStoredMarks(activeMarks.filter((mark) => mark.type !== code))
+            )
+            return true
+          },
           handleTextInput: (view, from, to, text) => {
             if (from !== to) {
               return false

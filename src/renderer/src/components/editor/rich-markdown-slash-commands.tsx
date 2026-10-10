@@ -1,6 +1,7 @@
 import type React from 'react'
 import type { Editor } from '@tiptap/react'
 import type { SlashCommand, SlashMenuState } from './rich-markdown-slash-command-catalog'
+import { getRichMarkdownSoftLine, isolateRichMarkdownSoftLine } from './rich-markdown-soft-line'
 
 export { slashCommands } from './rich-markdown-slash-command-catalog'
 export type {
@@ -23,7 +24,17 @@ export function runSlashCommand(
   onImageCommand?: () => void,
   onEmojiCommand?: () => void
 ): void {
-  editor.chain().focus().deleteRange({ from: slashMenu.from, to: slashMenu.to }).run()
+  editor
+    .chain()
+    .focus()
+    .deleteRange({ from: slashMenu.from, to: slashMenu.to })
+    .command(({ tr }) => {
+      if (!['image', 'emoji', 'inline-math'].includes(command.id)) {
+        isolateRichMarkdownSoftLine(tr)
+      }
+      return true
+    })
+    .run()
   // Why: image insertion cannot rely on window.prompt() in Electron, so this
   // command is rerouted into the editor's local image picker flow.
   if (command.id === 'image' && onImageCommand) {
@@ -64,7 +75,13 @@ export function syncSlashMenu(
     return
   }
 
-  const blockTextBeforeCursor = $from.parent.textBetween(0, $from.parentOffset, '\0', '\0')
+  const code = state.schema.marks.code
+  if ($from.parent.type.spec.code || code?.isInSet(state.storedMarks ?? $from.marks())) {
+    setSlashMenu(null)
+    return
+  }
+  const line = getRichMarkdownSoftLine($from)
+  const blockTextBeforeCursor = line.textBefore
   const slashMatch = blockTextBeforeCursor.match(/^\s*\/([a-z0-9-]*)$/i)
   if (!slashMatch) {
     setSlashMenu(null)
@@ -72,7 +89,7 @@ export function syncSlashMenu(
   }
 
   const slashOffset = blockTextBeforeCursor.lastIndexOf('/')
-  const start = selection.from - ($from.parentOffset - slashOffset)
+  const start = $from.start() + line.from + slashOffset
   const coords = view.coordsAtPos(selection.from)
   const rect = root.getBoundingClientRect()
 
