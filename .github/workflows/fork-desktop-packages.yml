@@ -83,14 +83,14 @@ jobs:
             electron_cache: |-
               ~/.cache/electron
               ~/.cache/electron-builder
-          - os: macos-15-intel
+          - os: macos-15
             platform: macos
             package_command: >-
               node config/scripts/ensure-native-runtime.mjs --runtime=electron &&
               node config/scripts/verify-macos-release-env.mjs &&
               ORCA_MAC_RELEASE=1 pnpm exec electron-builder
               --config config/electron-builder.config.cjs
-              --mac --publish never
+              --mac --arm64 --publish never
             artifact_paths: |-
               dist/orcaw-macos-*.dmg
               dist/orcaw-macos-*.dmg.blockmap
@@ -317,7 +317,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.ref_name }}
         shell: bash
-        run: node config/scripts/verify-release-required-assets.mjs "$TAG_NAME" --windows-arm64
+        run: node config/scripts/verify-release-required-assets.mjs "$TAG_NAME" --windows-arm64 --mac-arm64-only
 
       - name: Publish release
         env:

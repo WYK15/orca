@@ -34,6 +34,22 @@ afterEach(() => {
 })
 
 describe('getRequiredReleaseAssetNames', () => {
+  it('requires only ARM64 macOS packages when Intel releases are disabled', () => {
+    const names = getRequiredReleaseAssetNames('v1.4.165-wyk.20', { requireMacIntel: false })
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'latest-mac.yml',
+        'orcaw-macos-arm64.dmg',
+        'orcaw-macos-arm64.dmg.blockmap',
+        'Orcaw-1.4.165-wyk.20-arm64-mac.zip',
+        'Orcaw-1.4.165-wyk.20-arm64-mac.zip.blockmap'
+      ])
+    )
+    expect(names).not.toContain('orcaw-macos-x64.dmg')
+    expect(names).not.toContain('orcaw-macos-x64.dmg.blockmap')
+    expect(names).not.toContain('Orcaw-1.4.165-wyk.20-mac.zip')
+    expect(names).not.toContain('Orcaw-1.4.165-wyk.20-mac.zip.blockmap')
+  })
   it('requires the separate Windows ARM64 installer for fork releases', () => {
     expect(getRequiredReleaseAssetNames('v1.4.27', { requireWindowsArm64: true })).toEqual(
       expect.arrayContaining([
@@ -94,6 +110,25 @@ describe('extractManifestAssetNames', () => {
 })
 
 describe('verifyRequiredReleaseAssets', () => {
+  it('publishes ARM64-only macOS assets without requiring Intel packages', async () => {
+    const tag = 'v1.4.165-wyk.20'
+    const assets = getRequiredReleaseAssetNames(tag, { requireMacIntel: false })
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse([releaseWithAssets(tag, assets)]))
+        .mockResolvedValue(jsonResponse('version: 1.4.165-wyk.20\n'))
+    )
+    await expect(
+      verifyRequiredReleaseAssets({
+        repo: 'WYK15/orca',
+        tag,
+        token: 'token',
+        requireMacIntel: false
+      })
+    ).resolves.toMatchObject({ tag, checked: expect.arrayContaining(assets) })
+  })
   it('fails when a manifest-referenced asset has not been uploaded', async () => {
     const tag = 'v1.4.27'
     const required = getRequiredReleaseAssetNames(tag)

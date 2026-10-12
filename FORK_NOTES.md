@@ -43,7 +43,8 @@ The draft, recovery source, and save pause survive workspace session restore.
 
 For a temporary test build, run `Fork Desktop Packages` from the Actions tab
 and optionally enter a branch, tag, or SHA. The workflow uploads Windows x64,
-Windows ARM64, Linux x64/ARM64, and macOS x64/ARM64 installers for 14 days.
+Windows ARM64, Linux x64/ARM64, and macOS ARM64 installers for 14 days.
+Fork macOS releases build on Apple Silicon and omit Intel DMG/ZIP packages.
 
 For a permanent GitHub Release, create and push a `v*` tag:
 

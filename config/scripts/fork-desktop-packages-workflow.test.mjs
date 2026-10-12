@@ -34,7 +34,7 @@ describe('fork desktop package workflow', () => {
       'windows-11-arm',
       'ubuntu-24.04',
       'ubuntu-24.04-arm',
-      'macos-15-intel'
+      'macos-15'
     ])
   })
 
@@ -54,7 +54,7 @@ describe('fork desktop package workflow', () => {
     expect(source).not.toContain('SIGNPATH')
   })
 
-  it('builds both macOS architectures in the configured target set', () => {
+  it('builds only ARM64 macOS packages alongside Windows and Linux packages', () => {
     const workflow = parse(readFileSync(workflowPath, 'utf8'))
     const windows = workflow.jobs.package.strategy.matrix.include.find(
       ({ platform }) => platform === 'windows-x64'
@@ -92,9 +92,9 @@ describe('fork desktop package workflow', () => {
     expect(linuxArm64.artifact_paths).toContain('dist/latest-linux-arm64.yml')
     expect(linuxArm64.package_command).toContain('ORCA_RELEASE_AUTO_UPDATE=1')
     expect(windows.package_command).not.toContain('ORCA_RELEASE_AUTO_UPDATE=1')
-    expect(macos.package_command).toContain('--mac --publish never')
+    expect(macos.package_command).toContain('--mac --arm64 --publish never')
     expect(macos.package_command).not.toContain('ORCA_RELEASE_AUTO_UPDATE=1')
-    expect(macos.package_command).not.toMatch(/--(?:x64|arm64)/)
+    expect(macos.package_command).not.toContain('--x64')
     expect(macos.artifact_paths).toContain('dist/orcaw-macos-*.dmg')
     expect(macos.artifact_paths).toContain('dist/orcaw-macos-*.dmg.blockmap')
     expect(macos.artifact_paths).toContain('dist/Orcaw-*-mac.zip')
@@ -131,7 +131,7 @@ describe('fork desktop package workflow', () => {
     expect(upload.run).toContain('gh release upload "$TAG_NAME"')
     expect(upload.run).toContain('--clobber')
     expect(verify.run).toContain(
-      'node config/scripts/verify-release-required-assets.mjs "$TAG_NAME" --windows-arm64'
+      'node config/scripts/verify-release-required-assets.mjs "$TAG_NAME" --windows-arm64 --mac-arm64-only'
     )
     expect(publish.run).toContain('gh release edit "$TAG_NAME"')
     expect(publish.run).toContain('--draft=false')

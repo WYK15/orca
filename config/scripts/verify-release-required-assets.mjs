@@ -4,7 +4,10 @@ import { pathToFileURL } from 'node:url'
 
 const API_VERSION = '2022-11-28'
 
-export function getRequiredReleaseAssetNames(tag, { requireWindowsArm64 = false } = {}) {
+export function getRequiredReleaseAssetNames(
+  tag,
+  { requireWindowsArm64 = false, requireMacIntel = true } = {}
+) {
   const version = tag.replace(/^v/i, '')
   return [
     'latest-linux.yml',
@@ -22,12 +25,16 @@ export function getRequiredReleaseAssetNames(tag, { requireWindowsArm64 = false 
     ...(requireWindowsArm64
       ? ['orcaw-windows-arm64-setup.exe', 'orcaw-windows-arm64-setup.exe.blockmap']
       : []),
-    `Orcaw-${version}-mac.zip`,
-    `Orcaw-${version}-mac.zip.blockmap`,
+    ...(requireMacIntel
+      ? [
+          `Orcaw-${version}-mac.zip`,
+          `Orcaw-${version}-mac.zip.blockmap`,
+          'orcaw-macos-x64.dmg',
+          'orcaw-macos-x64.dmg.blockmap'
+        ]
+      : []),
     `Orcaw-${version}-arm64-mac.zip`,
     `Orcaw-${version}-arm64-mac.zip.blockmap`,
-    'orcaw-macos-x64.dmg',
-    'orcaw-macos-x64.dmg.blockmap',
     'orcaw-macos-arm64.dmg',
     'orcaw-macos-arm64.dmg.blockmap'
   ]
@@ -92,12 +99,15 @@ export async function verifyRequiredReleaseAssets({
   repo,
   tag,
   token,
-  requireWindowsArm64 = false
+  requireWindowsArm64 = false,
+  requireMacIntel = true
 }) {
   const release = await fetchRelease(repo, tag, token)
   const assetsByName = new Map(release.assets.map((asset) => [asset.name, asset]))
 
-  const requiredNames = new Set(getRequiredReleaseAssetNames(tag, { requireWindowsArm64 }))
+  const requiredNames = new Set(
+    getRequiredReleaseAssetNames(tag, { requireWindowsArm64, requireMacIntel })
+  )
   const manifestNames = [
     'latest-linux.yml',
     'latest-linux-arm64.yml',
@@ -153,7 +163,7 @@ async function main() {
   const tag = process.argv[2]
   if (!tag) {
     throw new Error(
-      'Usage: node config/scripts/verify-release-required-assets.mjs <tag> [--windows-arm64]'
+      'Usage: node config/scripts/verify-release-required-assets.mjs <tag> [--windows-arm64] [--mac-arm64-only]'
     )
   }
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN
@@ -162,7 +172,14 @@ async function main() {
   }
   const repo = process.env.GITHUB_REPOSITORY || 'WYK15/orca'
   const requireWindowsArm64 = process.argv.includes('--windows-arm64')
-  const result = await verifyRequiredReleaseAssets({ repo, tag, token, requireWindowsArm64 })
+  const requireMacIntel = !process.argv.includes('--mac-arm64-only')
+  const result = await verifyRequiredReleaseAssets({
+    repo,
+    tag,
+    token,
+    requireWindowsArm64,
+    requireMacIntel
+  })
   console.log(`Verified ${result.checked.length} required release assets for ${repo}@${tag}`)
 }
 
