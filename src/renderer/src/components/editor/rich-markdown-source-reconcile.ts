@@ -5,6 +5,10 @@ import {
   makeDiff,
   makePatches
 } from '@sanity/diff-match-patch'
+import {
+  applyMarkdownTableCellEdits,
+  preserveMarkdownTableSourcePadding
+} from './rich-markdown-table-source-edits'
 
 // Why: keep safety re-parses bounded while covering medium documents that the editor handles without noticeable input delay.
 export const RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS = 150_000
@@ -21,7 +25,7 @@ export type ReconcileSerializedMarkdownParams = {
   edited: string
   /**
    * Re-serializes reconciled bytes through the live editor's pipeline; injected so the reconcile logic is unit-testable without a DOM.
-   * Returns null when the throwaway serializer fails (treated as a safety mismatch → canonical fallback).
+   * Returns null when the throwaway serializer fails (treated as a safety mismatch → draft recovery).
    */
   roundTrip: (markdown: string) => string | null
 }
@@ -32,7 +36,7 @@ export function restoreMarkdownSourceEol(markdown: string, source: string): stri
 
 /**
  * Carries the user's edit into the original source style so untouched regions keep their non-canonical bytes.
- * Falls back to canonical `edited` when the transform can't be proven render-equivalent, so it never corrupts or relocates content.
+ * Rejects serialization when the transform cannot be proven render-equivalent.
  */
 export function reconcileSerializedMarkdown({
   originalSource,
@@ -51,30 +55,34 @@ export function reconcileSerializedMarkdown({
   const baseLf = toLf(baseCanonical)
   const editedLf = toLf(edited)
 
-  // Branch 2: source == edited except for EOL/trailing newlines → carry the source's EOL onto the edit and skip the re-parse; guards avoid a spurious `&nbsp;` paragraph and dropping a real trailing block.
+  // Already canonical text needs no reconciliation; tables still need padding preservation.
   const originalTrailingNewlines = originalSourceLf.match(/\n+$/)?.[0] ?? ''
   if (
     originalTrailingNewlines.length <= 1 &&
     !editedLf.endsWith('\n') &&
+    !baseLf.includes('|') &&
     stripTrailingNewlines(originalSourceLf) === stripTrailingNewlines(baseLf)
   ) {
     return restoreEol(editedLf + originalTrailingNewlines, eol)
   }
 
-  // Branch 3: oversize → bounded-cost canonical fallback (today's behavior).
+  // Keep source reconciliation bounded; callers retain rejected edits as drafts.
   if (
     Math.max(originalSource.length, baseCanonical.length, edited.length) >
     RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS
   ) {
-    return restoreEol(editedLf, eol)
+    throw new Error('Cannot preserve Markdown source formatting')
   }
 
   // Branch 4: run the divergent-base patch entirely in LF space.
-  // Why: dmp's half-match accelerator ignores the diff deadline (100ms+ on repeated seeds), so bail to canonical for highly repetitive replacements.
-  if (hasRepeatedHalfMatchSeed(baseLf, editedLf)) {
-    return restoreEol(editedLf, eol)
+  // Why: dmp's half-match accelerator ignores the diff deadline (100ms+ on repeated seeds), so reject highly repetitive replacements.
+  // Table padding differs too much for fuzzy patches; transfer matching cells before diffing prose.
+  const tableEdits = applyMarkdownTableCellEdits(originalSourceLf, baseLf, editedLf)
+  const editedForDiff = preserveMarkdownTableSourcePadding(tableEdits.base, editedLf)
+  if (hasRepeatedHalfMatchSeed(tableEdits.base, editedForDiff)) {
+    throw new Error('Cannot preserve Markdown source formatting')
   }
-  let diffs = makeDiff(baseLf, editedLf, {
+  let diffs = makeDiff(tableEdits.base, editedForDiff, {
     checkLines: true,
     timeout: RECONCILE_DIFF_TIMEOUT_SECONDS
   })
@@ -83,27 +91,27 @@ export function reconcileSerializedMarkdown({
     diffs = cleanupSemantic(diffs)
     diffs = cleanupEfficiency(diffs)
   }
-  const patches = makePatches(baseLf, diffs)
+  const patches = makePatches(tableEdits.base, diffs)
   // Why: applyPatches decodes starts as UTF-8 offsets even though makePatches returns UTF-16 indices; encode against the divergent text being patched so decoding preserves the fuzzy-match seed.
   const utf8Offsets = getUtf8OffsetsAtCodeUnitIndices(
-    originalSourceLf,
+    tableEdits.source,
     patches.flatMap((patch) => [patch.start1, patch.start2])
   )
   for (const patch of patches) {
     patch.start1 = utf8Offsets.get(patch.start1) ?? 0
     patch.start2 = utf8Offsets.get(patch.start2) ?? 0
   }
-  const [reconciledLf, results] = applyPatches(patches, originalSourceLf)
+  const [reconciledLf, results] = applyPatches(patches, tableEdits.source)
 
-  // Branch 5: a hunk failed to locate in the non-canonical source → unreliable fuzzy match, fall back to canonical.
+  // Branch 5: a hunk failed to locate in the non-canonical source → unreliable fuzzy match, reject serialization.
   if (results.some((applied) => !applied)) {
-    return restoreEol(editedLf, eol)
+    throw new Error('Cannot preserve Markdown source formatting')
   }
 
-  // Branch 6: prove reconciled bytes render-equal the editor's document — any fuzzy misplacement changes canonical output and is caught here → canonical fallback.
+  // Branch 6: prove reconciled bytes render-equal the editor's document — any fuzzy misplacement changes canonical output and is caught here → reject serialization.
   const reparsed = roundTrip(reconciledLf)
   if (reparsed === null || normalizeForSafety(reparsed) !== normalizeForSafety(editedLf)) {
-    return restoreEol(editedLf, eol)
+    throw new Error('Cannot preserve Markdown source formatting')
   }
 
   // Restore the detected EOL as the final step so reconciled CRLF stays CRLF.

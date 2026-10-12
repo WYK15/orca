@@ -1101,6 +1101,7 @@ export type TerminalLayoutSnapshot = {
  *  Only edit-mode files are saved — diffs, conflict reviews, and other
  *  transient views are reconstructed on demand from git state. */
 export type PersistedOpenFile = {
+  markdownSaveRecovery?: { source: string }
   filePath: string
   relativePath: string
   worktreeId: string

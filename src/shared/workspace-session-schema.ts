@@ -156,6 +156,7 @@ const tabGroupLayoutNodeSchema: z.ZodType<TabGroupLayoutNode> = z.lazy(() =>
 // ─── Editor ─────────────────────────────────────────────────────────
 
 const persistedOpenFileSchema = z.object({
+  markdownSaveRecovery: z.object({ source: z.string() }).optional(),
   filePath: z.string(),
   relativePath: z.string(),
   worktreeId: z.string(),

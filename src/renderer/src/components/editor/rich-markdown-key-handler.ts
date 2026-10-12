@@ -38,6 +38,7 @@ export type KeyHandlerContext = {
   reconcileRoundTripRef: MutableRefObject<(markdown: string) => string | null>
   onContentChangeRef: MutableRefObject<(content: string) => void>
   onSaveRef: MutableRefObject<(content: string) => void>
+  onSerializationBlockedRef: MutableRefObject<(edited: string, source: string) => void>
   isEditingLinkRef: MutableRefObject<boolean>
   slashMenuRef: MutableRefObject<SlashMenuState | null>
   filteredSlashCommandsRef: MutableRefObject<SlashCommand[]>

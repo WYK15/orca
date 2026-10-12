@@ -196,6 +196,26 @@ afterEach(() => {
 })
 
 describe('EditorContent Monaco lifecycle boundary', () => {
+  it('shows a blocked Markdown draft in source mode even when rich mode is selected', () => {
+    const document = file('/repo/guide.md', {
+      language: 'markdown',
+      isDirty: true,
+      markdownSaveRecovery: { source: '_safe source_' }
+    })
+    render(
+      <EditorContent
+        {...props(document, '_disk source_')}
+        isMarkdown
+        resolvedLanguage="markdown"
+        editBuffers={{ [document.id]: '*edited recovery draft*' }}
+      />
+    )
+    expect(screen.getByRole('alert').textContent).toContain('Saving is paused')
+    expect(screen.getByRole('button', { name: 'Accept formatting changes' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Restore previous source' })).toBeTruthy()
+    expect(lifecycle.models.get(document.filePath)?.content).toBe('*edited recovery draft*')
+  })
+
   it('unmounts the prior path before reconciling a stale retained target model', () => {
     const first = file('/repo/first.ts')
     const second = file('/repo/second.ts')

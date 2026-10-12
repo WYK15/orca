@@ -20,11 +20,15 @@ export function handleRichMarkdownSaveShortcut(
   // Why: the flush already reconciled + updated refs, so this re-serialize is
   // idempotent (edited === baseCanonical → returns the reconciled bytes). On a
   // torn-down editor it falls back to the last committed bytes without patching.
-  const { markdown } = commitRichMarkdownSerialization(
+  const { markdown, didSerialize } = commitRichMarkdownSerialization(
     ctx.editorRef.current,
     ctx,
-    ctx.reconcileRoundTripRef.current
+    ctx.reconcileRoundTripRef.current,
+    ctx.onSerializationBlockedRef.current
   )
+  if (!didSerialize) {
+    return true
+  }
   ctx.onContentChangeRef.current(markdown)
   ctx.onSaveRef.current(markdown)
   return true

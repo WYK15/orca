@@ -89,10 +89,14 @@ export function canAutoSaveOpenFile(file: OpenFile): boolean {
 export function isAutosaveSuspendedForFile(
   file: Pick<
     OpenFile,
-    'externalMutation' | 'pendingDiskBaselineVerification' | 'pendingLiveDiskVerification'
+    | 'externalMutation'
+    | 'pendingDiskBaselineVerification'
+    | 'pendingLiveDiskVerification'
+    | 'markdownSaveRecovery'
   >
 ): boolean {
   return (
+    file.markdownSaveRecovery !== undefined ||
     file.externalMutation === 'changed' ||
     file.pendingDiskBaselineVerification === true ||
     file.pendingLiveDiskVerification === true

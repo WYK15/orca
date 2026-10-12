@@ -13,6 +13,7 @@ export type RichMarkdownEditorProps = {
   onContentChange: (content: string) => void
   onDirtyStateHint: (dirty: boolean) => void
   onSave: (content: string) => void
+  onSerializationBlocked: (edited: string, source: string) => void
   onOpenDocLink?: (target: string) => void
   markdownDocuments?: MarkdownDocument[]
   showTableOfContents?: boolean

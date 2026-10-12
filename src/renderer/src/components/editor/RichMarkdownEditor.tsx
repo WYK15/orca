@@ -44,6 +44,7 @@ export default function RichMarkdownEditor({
   onContentChange,
   onDirtyStateHint,
   onSave,
+  onSerializationBlocked,
   onOpenDocLink,
   markdownDocuments,
   showTableOfContents = false,
@@ -83,6 +84,7 @@ export default function RichMarkdownEditor({
   const onContentChangeRef = useRef(onContentChange)
   const onDirtyStateHintRef = useRef(onDirtyStateHint)
   const onSaveRef = useRef(onSave)
+  const onSerializationBlockedRef = useRef(onSerializationBlocked)
   const onOpenDocLinkRef = useRef(onOpenDocLink)
   const handleLocalImagePickRef = useRef<() => void>(() => {})
   const openSearchRef = useRef<() => void>(() => {})
@@ -132,6 +134,7 @@ export default function RichMarkdownEditor({
   onContentChangeRef.current = onContentChange
   onDirtyStateHintRef.current = onDirtyStateHint
   onSaveRef.current = onSave
+  onSerializationBlockedRef.current = onSerializationBlocked
   onOpenDocLinkRef.current = onOpenDocLink
   isEditingLinkRef.current = isEditingLink
   openAnnotationPopoverRef.current = review.openAnnotationPopover
@@ -154,7 +157,8 @@ export default function RichMarkdownEditor({
       const { markdown, didSerialize } = commitRichMarkdownSerialization(
         editorRef.current,
         { originalSourceRef, baseCanonicalRef, lastCommittedMarkdownRef },
-        reconcileRoundTripRef.current
+        reconcileRoundTripRef.current,
+        onSerializationBlockedRef.current
       )
       if (didSerialize) {
         onContentChangeRef.current(markdown)
@@ -210,6 +214,7 @@ export default function RichMarkdownEditor({
     onContentChangeRef,
     onDirtyStateHintRef,
     onSaveRef,
+    onSerializationBlockedRef,
     onOpenDocLinkRef,
     isEditingLinkRef,
     slashMenuRef: menu.slashMenuRef,

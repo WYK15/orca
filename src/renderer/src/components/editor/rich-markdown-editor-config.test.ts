@@ -53,6 +53,7 @@ function createConfigParams(overrides: Partial<EditorConfigParams> = {}): Editor
     reconcileRoundTripRef: ref<(markdown: string) => string | null>(() => null),
     onContentChangeRef: ref(vi.fn()),
     onDirtyStateHintRef: ref(vi.fn()),
+    onSerializationBlockedRef: { current: vi.fn() },
     onSaveRef: ref(vi.fn()),
     onOpenDocLinkRef: ref(undefined),
     isEditingLinkRef: ref(false),

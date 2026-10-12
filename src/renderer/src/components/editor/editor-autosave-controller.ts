@@ -24,6 +24,7 @@ import {
 } from './editor-autosave'
 import { markFileChangedOnDisk } from './editor-changed-on-disk-mark'
 import { flushPendingEditorChange } from './editor-pending-flush'
+import { MARKDOWN_SAVE_RECOVERY_MESSAGE } from './markdown-save-recovery'
 import {
   clearSelfWrite,
   hasRecentSelfWrite,
@@ -81,6 +82,7 @@ export function attachEditorAutosaveController(store: AppStoreApi): () => void {
           return
         }
 
+        flushPendingEditorChange(file.id)
         const state = store.getState()
         const liveFile = state.openFiles.find((openFile) => openFile.id === file.id) ?? null
         if (!liveFile) {
@@ -90,6 +92,13 @@ export function attachEditorAutosaveController(store: AppStoreApi): () => void {
         // Why: read-only tabs (AI Vault View Log) must never write the agent-owned artifact through editor paths.
         if (liveFile.readOnly === true) {
           return
+        }
+
+        if (liveFile.markdownSaveRecovery) {
+          if (trigger === 'autosave') {
+            return
+          }
+          throw new Error(MARKDOWN_SAVE_RECOVERY_MESSAGE)
         }
 
         // Why: only autosave is blocked while suspended; explicit user saves proceed (the banner warned).

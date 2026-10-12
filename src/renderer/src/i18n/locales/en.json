@@ -1,4 +1,11 @@
 {
+  "editor": {
+    "markdownRecovery": {
+      "description": "Saving is paused because the original formatting could not be preserved. Your edits are kept in this source draft, which may include formatting changes elsewhere in the file.",
+      "accept": "Accept formatting changes",
+      "restore": "Restore previous source"
+    }
+  },
   "app": {
     "recoverableError": {
       "rootTitle": "Orca hit a renderer error.",

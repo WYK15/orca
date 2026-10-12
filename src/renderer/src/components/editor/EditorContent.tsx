@@ -30,6 +30,8 @@ import { translate } from '@/i18n/i18n'
 import { CheckRunDetailsPanel } from './CheckRunDetailsPanel'
 import { ExternalFileChangeBanner } from './ExternalFileChangeBanner'
 import { MarkdownSourceEditorSurface } from './MarkdownSourceEditorSurface'
+import { MarkdownSaveRecoveryBanner } from './MarkdownSaveRecoveryBanner'
+import { stageMarkdownSaveRecovery } from './markdown-save-recovery'
 
 const MonacoEditor = lazy(() => import('./MonacoEditor'))
 const DiffViewer = lazy(() => import('./DiffViewer'))
@@ -380,6 +382,10 @@ export function EditorContent({
       </div>
     )
 
+    if (activeFile.markdownSaveRecovery) {
+      return renderMarkdownSource(<MarkdownSaveRecoveryBanner fileId={activeFile.id} />)
+    }
+
     if (activeFile.conflict?.conflictStatus === 'unresolved') {
       // Why: rich/preview modes hide the conflict-marker source text the user must edit directly.
       return renderMarkdownSource()
@@ -427,6 +433,16 @@ export function EditorContent({
                 onContentChange={onContentChangeWithFm}
                 onDirtyStateHint={handleDirtyStateHint}
                 onSave={onSaveWithFm}
+                onSerializationBlocked={(edited, source) => {
+                  useAppStore.setState((state) =>
+                    stageMarkdownSaveRecovery(
+                      state,
+                      activeFile.id,
+                      fm ? prependFrontMatter(fm.raw, edited) : edited,
+                      fm ? prependFrontMatter(fm.raw, source) : source
+                    )
+                  )
+                }}
                 onOpenDocLink={md.onOpenDocLink}
                 markdownDocuments={md.markdownDocuments}
                 showTableOfContents={showMarkdownTableOfContents}

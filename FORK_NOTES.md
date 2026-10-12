@@ -32,6 +32,13 @@ Remove an entry after an upstream sync contains its equivalent commits.
   and publish desktop releases; manual, pull-request, and release event
   triggers remain available where their workflows define them.
 
+## Markdown source preservation
+
+Rich editing rejects saves when it cannot preserve the original Markdown source
+formatting. It opens the edited draft in source mode and pauses all saves until
+the user accepts the formatting changes or restores the previous source.
+The draft, recovery source, and save pause survive workspace session restore.
+
 ## Fork desktop packages
 
 For a temporary test build, run `Fork Desktop Packages` from the Actions tab

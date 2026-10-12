@@ -1,4 +1,11 @@
 {
+  "editor": {
+    "markdownRecovery": {
+      "description": "无法保留原始格式，已暂停保存并切换到代码模式。你的修改已保留在当前草稿中，但草稿可能包含未编辑部分的格式变化。",
+      "accept": "接受格式变化",
+      "restore": "恢复修改前内容"
+    }
+  },
   "app": {
     "recoverableError": {
       "rootTitle": "Orca 遇到渲染器错误。",

@@ -17,7 +17,7 @@ export type RichMarkdownReconcileRefs = {
 export type RichMarkdownSerializationCommit = {
   /** Bytes to persist to disk (reconciled, or last committed on a torn-down editor). */
   markdown: string
-  /** False when the editor was torn down before serializing (refs left untouched). */
+  /** False on teardown or rejected reconciliation; refs remain unchanged. */
   didSerialize: boolean
 }
 
@@ -29,7 +29,8 @@ export type RichMarkdownSerializationCommit = {
 export function commitRichMarkdownSerialization(
   editor: Editor | null,
   refs: RichMarkdownReconcileRefs,
-  roundTrip: (markdown: string) => string | null
+  roundTrip: (markdown: string) => string | null,
+  onBlocked?: (edited: string, source: string) => void
 ): RichMarkdownSerializationCommit {
   let edited: string | undefined
   try {
@@ -53,14 +54,16 @@ export function commitRichMarkdownSerialization(
       roundTrip
     })
   } catch (error) {
-    // Why: style reconciliation is best-effort; preserve content and source EOL when it fails.
-    console.error('[editor] markdown reconcile failed; falling back to canonical output', error)
-    reconciled = restoreMarkdownSourceEol(edited, refs.originalSourceRef.current)
+    console.warn('[editor] markdown save paused to preserve source formatting', error)
+    onBlocked?.(
+      restoreMarkdownSourceEol(edited, refs.originalSourceRef.current),
+      refs.originalSourceRef.current
+    )
+    return { markdown: refs.lastCommittedMarkdownRef.current, didSerialize: false }
   }
 
   refs.originalSourceRef.current = reconciled
   // Why: reconciled ≡ edited semantically, so its canonical form is `edited`
-  // (also correct in every fallback branch, which returns `edited` verbatim).
   refs.baseCanonicalRef.current = edited
   // Why: the external-change guard short-circuits on lastCommittedMarkdownRef, so
   // it must hold the exact reconciled bytes that reach disk, not the canonical form.

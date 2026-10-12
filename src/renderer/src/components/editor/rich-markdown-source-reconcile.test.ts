@@ -101,13 +101,13 @@ describe('reconcileSerializedMarkdown', () => {
     expect(reconcileWithFake(originalSource, edited)).toBe(`${big}_x_ y\n`)
   })
 
-  it('falls back to canonical when either string exceeds the size cap (branch 3)', () => {
+  it('rejects serialization when either string exceeds the size cap (branch 3)', () => {
     const big = 'line of text\n'.repeat(13_000) // ~169 KB, above the size cap
     const originalSource = `${big}_x_\n`
     const edited = `${big}*x* y\n`
 
-    // Non-canonical source + real semantic change, but oversize → canonical fallback.
-    expect(reconcileWithFake(originalSource, edited)).toBe(edited)
+    // Non-canonical source + real semantic change, but oversize → explicit recovery.
+    expect(() => reconcileWithFake(originalSource, edited)).toThrow('Cannot preserve')
   })
 
   it('bounds diff work for replacement-heavy edits instead of using the 1s library default', () => {
@@ -142,14 +142,15 @@ describe('reconcileSerializedMarkdown', () => {
     const edited = 'ba'.repeat(24_500)
 
     try {
-      const reconciled = reconcileSerializedMarkdown({
-        originalSource: `_${baseCanonical.slice(1)}`,
-        baseCanonical,
-        edited,
-        roundTrip: (markdown) => markdown
-      })
+      const reconcile = () =>
+        reconcileSerializedMarkdown({
+          originalSource: `_${baseCanonical.slice(1)}`,
+          baseCanonical,
+          edited,
+          roundTrip: (markdown) => markdown
+        })
 
-      expect(reconciled).toBe(edited)
+      expect(reconcile).toThrow('Cannot preserve')
       // The dependency reads the clock when diffing; zero reads proves the
       // repetitive-input preflight returned before its unbounded half-match scan.
       expect(dateNow).not.toHaveBeenCalled()
@@ -179,42 +180,45 @@ describe('reconcileSerializedMarkdown', () => {
     }
   })
 
-  it('falls back to canonical when a hunk fails to apply (branch 5)', () => {
+  it('rejects serialization when a hunk fails to apply (branch 5)', () => {
     const baseCanonical = 'The quick brown fox jumps over the lazy dog every morning.\n'
     const edited = 'The quick brown fox LEAPS over the lazy dog every morning.\n'
     const originalSource = 'Zzz totally unrelated content sharing nothing at all here.\n'
 
-    const reconciled = reconcileSerializedMarkdown({
-      originalSource,
-      baseCanonical,
-      edited,
-      roundTrip
-    })
+    const reconcile = () =>
+      reconcileSerializedMarkdown({
+        originalSource,
+        baseCanonical,
+        edited,
+        roundTrip
+      })
 
-    expect(reconciled).toBe(edited)
+    expect(reconcile).toThrow('Cannot preserve')
   })
 
-  it('falls back to canonical when the safety re-parse mismatches (branch 6)', () => {
-    const reconciled = reconcileSerializedMarkdown({
-      originalSource: '_a_\n',
-      baseCanonical: '*a*\n',
-      edited: '*a* b\n',
-      // Simulates a fuzzy misplacement whose render differs from `edited`.
-      roundTrip: () => 'something entirely different'
-    })
+  it('rejects serialization when the safety re-parse mismatches (branch 6)', () => {
+    const reconcile = () =>
+      reconcileSerializedMarkdown({
+        originalSource: '_a_\n',
+        baseCanonical: '*a*\n',
+        edited: '*a* b\n',
+        // Simulates a fuzzy misplacement whose render differs from `edited`.
+        roundTrip: () => 'something entirely different'
+      })
 
-    expect(reconciled).toBe('*a* b\n')
+    expect(reconcile).toThrow('Cannot preserve')
   })
 
-  it('falls back to canonical when the safety serializer returns null (branch 6)', () => {
-    const reconciled = reconcileSerializedMarkdown({
-      originalSource: '_a_\n',
-      baseCanonical: '*a*\n',
-      edited: '*a* b\n',
-      roundTrip: () => null
-    })
+  it('rejects serialization when the safety serializer returns null (branch 6)', () => {
+    const reconcile = () =>
+      reconcileSerializedMarkdown({
+        originalSource: '_a_\n',
+        baseCanonical: '*a*\n',
+        edited: '*a* b\n',
+        roundTrip: () => null
+      })
 
-    expect(reconciled).toBe('*a* b\n')
+    expect(reconcile).toThrow('Cannot preserve')
   })
 
   it('preserves non-canonical regions across an incremental two-edit ref chain', () => {
@@ -281,37 +285,37 @@ describe('reconcileSerializedMarkdown', () => {
     expect(reconciled.replace(/\r\n/g, '')).not.toContain('\n')
   })
 
-  it('restores CRLF on the oversize fallback so a uniform-CRLF file never flips to LF (branch 3)', () => {
+  it('rejects oversized CRLF files without returning rewritten bytes (branch 3)', () => {
     const big = 'line of text\r\n'.repeat(12_000) // ~168 KB, above the cap, all CRLF
     const originalSource = `${big}_x_\r\n` // non-canonical emphasis, oversize
     const editedLf = `${big.replace(/\r\n/g, '\n')}*x* y\n`
 
-    const reconciled = reconcileSerializedMarkdown({
-      originalSource,
-      baseCanonical: `${big.replace(/\r\n/g, '\n')}*x*\n`,
-      edited: editedLf,
-      roundTrip: () => null
-    })
+    const reconcile = () =>
+      reconcileSerializedMarkdown({
+        originalSource,
+        baseCanonical: `${big.replace(/\r\n/g, '\n')}*x*\n`,
+        edited: editedLf,
+        roundTrip: () => null
+      })
 
-    // Canonical fallback content, but the source's CRLF endings are kept.
-    expect(reconciled).toContain('\r\n')
-    expect(reconciled.replace(/\r\n/g, '')).not.toContain('\n')
+    expect(reconcile).toThrow('Cannot preserve')
   })
 
-  it('restores CRLF on the hunk-apply fallback (branch 5)', () => {
+  it('rejects failed patches in CRLF files (branch 5)', () => {
     const originalSource = 'Zzz unrelated content sharing nothing here.\r\n'
     const baseCanonical = 'The quick brown fox jumps over the lazy dog.\n'
     const edited = 'The quick brown fox LEAPS over the lazy dog.\n'
 
-    const reconciled = reconcileSerializedMarkdown({
-      originalSource,
-      baseCanonical,
-      edited,
-      roundTrip
-    })
+    const reconcile = () =>
+      reconcileSerializedMarkdown({
+        originalSource,
+        baseCanonical,
+        edited,
+        roundTrip
+      })
 
-    // Falls back to canonical content, but in the source's CRLF ending.
-    expect(reconciled).toBe('The quick brown fox LEAPS over the lazy dog.\r\n')
+    // No rewritten bytes may escape after a failed patch.
+    expect(reconcile).toThrow('Cannot preserve')
   })
 
   it('preserves CRLF endings on disk without mixing (branch 4 EOL restore)', () => {
@@ -408,6 +412,46 @@ describe('serializeRichMarkdownForReconcile (real editor pipeline)', () => {
 
   const serialize = (md: string): string | null =>
     serializeRichMarkdownForReconcile(md, serializerContext)
+
+  it.each(['\n', '\r\n'])(
+    'preserves source formatting across section and table edits (%j)',
+    (eol) => {
+      const originalSource = [
+        '# 接入手册',
+        '',
+        '_保留格式_ -> 下一步',
+        '',
+        '### 1.3 删除此节',
+        '',
+        '删除此节的说明。',
+        '',
+        '### 1.4 保留此节',
+        '',
+        '* 保留列表',
+        '  * 子项',
+        '',
+        '| 参数 | 默认值 | 链接 |',
+        '| ---- | ---- | ---- |',
+        '| useHttps | 旧版本默认 NO，新版本默认 YES | https://example.com |',
+        '| other | 保留 | https://example.com/other |',
+        ''
+      ].join(eol)
+      const expected = originalSource
+        .replace(/### 1\.3 删除此节[\s\S]*?(?=### 1\.4)/, '')
+        .replace('### 1.4', '### 1.3')
+        .replace('旧版本默认 NO，新版本默认 YES', '新版本默认 YES')
+      const baseCanonical = serialize(originalSource)!
+      const edited = serialize(expected)!
+      const reconciled = reconcileSerializedMarkdown({
+        originalSource,
+        baseCanonical,
+        edited,
+        roundTrip: serialize
+      })
+      expect(reconciled).toBe(expected)
+      expect(serialize(reconciled)).toBe(edited)
+    }
+  )
 
   it('applies normalizeEmptyListItems so empty list items round-trip stably', () => {
     // `3. ` immediately before a heading parses as an empty list item; without the
@@ -562,36 +606,36 @@ describe('serializeRichMarkdownForReconcile (real editor pipeline)', () => {
     const edited = baseCanonical.replace('## TODO', '## TODO\n\nA new note.')
     let roundTripCalls = 0
 
-    const reconciled = reconcileSerializedMarkdown({
-      originalSource,
-      baseCanonical,
-      edited,
-      roundTrip: (md) => {
-        roundTripCalls += 1
-        return serialize(md)
-      }
-    })
+    const reconcile = () =>
+      reconcileSerializedMarkdown({
+        originalSource,
+        baseCanonical,
+        edited,
+        roundTrip: (md) => {
+          roundTripCalls += 1
+          return serialize(md)
+        }
+      })
 
+    expect(reconcile).toThrow('Cannot preserve')
     expect(roundTripCalls).toBeGreaterThan(0) // took the safety-verified path
-    expect(reconciled).not.toContain('&nbsp;')
-    // Safety invariant: reconciled renders exactly to the editor's canonical edit.
-    expect(serialize(reconciled)!.trimEnd()).toBe(edited.trimEnd())
   })
 
-  it('falls back cleanly when an empty-list doc cannot be source-preserved', () => {
+  it('rejects serialization when an empty-list doc cannot be source-preserved', () => {
     // Combines an empty list item with non-canonical emphasis; whatever the fuzzy
     // patch does, the output must render to `edited` (no corruption).
     const originalSource = '_lead_\n\n3. \n# Heading\n'
     const baseCanonical = serialize(originalSource)!
     const edited = baseCanonical.replace('Heading', 'Heading!')
 
-    const reconciled = reconcileSerializedMarkdown({
-      originalSource,
-      baseCanonical,
-      edited,
-      roundTrip: (md) => serialize(md)
-    })
+    const reconcile = () =>
+      reconcileSerializedMarkdown({
+        originalSource,
+        baseCanonical,
+        edited,
+        roundTrip: (md) => serialize(md)
+      })
 
-    expect(serialize(reconciled)!.trimEnd()).toBe(edited.trimEnd())
+    expect(reconcile).toThrow('Cannot preserve')
   })
 })

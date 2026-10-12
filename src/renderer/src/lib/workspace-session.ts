@@ -10,6 +10,7 @@ import { normalizeBrowserHistoryEntries } from '../../../shared/workspace-sessio
 import type { AppState } from '../store'
 import type { OpenFile } from '../store/slices/editor'
 import { buildPersistedUnifiedTabSessionData } from './workspace-session-unified-tabs'
+import { buildPersistedEditorFile } from './workspace-session-editor-file'
 import { buildLastVisitedAtByWorktreeId } from './workspace-session-focus-recency'
 import { buildSleepingAgentSessionData } from './workspace-session-sleeping-agents'
 import { buildActiveConnectionIdsAtShutdown } from './workspace-session-reconnect-targets'
@@ -116,25 +117,7 @@ export function buildEditorSessionData(
   const editFileIdsByWorktree: Record<string, Set<string>> = {}
   for (const f of editFiles) {
     const arr = byWorktree[f.worktreeId] ?? (byWorktree[f.worktreeId] = [])
-    // Why: never persist a dirty draft for a read-only tab — restoring one would reintroduce writable/hot-exit state for an agent transcript.
-    const dirtyDraftContent = f.isDirty && f.readOnly !== true ? editorDrafts[f.id] : undefined
-    arr.push({
-      filePath: f.filePath,
-      relativePath: f.relativePath,
-      worktreeId: f.worktreeId,
-      language: f.language,
-      isPreview: f.isPreview || undefined,
-      runtimeEnvironmentId: f.runtimeEnvironmentId,
-      externalSshTargetId: f.externalSshTargetId,
-      // Why: persist readOnly only when true; absence is the writable default on restore.
-      ...(f.readOnly === true ? { readOnly: true } : {}),
-      ...(f.readOnly === true && f.liveTail === true ? { liveTail: true } : {}),
-      ...(dirtyDraftContent !== undefined ? { dirtyDraftContent } : {}),
-      // Why: baseline travels with the draft so restore can detect a changed-on-disk conflict before autosave clobbers an offline agent write.
-      ...(dirtyDraftContent !== undefined && f.lastKnownDiskSignature
-        ? { lastKnownDiskSignature: f.lastKnownDiskSignature }
-        : {})
-    })
+    arr.push(buildPersistedEditorFile(f, editorDrafts[f.id]))
     const ids =
       editFileIdsByWorktree[f.worktreeId] ?? (editFileIdsByWorktree[f.worktreeId] = new Set())
     ids.add(f.id)

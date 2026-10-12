@@ -98,6 +98,7 @@ function createContext(editor: Editor, typedMarker: boolean): KeyHandlerContext 
     baseCanonicalRef: { current: '' },
     reconcileRoundTripRef: { current: () => null },
     onContentChangeRef: { current: vi.fn() },
+    onSerializationBlockedRef: { current: vi.fn() },
     onSaveRef: { current: vi.fn() },
     isEditingLinkRef: { current: false },
     slashMenuRef: { current: null },

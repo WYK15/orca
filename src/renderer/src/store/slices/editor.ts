@@ -222,6 +222,8 @@ export type OpenFile = {
   worktreeId: string
   language: string
   isDirty: boolean
+  /** Holds the last safe source while a regenerated draft awaits explicit approval. */
+  markdownSaveRecovery?: { source: string }
   // Why: remote untitled cleanup must target the creating environment even if the user later switches runtime.
   runtimeEnvironmentId?: string | null
   /** SSH target that owns an absolute path outside the worktree. */
@@ -2525,6 +2527,9 @@ export const createEditorSlice: StateCreator<AppState, [], [], EditorSlice> = (s
       if (file.readOnly === true) {
         return s
       }
+      if (!dirty && file.markdownSaveRecovery) {
+        return s
+      }
       const needsPreviewClear = dirty && file.isPreview
       if (file.isDirty === dirty && !needsPreviewClear) {
         return s
@@ -4581,6 +4586,7 @@ export const createEditorSlice: StateCreator<AppState, [], [], EditorSlice> = (s
             ...(isReadOnly ? { readOnly: true } : {}),
             ...(isReadOnly && pf.liveTail === true ? { liveTail: true } : {}),
             lastKnownDiskSignature: isReadOnly ? undefined : pf.lastKnownDiskSignature,
+            markdownSaveRecovery: isReadOnly ? undefined : pf.markdownSaveRecovery,
             // Why: suspend autosave until the conflict scan verifies disk vs baseline, else a slow remote read clobbers an offline write.
             pendingDiskBaselineVerification:
               !isReadOnly &&

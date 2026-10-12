@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { WorkspaceSessionSnapshot } from './workspace-session'
 import { buildWorkspaceSessionPayload } from './workspace-session'
+import { parseWorkspaceSession } from '../../../shared/workspace-session-schema'
 
 function createSnapshot(
   overrides: Partial<WorkspaceSessionSnapshot> = {}
@@ -38,6 +39,36 @@ function createSnapshot(
 }
 
 describe('workspace session editor drafts', () => {
+  it('persists both the blocked Markdown draft and its safe recovery source', () => {
+    const payload = buildWorkspaceSessionPayload(
+      createSnapshot({
+        openFiles: [
+          {
+            id: 'doc',
+            filePath: '/docs/guide.md',
+            relativePath: 'guide.md',
+            worktreeId: 'wt-1',
+            language: 'markdown',
+            mode: 'edit',
+            isDirty: true,
+            markdownSaveRecovery: { source: '_safe source_' }
+          }
+        ],
+        editorDrafts: { doc: '*edited draft*' }
+      })
+    )
+    expect(payload.openFilesByWorktree?.['wt-1']?.[0]).toMatchObject({
+      dirtyDraftContent: '*edited draft*',
+      markdownSaveRecovery: { source: '_safe source_' }
+    })
+    const parsed = parseWorkspaceSession(payload)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
+      expect(parsed.value.openFilesByWorktree?.['wt-1']?.[0].markdownSaveRecovery).toEqual({
+        source: '_safe source_'
+      })
+    }
+  })
   it('persists dirty editor drafts without saving clean file content', () => {
     const payload = buildWorkspaceSessionPayload(
       createSnapshot({

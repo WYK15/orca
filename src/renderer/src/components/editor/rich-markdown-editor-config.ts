@@ -59,6 +59,7 @@ export type EditorConfigParams = {
   onContentChangeRef: MutableRefObject<(content: string) => void>
   onDirtyStateHintRef: MutableRefObject<(dirty: boolean) => void>
   onSaveRef: MutableRefObject<(content: string) => void>
+  onSerializationBlockedRef: MutableRefObject<(edited: string, source: string) => void>
   onOpenDocLinkRef: MutableRefObject<((target: string) => void) | undefined>
   isEditingLinkRef: MutableRefObject<boolean>
   slashMenuRef: MutableRefObject<SlashMenuState | null>
@@ -253,7 +254,8 @@ export function createRichMarkdownEditorConfig(params: EditorConfigParams): UseE
           const { markdown, didSerialize } = commitRichMarkdownSerialization(
             nextEditor,
             { originalSourceRef, baseCanonicalRef, lastCommittedMarkdownRef },
-            reconcileRoundTripRef.current
+            reconcileRoundTripRef.current,
+            params.onSerializationBlockedRef.current
           )
           if (didSerialize) {
             onContentChangeRef.current(markdown)
