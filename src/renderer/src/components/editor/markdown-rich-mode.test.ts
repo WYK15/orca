@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getMarkdownRichModeUnsupportedMessage } from './markdown-rich-mode'
+import { getRichMarkdownRoundTripOutput } from './markdown-round-trip'
 import { RICH_MARKDOWN_SOURCE_RECONCILE_MAX_CODE_UNITS } from './rich-markdown-source-reconcile'
 
 afterEach(() => {
@@ -13,6 +14,40 @@ describe('getMarkdownRichModeUnsupportedMessage', () => {
 
   it('allows plain markdown content', () => {
     expect(getMarkdownRichModeUnsupportedMessage('# Title\n\n- one\n- two\n')).toBeNull()
+  })
+
+  it('keeps list XML examples editable after deleting an unrelated section', () => {
+    const examples = [
+      '## Configuration',
+      '',
+      '1. First example',
+      '',
+      '   ```xml',
+      '   <dict>',
+      '   <key>Example</key>',
+      '   </dict>',
+      '   ```',
+      '',
+      '2. Second example',
+      '',
+      '   ```xml',
+      '   <array/>',
+      '   ```',
+      '',
+      '| Name | Description |',
+      '| --- | --- |',
+      '| Example | First<br />Second |',
+      ''
+    ].join('\n')
+    const section = '### 1.3 Old configuration\n\nObsolete instructions.\n\n'
+    const original = section + examples
+    expect(getMarkdownRichModeUnsupportedMessage(original)).toBeNull()
+    expect(getMarkdownRichModeUnsupportedMessage(original.replace(section, ''))).toBeNull()
+    const output = getRichMarkdownRoundTripOutput(original.replace(section, ''))!
+    expect(output).toContain('<key>Example</key>')
+    expect(output).not.toContain('[[ORCA_RICH_MD:')
+    expect(getMarkdownRichModeUnsupportedMessage(output)).toBeNull()
+    expect(getRichMarkdownRoundTripOutput(output)).toBe(output)
   })
 
   it('allows common raw html in markdown files', () => {

@@ -14,6 +14,54 @@ function encode(source: string, htmlSuperscriptLinks = false) {
 }
 
 describe('raw Markdown HTML preprocessing', () => {
+  it.each(['\n', '\r\n'])('keeps list XML fences protected across blank lines (%j)', (newline) => {
+    const source = [
+      '1. First example',
+      '',
+      '   ```xml',
+      '   <dict>',
+      '   <key>Example</key>',
+      '   </dict>',
+      '   ```',
+      '',
+      '<span>Outside code</span>',
+      '',
+      '2. Second example',
+      '',
+      '   ```xml',
+      '   <array/>',
+      '   ```',
+      ''
+    ].join(newline)
+    const { encoded, transport } = encode(source)
+    expect(encoded).toContain(
+      ['   ```xml', '   <dict>', '   <key>Example</key>', '   </dict>', '   ```'].join(newline)
+    )
+    expect(encoded).toContain(['   ```xml', '   <array/>', '   ```'].join(newline))
+    expect(encoded).toContain(transport.startFor('safe-inline-html'))
+    expect(encoded).not.toContain(transport.startFor('inline-html'))
+    expect(encoded).not.toContain(transport.startFor('block-html'))
+  })
+
+  it.each(['`', '~'])('ignores shorter and non-closing %s fences inside code', (marker) => {
+    const fence = marker.repeat(4)
+    const source = [
+      fence,
+      '<dict>',
+      marker.repeat(3),
+      '<key>Example</key>',
+      `${fence} not a closing fence`,
+      '<array/>',
+      fence,
+      '',
+      '<span>Outside</span>'
+    ].join('\n')
+    const { encoded, transport } = encode(source)
+    expect(encoded).toContain(source.slice(0, source.indexOf('<span>')))
+    expect(encoded).toContain(transport.startFor('safe-inline-html'))
+    expect(encoded).not.toContain(transport.startFor('inline-html'))
+  })
+
   it.each(['Before <span>safe</span> after', 'First<br>Second', '<a href="./guide.md">Guide</a>'])(
     'transports safe inline HTML before raw HTML: %s',
     (source) => {
