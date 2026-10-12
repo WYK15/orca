@@ -550,7 +550,7 @@ describe('serializeRichMarkdownForReconcile (real editor pipeline)', () => {
     // Guards the re-parse-skipping fast path: even though branch 2 does NOT run
     // the safety re-parse, its output must satisfy the same invariant the full
     // path proves — reconciled renders exactly to the editor's canonical output.
-    const originalSource = '# Title\n\n*emphasis* text\n\n- one\n- two\n' // canonical + trailing \n
+    const originalSource = '# Title\n\n*emphasis* text\n\n- one\n- two\n\nFinal text\n'
     const baseCanonical = serialize(originalSource)!
     expect(originalSource).not.toBe(baseCanonical) // differs only by the trailing \n
     const edited = baseCanonical.replace('# Title', '# Title!')
@@ -567,7 +567,7 @@ describe('serializeRichMarkdownForReconcile (real editor pipeline)', () => {
     })
 
     expect(roundTripCalls).toBe(0) // took the cheap path
-    expect(reconciled).toBe('# Title!\n\n*emphasis* text\n\n- one\n- two\n')
+    expect(reconciled).toBe(originalSource.replace('# Title', '# Title!'))
     expect(serialize(reconciled)!.trimEnd()).toBe(edited.trimEnd())
   })
 
@@ -617,11 +617,13 @@ describe('serializeRichMarkdownForReconcile (real editor pipeline)', () => {
         }
       })
 
-    expect(reconcile).toThrow('Cannot preserve')
+    const reconciled = reconcile()
+    expect(reconciled).not.toContain('&nbsp;')
+    expect(serialize(reconciled)).toBe(edited)
     expect(roundTripCalls).toBeGreaterThan(0) // took the safety-verified path
   })
 
-  it('rejects serialization when an empty-list doc cannot be source-preserved', () => {
+  it('preserves source formatting in an empty-list document', () => {
     // Combines an empty list item with non-canonical emphasis; whatever the fuzzy
     // patch does, the output must render to `edited` (no corruption).
     const originalSource = '_lead_\n\n3. \n# Heading\n'
@@ -636,6 +638,8 @@ describe('serializeRichMarkdownForReconcile (real editor pipeline)', () => {
         roundTrip: (md) => serialize(md)
       })
 
-    expect(reconcile).toThrow('Cannot preserve')
+    const reconciled = reconcile()
+    expect(reconciled).toBe(originalSource.replace('Heading', 'Heading!'))
+    expect(serialize(reconciled)).toBe(edited)
   })
 })

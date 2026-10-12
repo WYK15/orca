@@ -33,6 +33,7 @@ import type { RichMarkdownEditorCodec } from './rich-markdown-source-transport'
 import { createRichMarkdownHtmlSuperscriptLink } from './rich-markdown-html-superscript-link'
 import type { RichMarkdownHtmlSuperscriptLinkContext } from './rich-markdown-html-superscript-link-context'
 import { RichMarkdownTaskList } from './rich-markdown-task-list'
+import { RichMarkdownOrderedList } from './rich-markdown-ordered-list'
 import { createRichMarkdownSafeHtmlExtensions } from './rich-markdown-safe-html'
 import { RichMarkdownInlineInput } from './rich-markdown-inline-input'
 import { RichMarkdownSoftLineCodeBlock } from './rich-markdown-soft-line-code-block'
@@ -72,9 +73,11 @@ export function createRichMarkdownExtensions({
     // preview and then still lose syntax on save.
     StarterKit.configure({
       link: false,
+      orderedList: false,
       code: false,
       codeBlock: false
     }),
+    RichMarkdownOrderedList,
     RichMarkdownCode,
     CodeBlockLowlight.extend({
       addNodeView() {

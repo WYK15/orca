@@ -23,7 +23,7 @@ export type RichMarkdownReconcileSerializerContext = {
  * classification context, its image resolver context, and normalizeEmptyListItems.
  * Reconciliation's safety re-parse must match the live getMarkdown() output, or
  * docs with empty list items / local images / superscript links would spuriously
- * mismatch and silently fall back to canonical. Returns null if serialization throws.
+ * mismatch and suspend saving. Returns null if serialization throws.
  */
 export function serializeRichMarkdownForReconcile(
   content: string,
@@ -50,6 +50,11 @@ export function serializeRichMarkdownForReconcile(
       }
     })
     try {
+      // Headless editors omit plugins; run their document repairs just as the mounted editor does.
+      editor.view.updateState(
+        editor.state.reconfigure({ plugins: editor.extensionManager.plugins })
+      )
+      editor.view.dispatch(editor.state.tr)
       normalizeEmptyListItems(editor)
       return editor.getMarkdown()
     } finally {
