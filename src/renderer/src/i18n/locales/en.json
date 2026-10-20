@@ -1,4 +1,10 @@
 {
+  "fileExplorer": {
+    "defaultApp": {
+      "open": "Open with Default App",
+      "openFailed": "Couldn't open the file with its default app."
+    }
+  },
   "editor": {
     "markdownRecovery": {
       "description": "Saving is paused because the original formatting could not be preserved. Your edits are kept in this source draft, which may include formatting changes elsewhere in the file.",

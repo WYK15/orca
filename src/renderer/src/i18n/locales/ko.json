@@ -1,4 +1,10 @@
 {
+  "fileExplorer": {
+    "defaultApp": {
+      "open": "기본 앱으로 열기",
+      "openFailed": "기본 앱으로 파일을 열 수 없습니다."
+    }
+  },
   "editor": {
     "markdownRecovery": {
       "description": "원래 서식을 유지할 수 없어 저장을 일시 중지했습니다. 편집 내용은 이 소스 초안에 보관되며, 파일의 다른 부분에도 서식 변경이 포함될 수 있습니다.",

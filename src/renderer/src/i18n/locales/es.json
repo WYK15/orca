@@ -1,4 +1,10 @@
 {
+  "fileExplorer": {
+    "defaultApp": {
+      "open": "Abrir con la aplicación predeterminada",
+      "openFailed": "No se pudo abrir el archivo con la aplicación predeterminada."
+    }
+  },
   "editor": {
     "markdownRecovery": {
       "description": "El guardado está en pausa porque no se pudo conservar el formato original. Tus cambios están en este borrador de código fuente, que puede incluir cambios de formato en otras partes del archivo.",

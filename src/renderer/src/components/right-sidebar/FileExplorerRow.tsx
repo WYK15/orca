@@ -48,6 +48,7 @@ import { STATUS_LABELS } from './status-display'
 import { RENAME_HOTSPOT_ATTR } from './file-explorer-dir-toggle-timing'
 import type { TreeNode } from './file-explorer-types'
 import { useFileExplorerRowDrag } from './useFileExplorerRowDrag'
+import { FileExplorerDefaultAppMenuItem } from './FileExplorerDefaultAppMenuItem'
 import { isLocalPathOpenBlocked, showLocalPathOpenBlockedToast } from '@/lib/local-path-open-guard'
 import { translate } from '@/i18n/i18n'
 import { extractIpcErrorMessage } from '@/lib/ipc-error'
@@ -774,6 +775,12 @@ export function FileExplorerRow({
             )}
           </ContextMenuItem>
         )}
+        <FileExplorerDefaultAppMenuItem
+          node={node}
+          worktreeId={activeWorktreeId}
+          selectionSize={selectionSize}
+          remote={Boolean(connectionId || runtimeDownloadContext)}
+        />
         {showRemoteDownloadAction && (
           <ContextMenuItem onSelect={handleDownload}>
             <Download />
