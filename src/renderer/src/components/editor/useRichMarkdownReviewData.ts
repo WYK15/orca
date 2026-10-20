@@ -9,6 +9,7 @@ import {
 import type { NotesSendMenuScope } from './NotesSendMenu'
 import type { DiffComment } from '../../../../shared/types'
 import { translate } from '@/i18n/i18n'
+import { MARKDOWN_REVIEW_ENABLED } from './markdown-review-policy'
 
 type UseRichMarkdownReviewDataOptions = {
   allDiffComments: DiffComment[] | undefined
@@ -40,13 +41,17 @@ export function useRichMarkdownReviewData({
         : getRelativePathInsideRoot(filePath, worktreeRoot),
     [filePath, markdownAnnotationFilePath, worktreeRoot]
   )
-  const canAnnotateRichMarkdown = Boolean(markdownAnnotationsEnabled && sourceRelativePath !== null)
+  const canAnnotateRichMarkdown = Boolean(
+    MARKDOWN_REVIEW_ENABLED && markdownAnnotationsEnabled && sourceRelativePath !== null
+  )
   const markdownComments = useMemo(
     () =>
-      (allDiffComments ?? []).filter(
-        (comment) => comment.filePath === sourceRelativePath && isMarkdownComment(comment)
-      ),
-    [allDiffComments, sourceRelativePath]
+      canAnnotateRichMarkdown
+        ? (allDiffComments ?? []).filter(
+            (comment) => comment.filePath === sourceRelativePath && isMarkdownComment(comment)
+          )
+        : [],
+    [allDiffComments, canAnnotateRichMarkdown, sourceRelativePath]
   )
   const markdownReviewNotes = useMemo(
     () => sortMarkdownReviewNotes(markdownComments as MarkdownReviewNote[]),

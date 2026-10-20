@@ -12,6 +12,10 @@ Remove an entry after an upstream sync contains its equivalent commits.
 
 ## Persistent customizations
 
+- Markdown review notes are removed from preview, rich editing, and source
+  editing, including note controls, review rails, shortcuts, and the settings
+  toggle. Stored notes remain intact for compatibility; saved enablement
+  preferences cannot restore the feature. Diff review comments remain available.
 - Desktop workspace tabs shrink evenly to a 72px minimum before horizontal
   overflow, instead of upstream's 88px minimum.
 - Rich Markdown's toolbar provides a 10×10 table-size grid and a validated

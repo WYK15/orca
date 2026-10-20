@@ -197,7 +197,7 @@ export function getDefaultSettings(homedir: string): GlobalSettings {
     editorFontFamily: '',
     editorWordWrap: true,
     richMarkdownSpellcheckEnabled: true,
-    markdownReviewToolsEnabled: true,
+    markdownReviewToolsEnabled: false,
     primarySelectionMiddleClickPaste: getDefaultPrimarySelectionMiddleClickPaste(),
     primarySelectionMiddleClickPasteDefaultedForLinux:
       typeof process !== 'undefined' && process.platform === 'linux',

@@ -37,6 +37,7 @@ import {
 import { buildGitConflictDecorations, hasGitConflictMarkers } from './monaco-conflict-decorations'
 import { selectWorktreeDiffComments } from '@/store/worktree-diff-comments-selector'
 import { isMarkdownComment } from '@/lib/diff-comment-compat'
+import { MARKDOWN_REVIEW_ENABLED } from './markdown-review-policy'
 import { formatMarkdownReviewNotes, type MarkdownReviewNote } from '@/lib/markdown-review-notes'
 import { useDiffCommentDecorator } from '../diff-comments/useDiffCommentDecorator'
 import { DiffCommentPopover } from '../diff-comments/DiffCommentPopover'
@@ -214,7 +215,10 @@ export default function MonacoEditor({
   }, [language, markdownDocuments])
 
   const shouldShowMarkdownAnnotations =
-    markdownAnnotationsEnabled && language === 'markdown' && Boolean(worktreeId)
+    MARKDOWN_REVIEW_ENABLED &&
+    markdownAnnotationsEnabled &&
+    language === 'markdown' &&
+    Boolean(worktreeId)
   // Why: the mount closure installs keydown listeners once, so the shortcut reads current enablement through a ref.
   const shouldShowMarkdownAnnotationsRef = useRef(shouldShowMarkdownAnnotations)
   useEffect(() => {

@@ -84,6 +84,7 @@ import { useMountedRef } from '@/hooks/useMountedRef'
 import { selectMarkdownTableOfContents } from './markdown-toc-visibility-gate'
 import { MarkdownTableOfContentsPanel } from './MarkdownTableOfContentsPanel'
 import { isMarkdownComment } from '@/lib/diff-comment-compat'
+import { MARKDOWN_REVIEW_ENABLED } from './markdown-review-policy'
 import { DiffCommentCard } from '../diff-comments/DiffCommentCard'
 import {
   formatMarkdownReviewCardQuote,
@@ -519,8 +520,9 @@ export default function MarkdownPreview({
   onCloseTableOfContents,
   markdownDocuments = EMPTY_MARKDOWN_DOCUMENTS,
   onOpenDocument,
-  markdownAnnotationsEnabled = false
+  markdownAnnotationsEnabled: requestedMarkdownAnnotationsEnabled = false
 }: MarkdownPreviewProps): React.JSX.Element {
+  const markdownAnnotationsEnabled = MARKDOWN_REVIEW_ENABLED && requestedMarkdownAnnotationsEnabled
   const rootRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -610,10 +612,12 @@ export default function MarkdownPreview({
   }, [filePath, sourceWorktree])
   const markdownComments = useMemo(
     () =>
-      (allDiffComments ?? []).filter(
-        (comment) => comment.filePath === sourceRelativePath && isMarkdownComment(comment)
-      ),
-    [allDiffComments, sourceRelativePath]
+      markdownAnnotationsEnabled
+        ? (allDiffComments ?? []).filter(
+            (comment) => comment.filePath === sourceRelativePath && isMarkdownComment(comment)
+          )
+        : [],
+    [allDiffComments, markdownAnnotationsEnabled, sourceRelativePath]
   )
   const settings = useAppStore((s) => s.settings)
   const imageRuntimeContext = useMemo(
@@ -1725,6 +1729,9 @@ export default function MarkdownPreview({
           blockKey,
           getMarkdownPreviewAnnotationQuote(children)
         )
+        if (!controls) {
+          return <li {...props}>{children}</li>
+        }
         return (
           <li {...props}>
             <div
