@@ -54,6 +54,24 @@ describe('fork desktop package workflow', () => {
     expect(source).not.toContain('SIGNPATH')
   })
 
+  it('requires explicit opt-in and validates the existing tag for manual releases', () => {
+    const workflow = parse(readFileSync(workflowPath, 'utf8'))
+    expect(workflow.on.workflow_dispatch.inputs.publish_release).toMatchObject({
+      type: 'boolean',
+      default: false
+    })
+    const release = workflow.jobs.release
+    expect(release.if).toContain('inputs.publish_release')
+    expect(release.if).toContain("startsWith(inputs.ref, 'v')")
+    const check = release.steps.find((step) => step.name === 'Verify checked-out release tag')
+    expect(check.env.TAG_NAME).toBe('${{ inputs.ref || github.ref_name }}')
+    expect(check.run).toContain('refs/tags/$TAG_NAME^{commit}')
+    expect(check.run).toContain('require("./package.json").version')
+    for (const step of release.steps.filter((step) => step.env?.GH_TOKEN)) {
+      expect(step.env.TAG_NAME).toBe('${{ inputs.ref || github.ref_name }}')
+    }
+  })
+
   it('builds only ARM64 macOS packages alongside Windows and Linux packages', () => {
     const workflow = parse(readFileSync(workflowPath, 'utf8'))
     const windows = workflow.jobs.package.strategy.matrix.include.find(

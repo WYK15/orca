@@ -11,6 +11,11 @@ on:
         required: false
         default: ''
         type: string
+      publish_release:
+        description: 'Publish a release for the existing v-prefixed tag in ref'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -239,7 +244,9 @@ jobs:
           retention-days: 14
 
   release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish_release && startsWith(inputs.ref, 'v'))
     needs: package
     runs-on: ubuntu-24.04
     permissions:
@@ -249,8 +256,17 @@ jobs:
       - name: Checkout release verifier
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ inputs.ref || github.ref }}
           persist-credentials: false
+
+      - name: Verify checked-out release tag
+        env:
+          TAG_NAME: ${{ inputs.ref || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$(git rev-parse --verify "refs/tags/$TAG_NAME^{commit}")"
+          node -e 'if (process.env.TAG_NAME !== `v${require("./package.json").version}`) process.exit(1)'
 
       - name: Download desktop packages
         uses: actions/download-artifact@v8
@@ -262,7 +278,7 @@ jobs:
       - name: Create or reuse draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ inputs.ref || github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -296,7 +312,7 @@ jobs:
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ inputs.ref || github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -315,14 +331,14 @@ jobs:
       - name: Verify Orcaw release assets
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ inputs.ref || github.ref_name }}
         shell: bash
         run: node config/scripts/verify-release-required-assets.mjs "$TAG_NAME" --windows-arm64 --mac-arm64-only
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ inputs.ref || github.ref_name }}
         shell: bash
         run: >-
           gh release edit "$TAG_NAME"
