@@ -1,10 +1,31 @@
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { parse } from 'yaml'
 import { describe, expect, it } from 'vitest'
 
 const workflowPath = '.github/workflows/fork-desktop-packages.yml'
+const require = createRequire(import.meta.url)
 
 describe('fork desktop package workflow', () => {
+  it('keeps configured Intel targets out of the ARM64 release target map', () => {
+    const { computeArchToTargetNamesMap } = require('app-builder-lib/out/targets/targetFactory')
+    const { Arch } = require('builder-util')
+    const { Platform } = require('app-builder-lib')
+    const config = require('../electron-builder.config.cjs')
+    const workflow = parse(readFileSync(workflowPath, 'utf8'))
+    const mac = workflow.jobs.package.strategy.matrix.include.find(
+      ({ platform }) => platform === 'macos'
+    )
+    const targets = mac.package_command.match(/--mac\s+(.+?)\s+--arm64/)?.[1].split(/\s+/) ?? []
+    const map = computeArchToTargetNamesMap(
+      new Map([[Arch.arm64, targets]]),
+      {
+        platformSpecificBuildOptions: config.mac
+      },
+      Platform.MAC
+    )
+    expect([...map]).toEqual([[Arch.arm64, ['dmg', 'zip']]])
+  })
   it('triggers release packaging for v-prefixed tags', () => {
     const workflow = parse(readFileSync(workflowPath, 'utf8'))
 
@@ -110,7 +131,7 @@ describe('fork desktop package workflow', () => {
     expect(linuxArm64.artifact_paths).toContain('dist/latest-linux-arm64.yml')
     expect(linuxArm64.package_command).toContain('ORCA_RELEASE_AUTO_UPDATE=1')
     expect(windows.package_command).not.toContain('ORCA_RELEASE_AUTO_UPDATE=1')
-    expect(macos.package_command).toContain('--mac --arm64 --publish never')
+    expect(macos.package_command).toContain('--mac dmg zip --arm64 --publish never')
     expect(macos.package_command).not.toContain('ORCA_RELEASE_AUTO_UPDATE=1')
     expect(macos.package_command).not.toContain('--x64')
     expect(macos.artifact_paths).toContain('dist/orcaw-macos-*.dmg')

@@ -95,7 +95,7 @@ jobs:
               node config/scripts/verify-macos-release-env.mjs &&
               ORCA_MAC_RELEASE=1 pnpm exec electron-builder
               --config config/electron-builder.config.cjs
-              --mac --arm64 --publish never
+              --mac dmg zip --arm64 --publish never
             artifact_paths: |-
               dist/orcaw-macos-*.dmg
               dist/orcaw-macos-*.dmg.blockmap
