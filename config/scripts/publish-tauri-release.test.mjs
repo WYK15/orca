@@ -51,6 +51,7 @@ beforeEach(() => {
   vi.resetModules()
   vi.stubEnv('RELEASE_TAG', `v${version}`)
   vi.stubEnv('GITHUB_REPOSITORY', 'owner/repo')
+  vi.stubEnv('RELEASE_CHANNEL', 'preview')
   fixture.files = new Map([
     ['package.json', JSON.stringify({ version })],
     ['src-tauri/tauri.conf.json', JSON.stringify({ version })],
@@ -87,6 +88,32 @@ describe('Tauri release publication gate', () => {
       expect.arrayContaining(['--draft=false', '--prerelease', '--latest=false'])
     )
   })
+  it('publishes a stable release only when requested, while retaining the Electron Latest release', async () => {
+    vi.stubEnv('RELEASE_CHANNEL', 'stable')
+    await publish()
+    expect(changedRelease().map((args) => args[2])).toEqual(['create', 'upload', 'edit'])
+    expect(changedRelease()[0]).toEqual(
+      expect.arrayContaining(['--draft', '--prerelease=false', '--latest=false', '--verify-tag'])
+    )
+    expect(changedRelease()[0].some((arg) => arg.includes('Preview'))).toBe(false)
+    expect(changedRelease()[2]).toEqual(
+      expect.arrayContaining(['--draft=false', '--prerelease=false', '--latest=false'])
+    )
+  })
+  it('rejects an invalid channel before modifying a release', async () => {
+    vi.stubEnv('RELEASE_CHANNEL', 'stabel')
+    await expect(publish()).rejects.toThrow('RELEASE_CHANNEL')
+    expect(changedRelease()).toEqual([])
+  })
+  it.each(['preview', 'stable'])(
+    'does not repurpose a different-channel %s draft',
+    async (channel) => {
+      vi.stubEnv('RELEASE_CHANNEL', channel)
+      fixture.existing = { isDraft: true, isPrerelease: channel !== 'preview' }
+      await expect(publish()).rejects.toThrow('different-channel')
+      expect(changedRelease()).toEqual([])
+    }
+  )
   it('rejects tampered files before creating a release', async () => {
     fixture.files.set(`${directory}/${zip}`, Buffer.from('tampered'))
     await expect(publish()).rejects.toThrow('checksum mismatch')

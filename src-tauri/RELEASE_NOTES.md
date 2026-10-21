@@ -1,6 +1,13 @@
-## Orcaw Tauri — Mac ARM64 测试版
+## Orcaw Tauri — Mac ARM64 正式发行
 
-基于 `v1.4.165` 维护线的首个 Tauri 预发布版本，支持 Apple Silicon Mac，最低 macOS 13.5。
+基于 `v1.4.165` 维护线，支持 Apple Silicon Mac，最低 macOS 13.5。
+本次作为正常 GitHub Release 发布，不带预发布标记；仍使用独立的 Tauri 应用和数据目录。
+
+### 相比 tauri.2
+
+- 新增一次性导入 Electron Orcaw 当前配置中的项目和常规设置。
+- 保留 Tauri 已有项目并去重，导入前自动备份；原 Orcaw 配置保持不变。
+- 不迁移旧版加密凭据、托管账号或运行中的终端，相关账号及代理可能需要重新配置。
 
 ### 本次提供
 
@@ -28,4 +35,4 @@
 - 完整 SSH 远程编辑、终端恢复及异常退出流程仍需端到端验证。
 - 本次只发布 Mac ARM64，Windows、Linux 和 Intel Mac 暂缓。
 
-这是供测试的预发布版本，尚未达到 Electron 稳定版的完整功能覆盖。
+本版面向 Mac ARM64 日常桌面使用，功能范围以上述说明为准，尚未达到 Electron 版的完整功能覆盖。

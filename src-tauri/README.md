@@ -1,7 +1,7 @@
 # Tauri desktop migration
 
-Branch: `refactor/tauri-desktop`. This is an experimental migration, not a
-replacement for the Electron release yet.
+Branch: `refactor/tauri-desktop`. Tauri ships separately for macOS ARM64;
+remaining migration work is listed below. The Electron release remains available.
 
 ## Run and build
 
@@ -51,21 +51,25 @@ activated by importing project configuration. Completed onboarding is retained.
 A malformed source or failed import leaves the original Orcaw profile intact;
 Tauri can still open its own profile.
 
-## Publish a preview
+## Publish a release
 
-Tauri previews use `vX.Y.Z-wyk.N-tauri.N` tags; `package.json`, the Tauri
+Tauri releases use `vX.Y.Z-wyk.N-tauri.N` tags; `package.json`, the Tauri
 configuration and the Rust crate carry the same version. The Electron fork
-workflow excludes these tags. Publishing a Tauri preview never marks it Latest.
+workflow excludes these tags. Tauri releases do not replace the Electron Latest
+release, which still serves other platforms.
 
 Push the release commit and tag, then manually run **Tauri Desktop Check**
-with `ref` set to that tag and `publish_release` enabled. Ordinary checks remain
+with `ref` set to that tag and `publish_release` enabled. `release_channel`
+defaults to `preview`; choose `stable` for a normal GitHub Release without the
+prerelease flag. The tag suffix identifies the Tauri distribution and revision;
+the workflow input controls GitHub release status. Ordinary checks remain
 unsigned and do not publish. Release builds use the existing Developer ID and
 App Store Connect secrets. All bundled Mach-O binaries are signed, including
 Node, native dependencies and terminal helpers. Only Node receives the JIT
 entitlement. The signed runtime must pass a PTY/native-module smoke test.
 
 Both the application and DMG must pass Apple notarization and stapling before
-ZIP, DMG and SHA-256 files reach a draft prerelease. The draft is published only
+ZIP, DMG and SHA-256 files reach a draft release. The draft is published only
 when all expected assets are uploaded. The workflow validates the exact tag,
 commit, app identifier and version; a published release cannot be overwritten.
 
@@ -131,7 +135,8 @@ flowchart LR
   paste reuses SSH/runtime upload routing; Linux primary selection stays
   separate from the regular clipboard.
 - Earlier CI builds produced macOS ARM64 and Windows applications. The current
-  manual workflow only builds macOS ARM64; no new Actions run is started.
+  manual workflow only builds macOS ARM64. The tauri.2 preview passed signing,
+  notarization, stapling and the signed Node/native-module smoke test.
 - macOS native startup unlocks Keychain, creates the native menu, and renders
   with the existing titlebar layout. A second launch focuses the original
   window; quitting and reopening succeeds with the same stored key.
@@ -166,7 +171,8 @@ are disabled. Markdown preview remains available.
 - Real SSH connection, relay deployment, remote file editing, terminal resume,
   and credential prompts in end-to-end tests. Target CRUD alone does not prove
   remote execution works.
-- Profile import and authentication compatibility with the Electron release.
+- Electron account/credential compatibility beyond the implemented one-time
+  project and preference import. Old safeStorage ciphertext is not portable.
 
 Unsupported IPC invocations fail explicitly. A short list of disabled
 capabilities supplies their existing empty/unavailable status contract.

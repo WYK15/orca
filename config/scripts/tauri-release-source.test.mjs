@@ -10,7 +10,7 @@ const source = {
 }
 
 describe('Tauri release source', () => {
-  it('accepts a matching immutable prerelease tag', () => {
+  it('accepts a matching immutable Tauri tag', () => {
     expect(validateTauriReleaseSource(source)).toBe(source.tag)
   })
   it.each(['refactor/tauri-desktop', 'v1.4.165-wyk.22', '', undefined])(

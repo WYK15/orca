@@ -9,10 +9,18 @@ on:
         default: refactor/tauri-desktop
         type: string
       publish_release:
-        description: Sign, notarize and publish a Tauri prerelease for an existing tag
+        description: Sign, notarize and publish a Tauri release for an existing tag
         required: false
         default: false
         type: boolean
+      release_channel:
+        description: GitHub release status (does not replace the Electron Latest release)
+        required: false
+        default: preview
+        type: choice
+        options:
+          - preview
+          - stable
 
 permissions:
   contents: read
@@ -125,8 +133,9 @@ jobs:
         with:
           name: tauri-macos-arm64
           path: out/tauri-artifacts
-      - name: Publish verified prerelease assets
+      - name: Publish verified release assets
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.check.outputs.release_tag }}
+          RELEASE_CHANNEL: ${{ inputs.release_channel || 'preview' }}
         run: node config/scripts/publish-tauri-release.mjs

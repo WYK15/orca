@@ -4,6 +4,12 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { validateTauriReleaseSource } from './tauri-release-source.mjs'
 
+const channel = process.env.RELEASE_CHANNEL ?? 'preview'
+if (!['preview', 'stable'].includes(channel)) {
+  throw new Error('RELEASE_CHANNEL must be preview or stable.')
+}
+const prerelease = channel === 'preview'
+const prereleaseFlag = prerelease ? '--prerelease' : '--prerelease=false'
 const tag = process.env.RELEASE_TAG
 const metadata = JSON.parse(readFileSync('package.json', 'utf8'))
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim()
@@ -45,8 +51,10 @@ try {
     throw error
   }
 }
-if (release && (!release.isDraft || !release.isPrerelease)) {
-  throw new Error('Refusing to overwrite an existing published release or a non-prerelease draft.')
+if (release && (!release.isDraft || release.isPrerelease !== prerelease)) {
+  throw new Error(
+    'Refusing to overwrite an existing published release or a different-channel draft.'
+  )
 }
 if (!release) {
   gh(
@@ -55,10 +63,10 @@ if (!release) {
     tag,
     '--verify-tag',
     '--draft',
-    '--prerelease',
+    prereleaseFlag,
     '--latest=false',
     '--title',
-    `Orcaw Tauri ${metadata.version} (Mac ARM64 Preview)`,
+    `Orcaw Tauri ${metadata.version} (Mac ARM64${prerelease ? ' Preview' : ''})`,
     '--notes-file',
     'src-tauri/RELEASE_NOTES.md'
   )
@@ -71,5 +79,5 @@ if (
 ) {
   throw new Error('The uploaded draft release is incomplete.')
 }
-gh('release', 'edit', tag, '--draft=false', '--prerelease', '--latest=false')
+gh('release', 'edit', tag, '--draft=false', prereleaseFlag, '--latest=false')
 console.log(gh('release', 'view', tag, '--json', 'url', '--jq', '.url').trim())

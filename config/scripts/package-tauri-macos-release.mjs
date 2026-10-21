@@ -22,7 +22,7 @@ for (const key of [
 const root = resolve(import.meta.dirname, '../..')
 const version = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).version
 if (!/^\d+\.\d+\.\d+-wyk\.\d+-tauri\.\d+$/.test(version)) {
-  throw new Error('Only Tauri prereleases may use this packager.')
+  throw new Error('Only Tauri release versions may use this packager.')
 }
 const app = join(root, 'src-tauri/target/release/bundle/macos/Orcaw Tauri.app')
 const output = join(root, 'out/tauri-artifacts')

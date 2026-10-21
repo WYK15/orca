@@ -12,17 +12,18 @@ Remove an entry after an upstream sync contains its equivalent commits.
 
 ## Persistent customizations
 
-- The `refactor/tauri-desktop` branch adds an experimental Tauri shell and
+- The `refactor/tauri-desktop` branch adds a Mac ARM64 Tauri shell and
   standalone Node backend beside the Electron desktop. It uses isolated
   `com.wyk15.orcaw.tauri` data and reuses the existing renderer/preload contract.
   Persistent terminals use the existing daemon under bundled Node; native
   text/image/file clipboard operations use Rust while retaining SSH upload routing.
   The Tauri host keeps its credential key in the OS vault, uses authenticated
   encryption for existing storage callers, and reuses the translated application
-  menu. Tauri checks and preview releases remain manual during the migration.
-  Tauri preview tags use `vX.Y.Z-wyk.N-tauri.N`, are excluded from Electron
+  menu. Tauri checks and releases remain manual during the migration.
+  Tauri tags use `vX.Y.Z-wyk.N-tauri.N`, are excluded from Electron
   release builds, and publish signed/notarized Mac ARM64 ZIP and DMG assets
-  as prereleases without replacing Latest.
+  without replacing the Electron Latest release. The release channel defaults
+  to preview; an explicit stable channel publishes a normal GitHub Release.
   Tauri can import the active Orcaw profile once, with native confirmation and
   a local backup. Project IDs are remapped when deduplicating existing projects;
   SSH/folder ownership and Tauri drafts are preserved. The applications retain
