@@ -119,6 +119,15 @@ export function SearchResultsPane({
           </div>
         )}
 
+        {hasCommittedResults && results && rows.length === 0 && query && !loading && (
+          <div
+            role="status"
+            className="flex items-center justify-center h-32 text-muted-foreground text-xs"
+          >
+            {translate('auto.components.right.sidebar.Search.noMatches', 'No matches')}
+          </div>
+        )}
+
         {!query && (
           <div className="flex items-center justify-center h-32 text-muted-foreground text-xs">
             {translate(

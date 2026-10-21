@@ -14,6 +14,7 @@ import {
   isUnsupportedWorktreeListZError
 } from './git-worktree-command-capabilities'
 import { gitCredentialPromptGuardEnv } from './git-credential-prompt-env'
+import { buildFolderGitGrepArgs } from './git-grep-folder-fallback'
 import {
   githubPullRequestHeadLocalRef,
   gitlabMergeRequestHeadLocalRef,
@@ -105,6 +106,13 @@ describeBinaryCompatibility('real Git binary compatibility', () => {
     if (repoPath) {
       await rm(repoPath, { recursive: true, force: true })
     }
+  })
+
+  it('supports folder grep flags and glob filters on the baseline', async () => {
+    const result = await runGit(
+      buildFolderGitGrepArgs('compatibility', { includePattern: '*.txt' })
+    )
+    expect(result.stdout).toContain('tracked.txt\u00001\u0000compatibility')
   })
 
   it('recognizes worktree-list and rev-parse compatibility boundaries', async () => {

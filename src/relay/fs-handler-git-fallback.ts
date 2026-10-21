@@ -27,6 +27,10 @@ import {
   SEARCH_TIMEOUT_MS
 } from '../shared/text-search'
 import { buildRelayGitEnv } from './relay-command-env'
+import {
+  buildFolderGitGrepArgs,
+  isGitGrepOutsideRepository
+} from '../shared/git-grep-folder-fallback'
 
 /**
  * List files using `git ls-files`. Fallback when rg is not installed.
@@ -271,13 +275,17 @@ export function listFilesWithGit(
 export function searchWithGitGrep(
   rootPath: string,
   query: string,
-  opts: SearchOptions
+  opts: SearchOptions,
+  outsideRepository = false
 ): Promise<SearchResult> {
   return new Promise((resolve) => {
-    const gitArgs = buildGitGrepArgs(query, opts)
+    const gitArgs = outsideRepository
+      ? buildFolderGitGrepArgs(query, opts)
+      : buildGitGrepArgs(query, opts)
     const matchRegex = buildSubmatchRegex(query, opts)
     const acc = createAccumulator()
     let stdoutBuffer = ''
+    let stderr = ''
     let done = false
 
     const child = spawn('git', gitArgs, {
@@ -287,7 +295,7 @@ export function searchWithGitGrep(
     })
     let killTimeout: ReturnType<typeof setTimeout>
 
-    function resolveOnce(): void {
+    function resolveOnce(retryOutsideRepository = false): void {
       if (done) {
         return
       }
@@ -299,7 +307,9 @@ export function searchWithGitGrep(
       child.stderr!.off('data', handleStderrData)
       child.off('error', handleError)
       child.off('close', handleClose)
-      resolve(finalize(acc))
+      resolve(
+        retryOutsideRepository ? searchWithGitGrep(rootPath, query, opts, true) : finalize(acc)
+      )
     }
 
     function processLine(line: string): void {
@@ -318,19 +328,19 @@ export function searchWithGitGrep(
       }
     }
 
-    function handleStderrData(): void {
-      /* drain */
+    function handleStderrData(chunk: Buffer | string): void {
+      stderr = (stderr + chunk.toString()).slice(-4096)
     }
 
     function handleError(): void {
       resolveOnce()
     }
 
-    function handleClose(): void {
+    function handleClose(code: number | null): void {
       if (stdoutBuffer) {
         processLine(stdoutBuffer)
       }
-      resolveOnce()
+      resolveOnce(!outsideRepository && isGitGrepOutsideRepository(code, stderr))
     }
 
     child.stdout!.setEncoding('utf-8')

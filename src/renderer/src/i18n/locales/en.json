@@ -10440,6 +10440,7 @@
             "1004af16ab": "Copy {{value0}}"
           },
           "Search": {
+            "noMatches": "No matches",
             "1abfb25a66": "Type to search in files",
             "d56d140747": "Press Enter to search",
             "0b8104eaf2": "file",

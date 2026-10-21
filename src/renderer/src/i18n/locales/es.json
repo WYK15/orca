@@ -10295,6 +10295,7 @@
             "1004af16ab": "Copiar {{value0}}"
           },
           "Search": {
+            "noMatches": "No hay coincidencias",
             "1abfb25a66": "Escriba para buscar en archivos",
             "d56d140747": "Presione Enter para buscar",
             "0b8104eaf2": "archivo",
