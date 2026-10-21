@@ -14,6 +14,9 @@
       {
         "label": "main",
         "title": "Orcaw Tauri",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 16, "y": 11 },
         "url": "tauri-index.html",
         "width": 1400,
         "height": 900,

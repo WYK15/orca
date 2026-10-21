@@ -8,6 +8,7 @@ replacement for the Electron release yet.
 Install the normal pnpm dependencies and a current stable Rust toolchain.
 macOS also needs Xcode command line tools; Windows needs MSVC and WebView2.
 The bundled official Node runtime sets the macOS minimum to 13.5.
+Tauri CI is currently manual-only while the migration is in progress.
 
 ```sh
 pnpm dev:tauri
@@ -52,6 +53,16 @@ flowchart LR
 - Closing stages renderer state, awaits persistence, then destroys the
   window. A failed save keeps the window open and permits retry. Referenced
   terminal history is prefetched for the preload's synchronous read API.
+- Credentials use a random AES-256-GCM key kept in the system credential
+  store (Keychain, Windows Credential Manager, or Linux Secret Service).
+  Initialization must unlock that key before opening the profile. A public
+  fingerprint detects missing/replaced keys; the app refuses to overwrite
+  existing credentials when the key does not match. This format does not
+  decrypt the Electron profile's ciphertext.
+- The existing translated application menu runs through native Tauri menus.
+  Menu actions use the same renderer events, keybinding overrides, and settings.
+  Closing and reloading share one save barrier. Native focus/maximize/fullscreen
+  state feeds the existing backend window identity.
 
 ## Verified so far
 
@@ -70,6 +81,13 @@ flowchart LR
   paste reuses SSH/runtime upload routing; Linux primary selection stays
   separate from the regular clipboard.
 - CI builds unsigned macOS ARM64, Windows x64, and Windows ARM64 applications.
+- macOS native startup unlocks Keychain, creates the native menu, and renders
+  with the existing titlebar layout. A second launch focuses the original
+  window; quitting and reopening succeeds with the same stored key.
+- Credential storage tests verify ciphertext on disk and decryption after
+  restart. Menu, titlebar, paste ownership and native drop routing have focused
+  coverage. macOS/Linux system drops route by the existing editor, terminal,
+  composer, explorer and project-sidebar markers; gesture testing remains.
 
 The initial local `.app` is about 162 MiB. This is an unsigned development
 comparison, not a published installer measurement or a memory-use guarantee.
@@ -77,9 +95,10 @@ comparison, not a published installer measurement or a memory-use guarantee.
 ## Remaining migration work
 
 - Embedded Chromium browser panes/CDP automation and simulator integration.
-- Native notifications, Windows copied-image-file paste fallback, file drag
-  and drop, titlebar drag areas, complete menu/shortcut integration, and system
-  credential storage.
+- Native notifications, Windows copied-image-file paste fallback, Windows
+  native file drops, system resume, and complete menu/shortcut parity.
+  Windows keeps HTML5 workspace/tab dragging enabled; enabling Tauri's native
+  drop interceptor there disables that existing behavior.
 - CLI installation, plugin panel rendering, managed agent hook installation,
   and complete agent/account startup reconciliation. The hook listener and
   plugin worker execution are connected.

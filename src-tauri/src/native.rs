@@ -12,6 +12,24 @@ pub async fn dispatch(app: &AppHandle, frame: &Value) -> Result<Value, String> {
             .ok_or("Missing native path or text")
     };
     match frame["channel"].as_str() {
+        Some("menu-set") => {
+            crate::application_menu::install(app, args.first().ok_or("Missing menu template")?)?;
+            Ok(Value::Null)
+        }
+        Some("menu-popup") => {
+            use tauri::menu::ContextMenu;
+            let menu = app.menu().ok_or("Application menu unavailable")?;
+            let window = app
+                .get_webview_window("main")
+                .ok_or("Desktop window unavailable")?;
+            menu.popup(window.as_ref().window().clone())
+                .map_err(|e| e.to_string())?;
+            Ok(Value::Null)
+        }
+        Some("credential-key") => app
+            .state::<crate::credential_key::CredentialKey>()
+            .load(&app.path().app_data_dir().map_err(|e| e.to_string())?)
+            .map(|key| json!(key)),
         Some("open-url") => {
             let url = text()?;
             if !url.starts_with("https://") && !url.starts_with("http://") {

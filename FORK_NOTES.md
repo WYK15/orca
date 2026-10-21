@@ -17,6 +17,9 @@ Remove an entry after an upstream sync contains its equivalent commits.
   `com.wyk15.orcaw.tauri` data and reuses the existing renderer/preload contract.
   Persistent terminals use the existing daemon under bundled Node; native
   text/image/file clipboard operations use Rust while retaining SSH upload routing.
+  The Tauri host keeps its credential key in the OS vault, uses authenticated
+  encryption for existing storage callers, and reuses the translated application
+  menu. Tauri build checks remain manual during the migration.
   Migration status and limitations are recorded in `src-tauri/README.md`.
   Linux Tauri installers stay blocked pending WebKitGTK 4.1 compatibility on
   Ubuntu 20.04; staged native binaries retain the glibc 2.31 gate.

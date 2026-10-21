@@ -9,6 +9,20 @@ export default defineConfig({
   root: resolve('src/renderer'),
   base: './',
   plugins: [react(), tailwindcss()],
+  css: {
+    postcss: {
+      plugins: [
+        {
+          postcssPlugin: 'orcaw-window-regions',
+          Declaration: {
+            '-webkit-app-region': (declaration) => {
+              declaration.cloneAfter({ prop: '--orcaw-window-region', value: declaration.value })
+            }
+          }
+        }
+      ]
+    }
+  },
   define: { ORCA_FEATURE_WALL_ENABLED: 'false' },
   resolve: {
     alias: [

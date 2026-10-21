@@ -29,6 +29,21 @@ import { ipcMain } from './ipc-port'
 
 export function registerClipboardHandlers(store: Store): void {
   void cleanupExpiredRemoteClipboardFiles().catch(console.error)
+  ipcMain.handle('desktop:clipboard-payload', async () => {
+    const text = await nativeCall('clipboard-read')
+    if (typeof text !== 'string') {
+      throw new Error('Invalid native clipboard response')
+    }
+    await assertClipboardTextWithinLimitWithYield(text)
+    const png = await nativeCall('clipboard-read-image')
+    if (png !== null && typeof png !== 'string') {
+      throw new Error('Invalid native clipboard image')
+    }
+    if (typeof png === 'string') {
+      assertClipboardImageBase64LengthWithinLimit(png.length)
+    }
+    return { text, png }
+  })
   for (const [channel, operation] of [
     ['clipboard:readText', 'clipboard-read'],
     ['clipboard:readSelectionText', 'clipboard-read-selection']

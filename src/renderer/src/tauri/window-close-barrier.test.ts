@@ -1,8 +1,28 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createWindowCloseBarrier } from './window-close-barrier'
+import { createWindowCloseBarrier, createWindowSaveBarrier } from './window-close-barrier'
 import { ORCA_RENDERER_UNLOAD_PREVENTED_EVENT } from '../../../shared/renderer-shutdown-events'
 
 describe('Tauri window close barrier', () => {
+  it('prevents a close racing a reload while the captured draft is being saved', async () => {
+    const target = new EventTarget()
+    let complete: () => void = () => {}
+    const flush = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          complete = resolve
+        })
+    )
+    const save = createWindowSaveBarrier(target, flush, vi.fn())
+    const reload = vi.fn(async () => {})
+    const destroy = vi.fn(async () => {})
+    const pending = save(reload)
+    await save(destroy)
+    expect(flush).toHaveBeenCalledOnce()
+    complete()
+    await pending
+    expect(reload).toHaveBeenCalledOnce()
+    expect(destroy).not.toHaveBeenCalled()
+  })
   it('captures state even on the landing page before saving and destroying', async () => {
     const target = new EventTarget()
     const order: string[] = []

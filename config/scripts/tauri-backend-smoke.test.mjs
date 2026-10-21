@@ -106,7 +106,10 @@ describe('standalone desktop backend', () => {
     diagnostics = ''
     pending = new Map()
     nativeRequests = []
-    nativeResponses = new Map()
+    nativeResponses = new Map([
+      ['credential-key', Buffer.alloc(32, 42).toString('base64')],
+      ['menu-set', null]
+    ])
     const bootstrap = await startHost()
     expect(bootstrap.platform).toBe(process.platform)
     await call('settings:set', [{ workspaceDir: join(directory, 'workspaces') }])
@@ -308,5 +311,36 @@ describe('standalone desktop backend', () => {
     expect(nativeRequests.filter((frame) => frame.channel === 'clipboard-write-file')).toEqual([
       expect.objectContaining({ args: [await realpath(local)] })
     ])
+  })
+
+  it('persists encrypted credentials and unlocks them after a backend restart', async () => {
+    const token = 'tauri-private-cookie-fixture'
+    await call('settings:set', [{ opencodeSessionCookie: token }])
+    await call('desktop:flush')
+    const file = await readFile(join(directory, 'data/orca-data.json'), 'utf8')
+    expect(file).not.toContain(token)
+    const saved = JSON.parse(file).settings.opencodeSessionCookie
+    expect(typeof saved).toBe('string')
+    expect(saved).not.toBe(token)
+    await stopHost()
+    await startHost()
+    expect((await call('settings:get')).opencodeSessionCookie).toBe(token)
+    await expect(call('credential-key')).rejects.toThrow('has not been migrated')
+  })
+
+  it('installs the existing menu definition and routes a native click to the UI', async () => {
+    await call('settings:set', [{ uiLanguage: 'en' }])
+    const flatten = (items) => items.flatMap((item) => [item, ...flatten(item.submenu ?? [])])
+    let settings
+    await expect
+      .poll(() => {
+        const requests = nativeRequests.filter((frame) => frame.channel === 'menu-set')
+        const menu = requests.at(-1)?.args[0] ?? []
+        settings = flatten(menu).find((item) => item.label?.startsWith('Settings'))
+        return Boolean(settings)
+      })
+      .toBe(true)
+    await call('desktop:menu-click', [settings.id], 'send')
+    expect(events).toContainEqual(expect.objectContaining({ channel: 'ui:openSettings' }))
   })
 })

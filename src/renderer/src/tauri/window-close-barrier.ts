@@ -6,8 +6,17 @@ export function createWindowCloseBarrier(
   destroy: () => Promise<void>,
   onError: (error: unknown) => void
 ): () => Promise<void> {
+  const save = createWindowSaveBarrier(target, flush, onError)
+  return () => save(destroy)
+}
+
+export function createWindowSaveBarrier(
+  target: EventTarget,
+  flush: () => Promise<void>,
+  onError: (error: unknown) => void
+): (action: () => Promise<void>) => Promise<void> {
   let closing = false
-  return async () => {
+  return async (action) => {
     if (closing) {
       return
     }
@@ -18,7 +27,7 @@ export function createWindowCloseBarrier(
         return
       }
       await flush()
-      await destroy()
+      await action()
     } catch (error) {
       target.dispatchEvent(new Event(ORCA_RENDERER_UNLOAD_PREVENTED_EVENT))
       onError(error)

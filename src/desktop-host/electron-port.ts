@@ -8,8 +8,10 @@ import {
 } from './desktop-context'
 import { desktopWindow, renderer } from './ipc-port'
 import metadata from '../../package.json'
+import { credentialEncryption } from './credential-encryption'
 
 export { ipcMain } from './ipc-port'
+export { Menu } from './application-menu'
 
 export const app = Object.assign(new EventEmitter(), {
   isPackaged: false,
@@ -46,11 +48,7 @@ export const nativeTheme = Object.assign(new EventEmitter(), {
 })
 
 export const net = { fetch: globalThis.fetch.bind(globalThis) }
-export const safeStorage = {
-  isEncryptionAvailable: () => false,
-  encryptString: () => unsupportedDesktopFeature('credential encryption'),
-  decryptString: () => unsupportedDesktopFeature('Electron credential decryption')
-}
+export const safeStorage = credentialEncryption
 
 export const shell = {
   openExternal: (url: string) => nativeCall('open-url', url),
@@ -100,7 +98,6 @@ export const nativeImage = {
   createFromBuffer: () => unsupportedDesktopFeature('Electron native images'),
   createEmpty: () => unsupportedDesktopFeature('Electron native images')
 }
-export const Menu = { buildFromTemplate: () => unsupportedDesktopFeature('Electron menus') }
 export const screen = {
   getAllDisplays: () => [],
   getPrimaryDisplay: () => unsupportedDesktopFeature('display capture')

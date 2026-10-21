@@ -6,7 +6,8 @@ import { closeAllWatchers } from '../main/ipc/filesystem-watcher'
 import { killAllPty } from '../main/ipc/pty'
 import { disconnectRegisteredSshTarget, listRegisteredSshTargets } from '../main/ipc/ssh'
 import { registerRendererShutdownCheckpointHandler } from '../main/ipc/renderer-shutdown-checkpoint'
-import { desktopPath, setDesktopTransport } from './desktop-context'
+import { desktopPath, nativeCall, setDesktopTransport } from './desktop-context'
+import { clearCredentialEncryption, initializeCredentialEncryption } from './credential-encryption'
 import { ipcMain, renderer } from './ipc-port'
 import { openStdioRpc, type HostFrame } from './stdio-rpc'
 import { registerWorkspaceHandlers } from './register-workspace-handlers'
@@ -14,6 +15,7 @@ import { registerServiceHandlers } from './register-service-handlers'
 import { registerUnavailableCapabilities } from './register-unavailable-capabilities'
 import metadata from '../../package.json'
 import { registerClipboardHandlers } from './clipboard-handlers'
+import { registerApplicationMenu } from './register-application-menu'
 
 let store: Store | undefined
 let stopping = false
@@ -51,6 +53,7 @@ async function initialize(): Promise<void> {
   mkdirSync(desktopPath('userData'), { recursive: true })
   // Defer initialization until stdout belongs exclusively to the RPC transport.
   await Promise.resolve()
+  initializeCredentialEncryption(await nativeCall('credential-key'))
   process.env.ORCA_APP_VERSION = metadata.version
   if (process.env.ORCA_TAURI_RESOURCES) {
     Object.defineProperty(process, 'resourcesPath', { value: process.env.ORCA_TAURI_RESOURCES })
@@ -62,10 +65,12 @@ async function initialize(): Promise<void> {
   store = new Store()
   const workspace = registerWorkspaceHandlers(store)
   cleanup.push(workspace.shutdown)
-  cleanup.push(registerServiceHandlers(store, workspace.runtime))
+  const services = registerServiceHandlers(store, workspace.runtime)
+  cleanup.push(services.shutdown)
   registerRendererShutdownCheckpointHandler(store)
   registerDesktopHandlers(store, workspace.firstWindowReady)
   registerClipboardHandlers(store)
+  await registerApplicationMenu(store, () => services.keybindings.getOverrides())
   registerUnavailableCapabilities(metadata.version)
   renderer.emit('did-finish-load')
 }
@@ -117,6 +122,7 @@ async function shutdown(): Promise<void> {
     killAllPty()
     await store?.flushPendingAsync()
     store?.flushOrThrow()
+    clearCredentialEncryption()
     process.exit(0)
   } catch (error) {
     console.error('[desktop-host] Shutdown failed', error)

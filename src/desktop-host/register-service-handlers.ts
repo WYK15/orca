@@ -44,7 +44,7 @@ import metadata from '../../package.json'
 export function registerServiceHandlers(
   store: Store,
   runtime: OrcaRuntimeService
-): () => Promise<void> {
+): { keybindings: KeybindingService; shutdown: () => Promise<void> } {
   const data = desktopPath('userData')
   const keys = new KeybindingService({ homePath: data })
   registerKeybindingHandlers(keys)
@@ -94,7 +94,7 @@ export function registerServiceHandlers(
     plugins.emitEvent('agent.status.changed', event)
   })
   void plugins.initialize().catch(console.error)
-  return async () => {
+  const shutdown = async () => {
     automations.stop()
     rates.stop()
     agentHookServer.setClaudeStatusLineListener(null)
@@ -106,4 +106,5 @@ export function registerServiceHandlers(
       plugins.dispose()
     ])
   }
+  return { keybindings: keys, shutdown }
 }
