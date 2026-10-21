@@ -43,8 +43,9 @@ flowchart LR
   entry. The separate Vite configuration aliases only the preload's Electron
   imports. Browser/mobile pairing and `out/web` are not involved.
 - Rust owns the bundled Node process, native file dialogs, default file/link
-  opening, trash, and text clipboard. RPC stays on child-process pipes; no
-  HTTP or WebSocket service is opened for desktop communication.
+  opening, trash, and text/image/file clipboard. RPC stays on child-process pipes; no
+  HTTP or WebSocket service is opened for desktop communication. Agent status
+  hooks use the existing authenticated loopback listener separately.
 - The desktop command validates both the window label and origin. Remote
   pages cannot use the backend bridge. stdout belongs to the protocol; Node
   diagnostics go to stderr.
@@ -60,6 +61,15 @@ flowchart LR
   output, and SSH target management.
 - Unit coverage includes native request lifetime, binary frames, and save
   failure/retry during window close.
+- Persistent terminal daemon: the same shell PID survives backend shutdown
+  and a forced backend crash, reattaches, and accepts further input.
+- Authenticated loopback agent hook events reach the renderer; packaged plugin
+  workers execute commands under ordinary Node and shut down cleanly.
+- Clipboard tests cover PNG pixel preservation, image size limits, temp-file
+  creation, and rejecting file copies outside authorized workspaces. Image
+  paste reuses SSH/runtime upload routing; Linux primary selection stays
+  separate from the regular clipboard.
+- CI builds unsigned macOS ARM64, Windows x64, and Windows ARM64 applications.
 
 The initial local `.app` is about 162 MiB. This is an unsigned development
 comparison, not a published installer measurement or a memory-use guarantee.
@@ -67,15 +77,18 @@ comparison, not a published installer measurement or a memory-use guarantee.
 ## Remaining migration work
 
 - Embedded Chromium browser panes/CDP automation and simulator integration.
-- Native notifications, image/file clipboard, file drag and drop, titlebar
-  drag areas, complete menu/shortcut integration, and system credential storage.
-- CLI installation, plugin worker/panel execution, and app-owned agent hook
-  initialization. Existing agent CLIs can still run in a terminal.
-- Persistent terminal daemon/recovery and complete shutdown/crash coverage.
+- Native notifications, Windows copied-image-file paste fallback, file drag
+  and drop, titlebar drag areas, complete menu/shortcut integration, and system
+  credential storage.
+- CLI installation, plugin panel rendering, managed agent hook installation,
+  and complete agent/account startup reconciliation. The hook listener and
+  plugin worker execution are connected.
+- Persistent terminal recovery in the full UI, Windows installer replacement,
+  and complete shutdown/crash coverage.
 - Real SSH connection, relay deployment, remote file editing, terminal resume,
   and credential prompts in end-to-end tests. Target CRUD alone does not prove
   remote execution works.
-- Windows x64/ARM64 builds and manual WebView2 verification.
+- Windows x64/ARM64 manual WebView2 verification and native clipboard testing.
 - Profile import and authentication compatibility with the Electron release.
 
 Unsupported IPC invocations fail explicitly. A short list of disabled

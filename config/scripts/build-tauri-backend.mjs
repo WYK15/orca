@@ -24,15 +24,23 @@ await build({
   define: { 'process.env.NODE_ENV': '"production"', ORCA_FEATURE_WALL_ENABLED: 'false' }
 })
 
-await build({
-  entryPoints: [join(root, 'src/main/ipc/parcel-watcher-process-entry.ts')],
-  outfile: join(output, 'parcel-watcher-process-entry.js'),
-  platform: 'node',
-  target: 'node24',
-  format: 'cjs',
-  bundle: true,
-  minify: true,
-  external: ['@parcel/watcher']
-})
+for (const [name, entry] of [
+  ['parcel-watcher-process-entry', 'ipc/parcel-watcher-process-entry.ts'],
+  ['daemon-entry', 'daemon/daemon-entry.ts'],
+  ['plugin-host-entry', 'plugins/plugin-host-entry.ts']
+]) {
+  await build({
+    entryPoints: [join(root, 'src/main', entry)],
+    outfile: join(output, `${name}.js`),
+    platform: 'node',
+    target: 'node24',
+    format: 'cjs',
+    bundle: true,
+    minify: true,
+    external: ['node-pty', '@parcel/watcher'],
+    alias: { electron: join(root, 'src/desktop-host/electron-port.ts') },
+    define: { 'process.env.NODE_ENV': '"production"' }
+  })
+}
 await copyFile(join(root, 'package.json'), join(output, 'package.json'))
 console.log('Built standalone Tauri backend (no Electron runtime).')

@@ -14,6 +14,7 @@ export type ClipboardFileDeps = {
     path: string
   ) => Promise<{ ok: true; path: string } | { ok: false; reason: string }>
   writeBuffer: (format: string, buffer: Buffer) => void
+  writeFileReference?: (path: string) => Promise<void>
   runCommand: (command: string, args: string[], stdin?: string) => Promise<void>
 }
 
@@ -33,6 +34,15 @@ export async function writeFileToClipboard(
     return { ok: false, reason: resolvedFile.reason }
   }
   const clipboardPath = resolvedFile.path
+
+  if (deps.writeFileReference) {
+    try {
+      await deps.writeFileReference(clipboardPath)
+      return { ok: true }
+    } catch {
+      return { ok: false, reason: 'clipboard-write-failed' }
+    }
+  }
 
   if (deps.platform === 'darwin') {
     // macOS reads `public.file-url` and synthesizes the legacy file types Finder

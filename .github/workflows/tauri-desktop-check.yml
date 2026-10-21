@@ -88,9 +88,12 @@ jobs:
           src/shared/desktop-wire-codec.test.ts
           src/renderer/src/tauri/host-transport.test.ts
           src/renderer/src/tauri/window-close-barrier.test.ts
+          src/main/window/clipboard-file-copy.test.ts
           config/scripts/tauri-backend-smoke.test.mjs
       - name: Build unsigned test application
         run: pnpm build:tauri --bundles ${{ matrix.bundles }} --no-sign
+      - name: Test native image clipboard limits
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
       - name: Archive macOS application with executable permissions
         if: runner.os == 'macOS'
         shell: bash

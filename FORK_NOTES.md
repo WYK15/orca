@@ -15,6 +15,8 @@ Remove an entry after an upstream sync contains its equivalent commits.
 - The `refactor/tauri-desktop` branch adds an experimental Tauri shell and
   standalone Node backend beside the Electron desktop. It uses isolated
   `com.wyk15.orcaw.tauri` data and reuses the existing renderer/preload contract.
+  Persistent terminals use the existing daemon under bundled Node; native
+  text/image/file clipboard operations use Rust while retaining SSH upload routing.
   Migration status and limitations are recorded in `src-tauri/README.md`.
   Linux Tauri installers stay blocked pending WebKitGTK 4.1 compatibility on
   Ubuntu 20.04; staged native binaries retain the glibc 2.31 gate.

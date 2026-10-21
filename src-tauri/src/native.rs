@@ -1,6 +1,6 @@
+use crate::clipboard::NativeClipboard;
 use serde_json::{json, Value};
-use tauri::AppHandle;
-use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
@@ -38,16 +38,8 @@ pub async fn dispatch(app: &AppHandle, frame: &Value) -> Result<Value, String> {
             trash::delete(text()?).map_err(|e| e.to_string())?;
             Ok(Value::Null)
         }
-        Some("clipboard-read") => app
-            .clipboard()
-            .read_text()
-            .map(|s| json!(s))
-            .map_err(|e| e.to_string()),
-        Some("clipboard-write") => {
-            app.clipboard()
-                .write_text(text()?)
-                .map_err(|e| e.to_string())?;
-            Ok(Value::Null)
+        Some(channel) if channel.starts_with("clipboard-") => {
+            app.state::<NativeClipboard>().dispatch(channel, args)
         }
         Some("open-dialog") | Some("save-dialog") => {
             let options = args.first().cloned().unwrap_or(Value::Null);

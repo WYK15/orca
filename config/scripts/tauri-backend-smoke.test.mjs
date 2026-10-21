@@ -2,10 +2,11 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { spawn, execFile } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { once } from 'node:events'
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { promisify } from 'node:util'
+import { startPluginWorker } from '../../src/main/plugins/plugin-host-process'
 
 const execute = promisify(execFile)
 const root = resolve(import.meta.dirname, '../..')
@@ -16,6 +17,60 @@ let sequence = 0
 let diagnostics = ''
 let events = []
 let pending = new Map()
+let nativeRequests = []
+let nativeResponses = new Map()
+
+async function startHost() {
+  const env = {
+    ...process.env,
+    ORCA_TAURI_USER_DATA: join(directory, 'data'),
+    ORCA_TAURI_APP_ROOT: join(root, 'out/tauri-backend'),
+    ORCA_TAURI_RESOURCES: join(root, 'out/tauri-resources')
+  }
+  delete env.VITEST
+  host = spawn(process.execPath, [join(root, 'out/tauri-backend/desktop-host.cjs')], {
+    cwd: root,
+    env,
+    stdio: ['pipe', 'pipe', 'pipe']
+  })
+  host.stderr.on('data', (chunk) => {
+    diagnostics += chunk
+  })
+  createInterface({ input: host.stdout }).on('line', (line) => {
+    const frame = JSON.parse(line)
+    if (frame.kind === 'native') {
+      nativeRequests.push(frame)
+      const response = nativeResponses.has(frame.channel)
+        ? { value: nativeResponses.get(frame.channel) }
+        : { error: `Unexpected native operation: ${frame.channel}` }
+      host.stdin.write(`${JSON.stringify({ kind: 'native-result', id: frame.id, ...response })}\n`)
+    }
+    if (frame.kind === 'event') {
+      events.push(frame)
+    }
+    if (frame.kind === 'result') {
+      const request = pending.get(frame.id)
+      pending.delete(frame.id)
+      if (frame.error) {
+        request?.reject(new Error(frame.error))
+      } else {
+        request?.resolve(frame.value)
+      }
+    }
+  })
+  return call('desktop:bootstrap')
+}
+
+async function stopHost() {
+  if (host?.exitCode === null) {
+    const exited = once(host, 'exit')
+    host.stdin.end()
+    const timeout = setTimeout(() => host.kill('SIGKILL'), 8_000)
+    const [code] = await exited
+    clearTimeout(timeout)
+    expect(code, diagnostics).toBe(0)
+  }
+}
 
 function call(channel, args = [], kind = 'invoke') {
   return new Promise((resolve, reject) => {
@@ -50,47 +105,19 @@ describe('standalone desktop backend', () => {
     events = []
     diagnostics = ''
     pending = new Map()
-    host = spawn(process.execPath, [join(root, 'out/tauri-backend/desktop-host.cjs')], {
-      cwd: root,
-      env: {
-        ...process.env,
-        ORCA_TAURI_USER_DATA: join(directory, 'data'),
-        ORCA_TAURI_APP_ROOT: join(root, 'out/tauri-backend'),
-        ORCA_TAURI_RESOURCES: join(root, 'out/tauri-resources')
-      },
-      stdio: ['pipe', 'pipe', 'pipe']
-    })
-    host.stderr.on('data', (chunk) => {
-      diagnostics += chunk
-    })
-    createInterface({ input: host.stdout }).on('line', (line) => {
-      const frame = JSON.parse(line)
-      if (frame.kind === 'event') {
-        events.push(frame)
-      }
-      if (frame.kind === 'result') {
-        const request = pending.get(frame.id)
-        pending.delete(frame.id)
-        if (frame.error) {
-          request?.reject(new Error(frame.error))
-        } else {
-          request?.resolve(frame.value)
-        }
-      }
-    })
-    const bootstrap = await call('desktop:bootstrap')
+    nativeRequests = []
+    nativeResponses = new Map()
+    const bootstrap = await startHost()
     expect(bootstrap.platform).toBe(process.platform)
     await call('settings:set', [{ workspaceDir: join(directory, 'workspaces') }])
   })
 
   afterEach(async () => {
     if (host?.exitCode === null) {
-      const exited = once(host, 'exit')
-      host.stdin.end()
-      const timeout = setTimeout(() => host.kill('SIGKILL'), 8_000)
-      await exited
-      clearTimeout(timeout)
+      await call('app:awaitFirstWindowStartupServices')
+      await call('pty:management:killAll')
     }
+    await stopHost()
     for (const request of pending.values()) {
       request.reject(new Error('Test finished'))
     }
@@ -148,5 +175,138 @@ describe('standalone desktop backend', () => {
     expect(await call('ssh:listTargets')).toHaveLength(1)
     await expect(call('unmigrated:operation')).rejects.toThrow('has not been migrated')
     await call('desktop:flush')
+  })
+
+  it('reattaches the same live shell after the desktop backend restarts', async () => {
+    await call('pty:rendererDispatcherReady', [], 'send')
+    const original = await call('pty:spawn', [{ cwd: project, cols: 80, rows: 24 }])
+    const before = await call('pty:management:listSessions')
+    const session = before.sessions.find((entry) => entry.sessionId === original.id)
+    expect(session, diagnostics).toBeDefined()
+    expect(session.isAlive).toBe(true)
+    expect(session.pid).toBeGreaterThan(0)
+    await stopHost()
+    await startHost()
+    await call('app:awaitFirstWindowStartupServices')
+    const retained = await call('pty:management:listSessions')
+    expect(retained.sessions.find((entry) => entry.sessionId === original.id)?.pid).toBe(
+      session.pid
+    )
+    await call('pty:rendererDispatcherReady', [], 'send')
+    const attached = await call('pty:spawn', [
+      { cwd: project, cols: 80, rows: 24, sessionId: original.id }
+    ])
+    expect(attached.id).toBe(original.id)
+    expect(attached.pid).toBe(session.pid)
+    const crashed = once(host, 'exit')
+    host.kill('SIGKILL')
+    await crashed
+    await startHost()
+    await call('app:awaitFirstWindowStartupServices')
+    const recovered = await call('pty:management:listSessions')
+    expect(recovered.sessions.find((entry) => entry.sessionId === original.id)?.pid).toBe(
+      session.pid
+    )
+    await call('pty:rendererDispatcherReady', [], 'send')
+    await call('pty:spawn', [{ cwd: project, cols: 80, rows: 24, sessionId: original.id }])
+    events = []
+    await call('pty:writeAccepted', [{ id: attached.id, data: 'echo tauri-retained-shell\r' }])
+    await expect
+      .poll(() => JSON.stringify(events), { timeout: 10_000 })
+      .toContain('tauri-retained-shell')
+  })
+
+  it('authenticates agent hook events and forwards them to the renderer', async () => {
+    await call('app:awaitFirstWindowStartupServices')
+    const filename = process.platform === 'win32' ? 'endpoint.cmd' : 'endpoint.env'
+    const endpoint = await readFile(join(directory, 'data/agent-hooks', filename), 'utf8')
+    const env = Object.fromEntries(
+      endpoint
+        .trim()
+        .split(/\r?\n/)
+        .map((line) => line.replace(/^set /, '').split('='))
+    )
+    const url = `http://127.0.0.1:${env.ORCA_AGENT_HOOK_PORT}/hook/codex`
+    const paneKey = 'tab-1:11111111-1111-4111-8111-111111111111'
+    const body = JSON.stringify({
+      paneKey,
+      tabId: 'tab-1',
+      env: 'tauri',
+      payload: { hook_event_name: 'UserPromptSubmit', prompt: 'tauri-agent-status' }
+    })
+    const rejected = await fetch(url, { method: 'POST', body })
+    expect(rejected.status).toBe(403)
+    const accepted = await fetch(url, {
+      method: 'POST',
+      body,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Orca-Agent-Hook-Token': env.ORCA_AGENT_HOOK_TOKEN
+      }
+    })
+    expect(accepted.status).toBe(204)
+    await expect.poll(() => JSON.stringify(events)).toContain('tauri-agent-status')
+    expect(await call('agentStatus:getSnapshot')).toEqual(
+      expect.arrayContaining([expect.objectContaining({ paneKey, state: 'working' })])
+    )
+  })
+
+  it('executes and shuts down a plugin with the packaged worker entry', async () => {
+    await writeFile(
+      join(project, 'worker.mjs'),
+      `export default function(orca) {
+      orca.commands.register('run', async (args) => ({ input: args, runtime: process.versions.node }))
+    }`
+    )
+    const worker = await startPluginWorker({
+      pluginId: 'fixture.smoke',
+      rootDir: project,
+      mainEntry: 'worker.mjs',
+      entryPath: join(root, 'out/tauri-backend/plugin-host-entry.js'),
+      grantedCapabilities: [],
+      executeHostCall: async () => ({ ok: true, value: null }),
+      log: () => {}
+    })
+    try {
+      expect(await worker.invokeCommand('run', 'tauri-plugin-worker')).toEqual({
+        input: 'tauri-plugin-worker',
+        runtime: process.versions.node
+      })
+    } finally {
+      await worker.dispose()
+    }
+  })
+
+  it('routes image paste through native clipboard and checks copied file access', async () => {
+    const png =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l4sAAAAASUVORK5CYII='
+    nativeResponses.set('clipboard-read-image', png)
+    nativeResponses.set('clipboard-write-image', null)
+    nativeResponses.set('clipboard-write-file', null)
+    await call('clipboard:writeImage', [`data:image/png;base64,${png}`])
+    const file = await call('clipboard:saveImageAsTempFile')
+    try {
+      expect(await readFile(file)).toEqual(Buffer.from(png, 'base64'))
+    } finally {
+      await rm(file, { force: true })
+    }
+    nativeResponses.set('clipboard-read-image', null)
+    expect(await call('clipboard:saveImageAsTempFile')).toBeNull()
+    const local = join(project, 'copy.png')
+    await writeFile(local, Buffer.from(png, 'base64'))
+    await call('repos:add', [{ path: project, kind: 'folder' }])
+    expect(await call('clipboard:writeFile', [{ filePath: local }])).toEqual({ ok: true })
+    const outside = join(directory, 'private.png')
+    await writeFile(outside, 'private')
+    expect(await call('clipboard:writeFile', [outside])).toEqual({
+      ok: false,
+      reason: 'access-denied'
+    })
+    await expect(call('clipboard:writeImage', ['data:image/svg+xml;base64,AAAA'])).rejects.toThrow(
+      'PNG'
+    )
+    expect(nativeRequests.filter((frame) => frame.channel === 'clipboard-write-file')).toEqual([
+      expect.objectContaining({ args: [await realpath(local)] })
+    ])
   })
 })

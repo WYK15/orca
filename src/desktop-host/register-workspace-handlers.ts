@@ -26,9 +26,17 @@ import { StatsCollector } from '../main/stats/collector'
 import { OrcaRuntimeService } from '../main/runtime/orca-runtime'
 import type { BrowserWindow } from 'electron'
 import { desktopWindow } from './ipc-port'
+import { startTerminalServices } from './terminal-services'
+import { getDaemonProvider } from '../main/daemon/daemon-init'
+import { agentHookServer } from '../main/agent-hooks/server'
+import { isAgentStatusHooksEnabled } from '../main/agent-hooks/managed-agent-hook-controls'
+import { clearProviderPtyState } from '../main/ipc/pty'
+import { loadAgentSessionClaimSigner } from '../main/runtime/agent-session-claim-identity'
+import { desktopPath } from './desktop-context'
 
 export function registerWorkspaceHandlers(store: Store): {
   runtime: OrcaRuntimeService
+  firstWindowReady: Promise<void>
   shutdown: () => Promise<void>
 } {
   const window = desktopWindow as unknown as BrowserWindow
@@ -36,12 +44,34 @@ export function registerWorkspaceHandlers(store: Store): {
   const runtime = new OrcaRuntimeService(store, stats, {
     getLocalProvider: getLocalPtyProvider,
     getSshProvider: getSshPtyProvider,
-    canRecoverPersistentLocalPtys: () => false
+    agentSessionClaimSigner: loadAgentSessionClaimSigner(
+      desktopPath('userData'),
+      desktopPath('userData')
+    ),
+    onPtyStopped: clearProviderPtyState,
+    onTerminalAgentStatus: (event) => agentHookServer.ingestTerminalStatus(event),
+    onTerminalSideEffects: (batch) => window.webContents.send('pty:sideEffect', batch),
+    getAgentStatusSnapshot: () =>
+      agentHookServer.getStatusSnapshot().filter((entry) => entry.providerSessionOnly !== true),
+    getAgentProviderSessionSnapshot: () => agentHookServer.getStatusSnapshot(),
+    getAgentProviderSessionRowsForPane: (paneKey) =>
+      agentHookServer.getStatusSnapshotForPane(paneKey),
+    attestAgentHookCompatibilityAuthority: (candidate) =>
+      agentHookServer.attestCompatibilityAuthority(candidate),
+    retireAgentHookCompatibilityAuthority: (paneKey) =>
+      agentHookServer.retirePaneAuthority(paneKey),
+    buildAgentHookPtyEnv: () =>
+      isAgentStatusHooksEnabled(store.getSettings()) ? agentHookServer.buildPtyEnv() : {},
+    canRecoverPersistentLocalPtys: () => getDaemonProvider() !== null
   })
+  const terminals = startTerminalServices(store, runtime)
   setTrustedUIRendererWebContentsId(1)
   registerRepoHandlers(window, store)
   registerWorktreeHandlers(window, store, runtime)
-  registerPtyHandlers(window, runtime, undefined, () => store.getSettings(), undefined, store)
+  registerPtyHandlers(window, runtime, undefined, () => store.getSettings(), undefined, store, {
+    awaitLocalPtyStartup: () => terminals.localPtyReady,
+    awaitLocalPtyProviderStartup: () => terminals.localPtyProviderReady
+  })
   registerSshHandlers(store, () => window, runtime)
   registerFilesystemHandlers(store)
   registerFilesystemWatcherHandlers()
@@ -62,5 +92,12 @@ export function registerWorkspaceHandlers(store: Store): {
   registerStatsHandlers(stats)
   registerNotebookHandlers(store)
   registerUnavailableSpeechHandlers()
-  return { runtime, shutdown: () => stats.flushAsync() }
+  return {
+    runtime,
+    firstWindowReady: terminals.firstWindowReady,
+    shutdown: async () => {
+      await terminals.shutdown()
+      await stats.flushAsync()
+    }
+  }
 }

@@ -13,6 +13,28 @@ function makeDeps(overrides: Partial<ClipboardFileDeps> = {}): ClipboardFileDeps
 }
 
 describe('writeFileToClipboard', () => {
+  it('passes only the authorized path to the asynchronous native file writer', async () => {
+    const writeFileReference = vi.fn(async () => {})
+    const resolveFilePath = vi.fn<ClipboardFileDeps['resolveFilePath']>(async () => ({
+      ok: true,
+      path: '/repo/resolved.png'
+    }))
+    const deps = makeDeps({ writeFileReference, resolveFilePath })
+    expect(await writeFileToClipboard('/repo/link.png', deps)).toEqual({ ok: true })
+    expect(writeFileReference).toHaveBeenCalledWith('/repo/resolved.png')
+    expect(deps.writeBuffer).not.toHaveBeenCalled()
+    resolveFilePath.mockResolvedValueOnce({ ok: false, reason: 'access-denied' })
+    expect(await writeFileToClipboard('/private.png', deps)).toEqual({
+      ok: false,
+      reason: 'access-denied'
+    })
+    expect(writeFileReference).toHaveBeenCalledTimes(1)
+    writeFileReference.mockRejectedValueOnce(new Error('Clipboard busy'))
+    expect(await writeFileToClipboard('/repo/link.png', deps)).toEqual({
+      ok: false,
+      reason: 'clipboard-write-failed'
+    })
+  })
   it('rejects relative paths without touching the clipboard', async () => {
     const writeBuffer = vi.fn()
     expect(await writeFileToClipboard('relative/file.png', makeDeps({ writeBuffer }))).toEqual({

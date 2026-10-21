@@ -6,18 +6,14 @@ import { closeAllWatchers } from '../main/ipc/filesystem-watcher'
 import { killAllPty } from '../main/ipc/pty'
 import { disconnectRegisteredSshTarget, listRegisteredSshTargets } from '../main/ipc/ssh'
 import { registerRendererShutdownCheckpointHandler } from '../main/ipc/renderer-shutdown-checkpoint'
-import { desktopPath, nativeCall, setDesktopTransport } from './desktop-context'
+import { desktopPath, setDesktopTransport } from './desktop-context'
 import { ipcMain, renderer } from './ipc-port'
 import { openStdioRpc, type HostFrame } from './stdio-rpc'
 import { registerWorkspaceHandlers } from './register-workspace-handlers'
 import { registerServiceHandlers } from './register-service-handlers'
 import { registerUnavailableCapabilities } from './register-unavailable-capabilities'
 import metadata from '../../package.json'
-import {
-  assertClipboardTextWithinLimitWithYield,
-  assertClipboardTextWriteWithinLimitWithYield,
-  type ReadClipboardTextOptions
-} from '../shared/clipboard-text'
+import { registerClipboardHandlers } from './clipboard-handlers'
 
 let store: Store | undefined
 let stopping = false
@@ -68,12 +64,13 @@ async function initialize(): Promise<void> {
   cleanup.push(workspace.shutdown)
   cleanup.push(registerServiceHandlers(store, workspace.runtime))
   registerRendererShutdownCheckpointHandler(store)
-  registerDesktopHandlers(store)
+  registerDesktopHandlers(store, workspace.firstWindowReady)
+  registerClipboardHandlers(store)
   registerUnavailableCapabilities(metadata.version)
   renderer.emit('did-finish-load')
 }
 
-function registerDesktopHandlers(state: Store): void {
+function registerDesktopHandlers(state: Store, firstWindowReady: Promise<void>): void {
   ipcMain.handle('app:getIdentity', () => ({
     name: 'Orcaw Tauri',
     isDev: true,
@@ -83,7 +80,7 @@ function registerDesktopHandlers(state: Store): void {
     devRepoRoot: null,
     dockBadgeLabel: null
   }))
-  ipcMain.handle('app:awaitFirstWindowStartupServices', () => undefined)
+  ipcMain.handle('app:awaitFirstWindowStartupServices', () => firstWindowReady)
   ipcMain.handle('app:recoverLegacyWorkerTerminalsForRendererStartup', () => undefined)
   ipcMain.handle('app:getKeyboardInputSourceId', () => null)
   ipcMain.handle('app:setUnreadDockBadgeCount', () => undefined)
@@ -101,19 +98,6 @@ function registerDesktopHandlers(state: Store): void {
     await state.flushPendingAsync()
     state.flushOrThrow()
   })
-  ipcMain.handle('clipboard:readText', async (_event, options?: ReadClipboardTextOptions) => {
-    const text = await nativeCall('clipboard-read')
-    if (typeof text !== 'string') {
-      throw new Error('Invalid native clipboard response')
-    }
-    return assertClipboardTextWithinLimitWithYield(text, options)
-  })
-  for (const channel of ['clipboard:writeText', 'clipboard:writeTerminalText']) {
-    ipcMain.handle(channel, async (_event, text: string) => {
-      await assertClipboardTextWriteWithinLimitWithYield(text)
-      await nativeCall('clipboard-write', text)
-    })
-  }
 }
 
 async function shutdown(): Promise<void> {

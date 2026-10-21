@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod backend;
+mod clipboard;
 mod native;
 
 use backend::Backend;
@@ -36,7 +37,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_clipboard_manager::init())
+        .manage(clipboard::NativeClipboard::default())
         .invoke_handler(tauri::generate_handler![backend_call])
         .setup(|app| {
             let backend = Backend::start(app.handle())?;
@@ -60,6 +61,7 @@ fn main() {
             }
             if let tauri::RunEvent::Exit = event {
                 app.state::<Backend>().stop();
+                app.state::<clipboard::NativeClipboard>().cleanup();
             }
         });
 }
