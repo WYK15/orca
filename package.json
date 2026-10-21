@@ -1,6 +1,6 @@
 {
   "name": "orcaw",
-  "version": "1.4.165-wyk.20",
+  "version": "1.4.165-wyk.21",
   "description": "Next-gen IDE for parallel agentic development",
   "homepage": "https://github.com/WYK15/orca",
   "author": "stablyai",
@@ -71,9 +71,9 @@
     "build:electron-vite:parallel": "node config/scripts/run-electron-vite-targets-in-parallel.mjs",
     "build:web": "node config/scripts/run-vite-web-build.mjs && node config/scripts/verify-web-build.mjs",
     "build:web-from-renderer": "node config/scripts/project-renderer-web-client.mjs && node config/scripts/verify-web-build.mjs",
-    "build:desktop": "pnpm run typecheck && pnpm run build:relay && pnpm run build:cli && pnpm run build:electron-vite && pnpm run verify:built-skills-cli && pnpm run build:web-from-renderer",
+    "build:desktop": "pnpm run typecheck && pnpm run build:relay && pnpm run build:cli && pnpm run build:electron-vite && pnpm run verify:built-skills-cli",
     "build": "pnpm run build:desktop && pnpm run build:native",
-    "build:release": "pnpm run build:relay && pnpm run build:native && pnpm run verify:computer-native && pnpm run build:cli && pnpm run build:electron-vite && pnpm run verify:built-skills-cli && pnpm run build:web-from-renderer",
+    "build:release": "pnpm run build:relay && pnpm run build:native && pnpm run verify:computer-native && pnpm run build:cli && pnpm run build:electron-vite && pnpm run verify:built-skills-cli",
     "postinstall": "node config/scripts/rebuild-native-deps.mjs",
     "rebuild:electron": "node config/scripts/rebuild-native-deps.mjs",
     "rebuild:node": "pnpm rebuild node-pty",
@@ -140,7 +140,6 @@
     "qrcode": "^1.5.4",
     "react-i18next": "^17.0.8",
     "serve-sim": "^0.1.40",
-    "sherpa-onnx": "1.12.37",
     "ssh2": "^1.17.0",
     "tweetnacl": "^1.0.3",
     "ws": "^8.21.0",
@@ -184,6 +183,7 @@
     "@types/ssh2": "^1.15.5",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^5.2.0",
+    "@vscode/ripgrep-universal": "1.18.0",
     "@xterm/addon-fit": "0.12.0-beta.287",
     "@xterm/addon-ligatures": "0.11.0-beta.287",
     "@xterm/addon-search": "0.17.0-beta.287",
@@ -250,11 +250,6 @@
     "zustand": "^5.0.14"
   },
   "optionalDependencies": {
-    "sherpa-onnx-darwin-arm64": "1.12.37",
-    "sherpa-onnx-darwin-x64": "1.12.37",
-    "sherpa-onnx-linux-arm64": "1.12.37",
-    "sherpa-onnx-linux-x64": "1.12.37",
-    "sherpa-onnx-win-x64": "1.12.37",
     "windows-native-registry": "3.2.2"
   },
   "lint-staged": {
@@ -293,8 +288,7 @@
       "@parcel/watcher",
       "cpu-features",
       "esbuild",
-      "node-pty",
-      "sherpa-onnx"
+      "node-pty"
     ],
     "patchedDependencies": {
       "node-pty@1.1.0": "config/patches/node-pty@1.1.0.patch",

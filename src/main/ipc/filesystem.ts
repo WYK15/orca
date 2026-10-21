@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { dirname, extname, join, resolve } from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { gitExecFileAsync, wslAwareSpawn } from '../git/runner'
+import { getRgExecutable } from '../ripgrep-executable'
 import { parseWslPath, toWindowsWslPath } from '../wsl'
 import { tryDeleteWslUncPath } from '../wsl-unc-delete'
 import type { Store } from '../persistence'
@@ -1003,11 +1004,15 @@ export function registerFilesystemHandlers(
           }
         }
 
-        const nextChild = wslAwareSpawn('rg', rgArgs, {
-          cwd: rootPath,
-          ...(localGitOptions.wslDistro ? { wslDistro: localGitOptions.wslDistro } : {}),
-          stdio: ['ignore', 'pipe', 'pipe']
-        })
+        const nextChild = wslAwareSpawn(
+          getRgExecutable(rootPath, localGitOptions.wslDistro),
+          rgArgs,
+          {
+            cwd: rootPath,
+            ...(localGitOptions.wslDistro ? { wslDistro: localGitOptions.wslDistro } : {}),
+            stdio: ['ignore', 'pipe', 'pipe']
+          }
+        )
         child = nextChild
         activeTextSearches.set(searchKey, nextChild)
 

@@ -1,3 +1,4 @@
+import { WEB_CLIENT_ENABLED } from '../../../../shared/fork-feature-policy'
 import type React from 'react'
 
 import type { GlobalSettings, StatusBarItem } from '../../../../shared/types'
@@ -284,31 +285,35 @@ export function AppearanceWindowSidebarSection({
                     />
                   </SearchableSetting>
 
-                  <SearchableSetting
-                    title={translate(
-                      'auto.components.settings.AppearancePane.9da1020447',
-                      'Show Orca Mobile Button'
-                    )}
-                    description={sidebarEntries[2]?.description}
-                    keywords={sidebarEntries[2]?.keywords ?? ['mobile', 'phone', 'sidebar']}
-                  >
-                    <SettingsSwitchRow
-                      label={translate(
+                  {WEB_CLIENT_ENABLED && (
+                    <SearchableSetting
+                      title={translate(
                         'auto.components.settings.AppearancePane.9da1020447',
                         'Show Orca Mobile Button'
                       )}
-                      // Why: clarify where the shortcut still lives after hiding it, so users
-                      // don't think the feature is gone.
-                      description={translate(
-                        'auto.components.settings.AppearancePane.61d842eca0',
-                        'Show the Orca Mobile shortcut in the sidebar. It remains available from Toolbox.'
-                      )}
-                      checked={settings.showMobileButton !== false}
-                      onChange={() =>
-                        updateSettings({ showMobileButton: !(settings.showMobileButton !== false) })
-                      }
-                    />
-                  </SearchableSetting>
+                      description={sidebarEntries[2]?.description}
+                      keywords={sidebarEntries[2]?.keywords ?? ['mobile', 'phone', 'sidebar']}
+                    >
+                      <SettingsSwitchRow
+                        label={translate(
+                          'auto.components.settings.AppearancePane.9da1020447',
+                          'Show Orca Mobile Button'
+                        )}
+                        // Why: clarify where the shortcut still lives after hiding it, so users
+                        // don't think the feature is gone.
+                        description={translate(
+                          'auto.components.settings.AppearancePane.61d842eca0',
+                          'Show the Orca Mobile shortcut in the sidebar. It remains available from Toolbox.'
+                        )}
+                        checked={settings.showMobileButton !== false}
+                        onChange={() =>
+                          updateSettings({
+                            showMobileButton: !(settings.showMobileButton !== false)
+                          })
+                        }
+                      />
+                    </SearchableSetting>
+                  )}
 
                   <SearchableSetting
                     title={getShowPinnedWorktreesInGroupsEntry().title}

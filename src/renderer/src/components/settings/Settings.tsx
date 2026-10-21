@@ -1,3 +1,4 @@
+import { SPEECH_ENABLED, WEB_CLIENT_ENABLED } from '../../../../shared/fork-feature-policy'
 /* eslint-disable max-lines */
 import {
   lazy,
@@ -529,7 +530,7 @@ function Settings(): React.JSX.Element {
   }, [fetchKeybindings, fetchSettings])
 
   useEffect(() => {
-    if (!showDesktopOnlySettings) {
+    if (!SPEECH_ENABLED || !showDesktopOnlySettings) {
       setVoiceModelStatesLoading(false)
       return
     }
@@ -777,7 +778,7 @@ function Settings(): React.JSX.Element {
           inventory: applicableFreshnessInventory
         })
       )
-      if (settings) {
+      if (SPEECH_ENABLED && settings) {
         next.set(
           'voice',
           voiceModelStatesLoading
@@ -1325,19 +1326,21 @@ function Settings(): React.JSX.Element {
                       {isSectionMounted('computer-use') ? <ComputerUsePane /> : null}
                     </SettingsSection>
 
-                    <SettingsSection
-                      id="voice"
-                      title={translate('auto.components.settings.Settings.5063bb47a5', 'Voice')}
-                      description={translate(
-                        'auto.components.settings.Settings.eb1176a14e',
-                        'Local speech-to-text dictation with on-device models.'
-                      )}
-                      searchEntries={getSectionSearchEntries('voice')}
-                    >
-                      {isSectionMounted('voice') ? (
-                        <VoicePane settings={settings} updateSettings={updateSettings} />
-                      ) : null}
-                    </SettingsSection>
+                    {SPEECH_ENABLED && (
+                      <SettingsSection
+                        id="voice"
+                        title={translate('auto.components.settings.Settings.5063bb47a5', 'Voice')}
+                        description={translate(
+                          'auto.components.settings.Settings.eb1176a14e',
+                          'Local speech-to-text dictation with on-device models.'
+                        )}
+                        searchEntries={getSectionSearchEntries('voice')}
+                      >
+                        {isSectionMounted('voice') ? (
+                          <VoicePane settings={settings} updateSettings={updateSettings} />
+                        ) : null}
+                      </SettingsSection>
+                    )}
                   </>
                 ) : null}
 
@@ -1393,7 +1396,7 @@ function Settings(): React.JSX.Element {
                   {isSectionMounted('integrations') ? <IntegrationsPane /> : null}
                 </SettingsSection>
 
-                {showDesktopOnlySettings ? (
+                {WEB_CLIENT_ENABLED && showDesktopOnlySettings ? (
                   <SettingsSection
                     id="mobile"
                     title={translate('auto.components.settings.Settings.c40dadaac8', 'Mobile')}

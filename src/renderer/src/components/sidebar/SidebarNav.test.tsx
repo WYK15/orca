@@ -281,9 +281,9 @@ describe('SidebarNav', () => {
     expect(idle?.querySelector('svg')).toBeNull()
   })
 
-  it('shows the Mobile entry by default for older settings', () => {
-    expect(shouldShowMobileButton(null)).toBe(true)
-    expect(shouldShowMobileButton({})).toBe(true)
+  it('hides Mobile even for older settings', () => {
+    expect(shouldShowMobileButton(null)).toBe(false)
+    expect(shouldShowMobileButton({})).toBe(false)
   })
 
   it('hides the Mobile entry when the sidebar setting is off', () => {
@@ -294,14 +294,14 @@ describe('SidebarNav', () => {
     const container = await renderSidebarNav()
 
     expect(queryButtonByText(container, 'Automations')).not.toBeNull()
-    expect(queryButtonByText(container, 'Orca Mobile')).not.toBeNull()
+    expect(queryButtonByText(container, 'Orca Mobile')).toBeNull()
 
     await act(async () => {
       await i18n.changeLanguage('zh')
     })
 
     expect(queryButtonByText(container, '自动化')).not.toBeNull()
-    expect(queryButtonByText(container, 'Orca 手机端')).not.toBeNull()
+    expect(queryButtonByText(container, 'Orca 手机端')).toBeNull()
   })
 
   it('updates labels when pseudo-localization is enabled after mount', async () => {
@@ -312,27 +312,13 @@ describe('SidebarNav', () => {
     })
 
     expect(queryButtonByText(container, '[Automations]')).not.toBeNull()
-    expect(queryButtonByText(container, '[Orca Mobile]')).not.toBeNull()
+    expect(queryButtonByText(container, '[Orca Mobile]')).toBeNull()
   })
 
-  it('shows the inline hide control only once a device is paired', async () => {
-    const beforePairing = await renderSidebarNav()
-    expect(queryButtonByText(beforePairing, 'Orca Mobile')).not.toBeNull()
-    expect(beforePairing.querySelector('button[aria-label="Hide from sidebar"]')).toBeNull()
-
+  it('keeps Mobile hidden when a legacy device pairing exists', async () => {
     mocks.hasPairedMobileDevice = true
     const container = await renderSidebarNav()
-    const hideButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Hide from sidebar"]'
-    )
-
-    expect(queryButtonByText(container, 'Orca Mobile')).not.toBeNull()
-    expect(hideButton).not.toBeNull()
-    expect(hideButton?.querySelector('svg')).not.toBeNull()
-
-    await clickButton(hideButton as HTMLButtonElement)
-
-    expect(mocks.updateSettings).toHaveBeenCalledWith({ showMobileButton: false })
+    expect(queryButtonByText(container, 'Orca Mobile')).toBeNull()
     expect(mocks.openMobilePage).not.toHaveBeenCalled()
   })
 
@@ -371,17 +357,9 @@ describe('SidebarNav', () => {
     expect(mocks.updateSettings).toHaveBeenCalledWith({ showAutomationsButton: false })
   })
 
-  it('hides Mobile from its sidebar context menu', async () => {
+  it('omits the Mobile navigation button', async () => {
     const container = await renderSidebarNav()
-
-    const mobileMenu = getButtonByText(container, 'Orca Mobile').closest(
-      '[data-testid="context-menu"]'
-    )
-    expect(mobileMenu).not.toBeNull()
-
-    await clickButton(getHideButton(mobileMenu as HTMLElement))
-
-    expect(mocks.updateSettings).toHaveBeenCalledWith({ showMobileButton: false })
+    expect(container.textContent).not.toContain('Orca Mobile')
   })
 
   it('hides the worktree palette shortcut until the search field is hovered or focused', async () => {

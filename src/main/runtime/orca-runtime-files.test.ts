@@ -39,6 +39,8 @@ const {
   watchMock: vi.fn()
 }))
 
+vi.mock('../ripgrep-executable', () => ({ getRgExecutable: () => 'rg' }))
+
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof Fs>('fs')
   return {

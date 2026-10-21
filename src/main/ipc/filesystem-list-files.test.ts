@@ -12,6 +12,8 @@ const {
   getLocalGitOptionsForRegisteredWorktreeMock: vi.fn()
 }))
 
+vi.mock('../ripgrep-executable', () => ({ getRgExecutable: () => 'rg' }))
+
 vi.mock('child_process', () => ({
   spawn: spawnMock,
   // runner.ts imports these from child_process; stubs prevent

@@ -2,9 +2,12 @@ import { EventEmitter } from 'node:events'
 import type { ChildProcess } from 'node:child_process'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { wslAwareSpawnMock } = vi.hoisted(() => ({
-  wslAwareSpawnMock: vi.fn()
+const { wslAwareSpawnMock, getRgExecutableMock } = vi.hoisted(() => ({
+  wslAwareSpawnMock: vi.fn(),
+  getRgExecutableMock: vi.fn()
 }))
+
+vi.mock('../ripgrep-executable', () => ({ getRgExecutable: getRgExecutableMock }))
 
 vi.mock('../git/runner', () => ({
   wslAwareSpawn: wslAwareSpawnMock
@@ -21,6 +24,7 @@ function createMockProcess(): ChildProcess {
 describe('checkRgAvailable', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    getRgExecutableMock.mockReturnValue('/bundled/rg')
   })
 
   it('returns true when rg exits successfully', async () => {
@@ -31,7 +35,8 @@ describe('checkRgAvailable', () => {
     child.emit('close', 0)
 
     await expect(promise).resolves.toBe(true)
-    expect(wslAwareSpawnMock).toHaveBeenCalledWith('rg', ['--version'], {
+    expect(getRgExecutableMock).toHaveBeenCalledWith('/repo', undefined)
+    expect(wslAwareSpawnMock).toHaveBeenCalledWith('/bundled/rg', ['--version'], {
       cwd: '/repo',
       stdio: 'ignore'
     })

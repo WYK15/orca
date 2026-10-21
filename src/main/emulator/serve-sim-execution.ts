@@ -95,15 +95,14 @@ export function resolveServeSimExecutable(): ServeSimExecutable {
     (process.platform === 'darwin'
       ? join(app.getPath('exe'), '..', '..', 'Resources')
       : join(app.getPath('exe'), '..', 'resources'))
-  const bundled = join(bundledResourcesPath, 'serve-sim', 'dist', 'serve-sim.js')
+  const bundledPackage = join(bundledResourcesPath, 'node_modules', 'serve-sim')
+  const bundled = join(bundledPackage, 'dist', 'serve-sim.js')
   if (existsSync(bundled)) {
     if (process.platform === 'darwin') {
       // Why: the bundled camera dylib is signed but has no Gatekeeper ticket
       // (iOS-simulator arch), so injecting it from the quarantined app bundle
       // can trip syspolicyd; run serve-sim from an unquarantined copy instead.
-      const materializedDir = resolveMaterializedServeSimPackageDir(
-        join(bundledResourcesPath, 'serve-sim')
-      )
+      const materializedDir = resolveMaterializedServeSimPackageDir(bundledPackage)
       if (materializedDir) {
         return {
           command: process.execPath,

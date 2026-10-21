@@ -4,6 +4,7 @@ import type { Store } from '../persistence'
 import { resolveAuthorizedPath } from './filesystem-auth'
 import { checkRgAvailable } from './rg-availability'
 import { wslAwareSpawn } from '../git/runner'
+import { getRgExecutable } from '../ripgrep-executable'
 import { parseWslPath, toWindowsWslPath } from '../wsl'
 import { getLocalGitOptionsForRegisteredWorktree } from './local-worktree-runtime-options'
 import {
@@ -113,11 +114,15 @@ export async function listQuickOpenFiles(
         return maxResults !== undefined && files.size >= maxResults
       }
 
-      const child = wslAwareSpawn('rg', args, {
-        cwd: authorizedRootPath,
-        ...(localGitOptions.wslDistro ? { wslDistro: localGitOptions.wslDistro } : {}),
-        stdio: ['ignore', 'pipe', 'pipe']
-      })
+      const child = wslAwareSpawn(
+        getRgExecutable(authorizedRootPath, localGitOptions.wslDistro),
+        args,
+        {
+          cwd: authorizedRootPath,
+          ...(localGitOptions.wslDistro ? { wslDistro: localGitOptions.wslDistro } : {}),
+          stdio: ['ignore', 'pipe', 'pipe']
+        }
+      )
       let timer: ReturnType<typeof setTimeout>
       const handleStdoutData = (chunk: string): void => {
         buf += chunk

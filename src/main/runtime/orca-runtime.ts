@@ -1,3 +1,4 @@
+import { SPEECH_ENABLED } from '../../shared/fork-feature-policy'
 /* eslint-disable max-lines -- Why: OrcaRuntimeService still owns the mutable live graph, PTY handles, waiters, mobile floor/layout state, and managed-worktree reconciliation. Stateless browser and file command adapters live beside it; the remaining split points need state-owner extraction before enforcing max-lines. */
 /* eslint-disable unicorn/no-useless-spread -- Why: waiter sets and handle keys are cloned intentionally before mutation so resolution and rejection can safely remove entries while iterating. */
 /* eslint-disable no-control-regex -- Why: terminal normalization must strip ANSI and OSC control sequences from PTY output before returning bounded text to agents. */
@@ -12135,6 +12136,9 @@ export class OrcaRuntimeService {
   // setup sheet and drive remote enable/download. Always targets this (paired)
   // desktop — speech never routes to a worktree's SSH host.
   async listMobileSpeechModels(): Promise<RuntimeSpeechSetupState> {
+    if (!SPEECH_ENABLED) {
+      return { enabled: false, selectedModelId: '', dictationMode: 'toggle', models: [] }
+    }
     if (!this.store) {
       throw new Error('voice_dictation_unavailable')
     }
@@ -12210,6 +12214,9 @@ export class OrcaRuntimeService {
     modelId?: string
     dictationMode?: 'toggle' | 'hold'
   }): Promise<RuntimeSpeechSetupState> {
+    if (!SPEECH_ENABLED) {
+      throw new Error('voice_dictation_unavailable')
+    }
     if (!this.store?.getSettings || !this.store.updateSettings) {
       throw new Error('voice_dictation_unavailable')
     }

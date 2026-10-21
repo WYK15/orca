@@ -1,3 +1,4 @@
+import { WEB_CLIENT_ENABLED } from '../../../../shared/fork-feature-policy'
 import React from 'react'
 import {
   Bell,
@@ -51,7 +52,7 @@ function isAgentDashboardPopoutMode(
 export function shouldShowMobileButton(
   settings: Pick<GlobalSettings, 'showMobileButton'> | null | undefined
 ): boolean {
-  return settings?.showMobileButton !== false
+  return WEB_CLIENT_ENABLED && settings?.showMobileButton !== false
 }
 
 export function shouldShowAutomationsButton(

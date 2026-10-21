@@ -8,6 +8,7 @@ import {
 import type { FeatureWallOpenSourceTelemetry } from '../../../../shared/telemetry-events'
 import { track } from '@/lib/telemetry'
 import { translate } from '@/i18n/i18n'
+import { WELCOME_ANIMATIONS_ENABLED } from '../../../../shared/fork-feature-policy'
 
 export function PreviewMedia(props: {
   posterUrl: string | null
@@ -19,7 +20,7 @@ export function PreviewMedia(props: {
   const [posterFailed, setPosterFailed] = useState(false)
   const [gifFailed, setGifFailed] = useState(false)
   const renderPoster = posterUrl !== null && !posterFailed
-  const renderGif = showGif && gifUrl !== null && !gifFailed
+  const renderGif = WELCOME_ANIMATIONS_ENABLED && showGif && gifUrl !== null && !gifFailed
 
   return (
     <figure

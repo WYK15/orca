@@ -51,6 +51,7 @@ import {
   watchFileExplorerInWatcherProcess
 } from './file-watcher-host'
 import { wslAwareSpawn } from '../git/runner'
+import { getRgExecutable } from '../ripgrep-executable'
 import { parseWslPath, toWindowsWslPath } from '../wsl'
 import { isENOENT, resolveAuthorizedPath } from '../ipc/filesystem-auth'
 import { listQuickOpenFiles } from '../ipc/filesystem-list-files'
@@ -1944,11 +1945,15 @@ export class RuntimeFileCommands {
         }
       }
 
-      const nextChild = wslAwareSpawn('rg', rgArgs, {
-        cwd: authorizedRootPath,
-        ...(localGitOptions.wslDistro ? { wslDistro: localGitOptions.wslDistro } : {}),
-        stdio: ['ignore', 'pipe', 'pipe']
-      })
+      const nextChild = wslAwareSpawn(
+        getRgExecutable(authorizedRootPath, localGitOptions.wslDistro),
+        rgArgs,
+        {
+          cwd: authorizedRootPath,
+          ...(localGitOptions.wslDistro ? { wslDistro: localGitOptions.wslDistro } : {}),
+          stdio: ['ignore', 'pipe', 'pipe']
+        }
+      )
       child = nextChild
       this.activeRuntimeTextSearches.set(searchKey, nextChild)
 

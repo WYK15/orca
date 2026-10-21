@@ -20,6 +20,8 @@ const {
 
 const handlers = new Map<string, (event: unknown, args: unknown) => Promise<unknown> | unknown>()
 
+vi.mock('../ripgrep-executable', () => ({ getRgExecutable: () => 'rg' }))
+
 vi.mock('electron', () => ({
   ipcMain: {
     handle: handleMock

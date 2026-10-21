@@ -1,3 +1,4 @@
+import { WELCOME_ANIMATIONS_ENABLED } from '../../../../shared/fork-feature-policy'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { JSX, ReactNode } from 'react'
 import {
@@ -65,7 +66,8 @@ export function FeatureWallTourSurface({
   const updateSettings = useAppStore((s) => s.updateSettings)
   const activeSkillRuntime = useActiveProjectSkillRuntime()
   const assetBaseUrl = useFeatureWallAssetBaseUrl(isOpen)
-  const prefersReducedMotion = usePrefersReducedMotion()
+  const systemPrefersReducedMotion = usePrefersReducedMotion()
+  const prefersReducedMotion = !WELCOME_ANIMATIONS_ENABLED || systemPrefersReducedMotion
   const reactId = useId()
   const previewPanelId = `${reactId}-feature-wall-preview-panel`
   const [selectedId, setSelectedId] = useState<FeatureWallWorkflowId>(

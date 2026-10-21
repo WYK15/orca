@@ -193,6 +193,7 @@ function createMainBootstrapPlugin() {
 export const electronViteConfig: UserConfig = {
   main: {
     build: {
+      minify: true,
       // Why: daemon-entry.js is asar-unpacked so child_process.fork() can
       // execute it from disk. Node's module resolution from the unpacked
       // directory cannot reach into app.asar; startup-critical pure JS must
@@ -211,7 +212,6 @@ export const electronViteConfig: UserConfig = {
           'daemon-entry': resolve('src/main/daemon/daemon-entry.ts'),
           'plugin-host-entry': resolve('src/main/plugins/plugin-host-entry.ts'),
           'computer-sidecar': resolve('src/main/computer/sidecar-entry.ts'),
-          'stt-worker': resolve('src/main/speech/stt-worker.ts'),
           'warp-theme-parser-worker': resolve('src/main/warp-themes/warp-theme-parser-worker.ts'),
           'session-scanner-opencode-sqlite-worker-entry': resolve(
             'src/main/ai-vault/session-scanner-opencode-sqlite-worker-entry.ts'
@@ -269,6 +269,7 @@ export const electronViteConfig: UserConfig = {
   },
   preload: {
     build: {
+      minify: true,
       externalizeDeps: {
         exclude: ['@electron-toolkit/preload']
       }
@@ -286,6 +287,7 @@ export const electronViteConfig: UserConfig = {
       format: 'es'
     },
     build: {
+      minify: true,
       manifest: true,
       modulePreload: { polyfill: true },
       target: 'es2020',
@@ -300,8 +302,7 @@ export const electronViteConfig: UserConfig = {
         preserveEntrySignatures: 'strict',
         input: {
           index: resolve('src/renderer/index.html'),
-          popout: resolve('src/renderer/popout.html'),
-          web: resolve('src/renderer/web-index.html')
+          popout: resolve('src/renderer/popout.html')
         }
       }
     }

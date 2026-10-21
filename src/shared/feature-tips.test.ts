@@ -11,7 +11,7 @@ describe('feature tips', () => {
   it('orders new unseen tips before older unseen tips', () => {
     const tips = getOrderedUnseenFeatureTips({ seenTipIds: new Set<FeatureTipId>() })
 
-    expect(tips.map((tip) => tip.id)).toEqual(['orca-cli', 'cmd-j-palette', 'voice-dictation'])
+    expect(tips.map((tip) => tip.id)).toEqual(['orca-cli', 'cmd-j-palette'])
   })
 
   it('skips tips the user has already seen', () => {

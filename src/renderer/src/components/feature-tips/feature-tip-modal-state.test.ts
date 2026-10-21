@@ -13,7 +13,7 @@ function makeSettings(voiceEnabled = false): Pick<GlobalSettings, 'voice'> {
 }
 
 describe('feature tip modal state', () => {
-  it('keeps rendering the opened tip after app open has marked it seen', () => {
+  it('does not reopen a legacy pinned voice tip', () => {
     const tip = getFeatureTipForModal({
       cliInstalled: false,
       modalData: { tipId: 'voice-dictation' },
@@ -22,7 +22,7 @@ describe('feature tip modal state', () => {
       settings: makeSettings()
     })
 
-    expect(tip?.id).toBe('voice-dictation')
+    expect(tip).toBeNull()
   })
 
   it('falls back to the CLI tip first when no modal tip id is pinned', () => {

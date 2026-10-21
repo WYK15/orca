@@ -14,6 +14,8 @@ const {
   deleteLocalSpeechModelMock: vi.fn()
 }))
 
+vi.mock('../../shared/fork-feature-policy', () => ({ SPEECH_ENABLED: true }))
+
 vi.mock('electron', () => ({
   app: { getPath: vi.fn(() => '/tmp/orca-speech-test') },
   BrowserWindow: { fromWebContents: fromWebContentsMock },

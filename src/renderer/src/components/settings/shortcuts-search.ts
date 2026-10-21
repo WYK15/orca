@@ -3,6 +3,7 @@ import type { SettingsSearchEntry } from './settings-search'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
+import { SPEECH_ENABLED } from '../../../../shared/fork-feature-policy'
 
 export const getTerminalShortcutPolicySearchEntry = createLocalizedCatalog(
   (): SettingsSearchEntry => ({
@@ -35,14 +36,16 @@ export const getTerminalShortcutPolicySearchEntry = createLocalizedCatalog(
 )
 
 export const getShortcutsPaneSearchEntries = createLocalizedCatalog(() => [
-  ...KEYBINDING_DEFINITIONS.map((item) => ({
-    title: item.title,
-    description: translate(
-      'auto.components.settings.shortcuts.search.groupShortcut',
-      '{{value0}} shortcut',
-      { value0: item.group }
-    ),
-    keywords: [...item.searchKeywords]
-  })),
+  ...KEYBINDING_DEFINITIONS.filter((item) => SPEECH_ENABLED || item.id !== 'voice.dictation').map(
+    (item) => ({
+      title: item.title,
+      description: translate(
+        'auto.components.settings.shortcuts.search.groupShortcut',
+        '{{value0}} shortcut',
+        { value0: item.group }
+      ),
+      keywords: [...item.searchKeywords]
+    })
+  ),
   getTerminalShortcutPolicySearchEntry()
 ])

@@ -73,12 +73,24 @@ Release assets use Orcaw names such as `orcaw-windows-setup.exe`,
 `Orcaw-<version>-arm64-mac.zip`. The workflow verifies installers, blockmaps,
 and updater manifests before publishing the draft.
 
-The Windows ARM64 package omits native speech recognition because the pinned
-Sherpa ONNX release has no Windows ARM64 npm addon. The model picker offers
-cloud transcription instead. The bundled x64 browser helper runs through
-Windows 11 emulation; Electron and node-pty use ARM64 binaries.
+The Windows ARM64 package uses ARM64 Electron and node-pty binaries. Its
+bundled x64 browser helper runs through Windows 11 emulation.
 
 Windows builds are unsigned and can trigger SmartScreen; macOS releases use
 Developer ID signing and Apple notarization. Maintenance builds do not check
 for or install updates automatically. Use a manual check to open the exact
 Release, download the matching installer, and install it manually.
+
+Desktop installers bundle a pinned ripgrep executable for their target OS and
+architecture. Local content search and file listing use it without requiring
+`rg` in the user's PATH. WSL and SSH searches execute on their respective hosts
+and retain the remote `rg` / Git fallback; desktop binaries are not run remotely.
+
+Maintenance packages omit voice dictation (including cloud transcription and
+local ONNX libraries), the browser/mobile web client, and welcome GIFs. Voice
+and mobile entries are hidden even with legacy settings enabled; welcome
+previews use static posters. Existing speech models and credentials are left
+in user data. SSH workspaces remain supported through the separately bundled
+relay, which is excluded from app.asar to avoid a second copy. The simulator
+uses the single serve-sim package in Resources/node_modules.
+Desktop main, preload, and renderer builds enable JavaScript minification.

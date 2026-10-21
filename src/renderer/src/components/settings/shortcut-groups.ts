@@ -6,6 +6,7 @@ import {
 } from '../../../../shared/keybindings'
 import { normalizeDisabledTuiAgents } from '../../../../shared/tui-agent-selection'
 import type { TuiAgent } from '../../../../shared/types'
+import { SPEECH_ENABLED } from '../../../../shared/fork-feature-policy'
 
 export type ShortcutGroup = {
   title: string
@@ -32,7 +33,10 @@ export function groupDefinitions(
   )
   const groups = new Map<string, KeybindingDefinition[]>()
   for (const definition of [...KEYBINDING_DEFINITIONS, ...additionalDefinitions]) {
-    if (hiddenAgentActionIds.has(definition.id)) {
+    if (
+      hiddenAgentActionIds.has(definition.id) ||
+      (!SPEECH_ENABLED && definition.id === 'voice.dictation')
+    ) {
       continue
     }
     groups.set(definition.group, [...(groups.get(definition.group) ?? []), definition])

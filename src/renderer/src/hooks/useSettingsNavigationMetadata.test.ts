@@ -33,16 +33,14 @@ function ids(
 
 describe('settings navigation metadata', () => {
   it('puts AI capability panes at the top on desktop', () => {
-    expect(ids().slice(0, 10)).toEqual([
+    expect(ids().slice(0, 8)).toEqual([
       'agents',
       'accounts',
       'orchestration',
       'computer-use',
-      'voice',
       'setup-guide',
       'general',
       'integrations',
-      'mobile',
       'git'
     ])
   })
@@ -68,7 +66,7 @@ describe('settings navigation metadata', () => {
     expect(ids({ isWebClient: true, isLinearConnected: true })).toContain('linear')
   })
 
-  it('places Mobile under Set Up instead of its own sidebar group', () => {
+  it('omits Mobile and Voice from the desktop settings', () => {
     const sections = buildSettingsNavigationMetadata({
       isMac: false,
       isWindows: false,
@@ -76,7 +74,9 @@ describe('settings navigation metadata', () => {
       repos: [repo]
     })
 
-    expect(sections.find((section) => section.id === 'mobile')?.group).toBe('setup')
+    expect(sections.some((section) => section.id === 'mobile' || section.id === 'voice')).toBe(
+      false
+    )
   })
 
   it('puts web-safe AI capability panes at the top while hiding desktop-only panes', () => {

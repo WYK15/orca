@@ -1,3 +1,4 @@
+import { SPEECH_ENABLED } from './fork-feature-policy'
 import {
   hasFeatureInteraction,
   type FeatureInteractionId,
@@ -89,7 +90,7 @@ export function getCompletedFeatureTipIds(state: CompletedFeatureTipState): Set<
   if (state.cliInstalled) {
     completedIds.add('orca-cli')
   }
-  if (state.voiceDictationEnabled) {
+  if (!SPEECH_ENABLED || state.voiceDictationEnabled) {
     completedIds.add('voice-dictation')
   }
   for (const tip of FEATURE_TIPS) {
@@ -110,7 +111,10 @@ export function getOrderedUnseenFeatureTips(args: {
 }): FeatureTip[] {
   const completedTipIds = args.completedTipIds ?? new Set<FeatureTipId>()
   const unseenTips = FEATURE_TIPS.filter(
-    (tip) => !args.seenTipIds.has(tip.id) && !completedTipIds.has(tip.id)
+    (tip) =>
+      (SPEECH_ENABLED || tip.id !== 'voice-dictation') &&
+      !args.seenTipIds.has(tip.id) &&
+      !completedTipIds.has(tip.id)
   )
   return [
     ...unseenTips.filter((tip) => tip.priority === 'new'),

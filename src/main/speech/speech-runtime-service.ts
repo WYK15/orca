@@ -1,5 +1,5 @@
-import { ModelManager } from './model-manager'
-import { SttService } from './stt-service'
+import type { ModelManager } from './model-manager'
+import type { SttService } from './stt-service'
 import type { VoiceSettings } from '../../shared/speech-types'
 
 type SpeechSettingsStore = {
@@ -8,21 +8,10 @@ type SpeechSettingsStore = {
   }
 }
 
-let modelManager: ModelManager | null = null
-let sttService: SttService | null = null
-
-export function getSpeechModelManager(store: SpeechSettingsStore): ModelManager {
-  if (!modelManager) {
-    const settings = store.getSettings()
-    const customDir = settings.voice?.modelsDir || undefined
-    modelManager = new ModelManager(customDir || undefined)
-  }
-  return modelManager
+export function getSpeechModelManager(_store: SpeechSettingsStore): ModelManager {
+  throw new Error('voice_dictation_unavailable')
 }
 
-export function getSpeechSttService(store: SpeechSettingsStore): SttService {
-  if (!sttService) {
-    sttService = new SttService(getSpeechModelManager(store))
-  }
-  return sttService
+export function getSpeechSttService(_store: SpeechSettingsStore): SttService {
+  throw new Error('voice_dictation_unavailable')
 }

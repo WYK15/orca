@@ -36,7 +36,7 @@ import { NativeChatComposerActions } from './NativeChatComposerActions'
 afterEach(() => cleanup())
 
 describe('NativeChatComposerActions', () => {
-  it('places session option pickers immediately beside dictation', () => {
+  it('omits dictation while preserving session and send controls', () => {
     render(
       <NativeChatComposerActions
         attachDisabled={false}
@@ -56,7 +56,7 @@ describe('NativeChatComposerActions', () => {
     )
 
     const pickers = screen.getByTestId('session-option-pickers')
-    const dictation = screen.getByRole('button', { name: 'Start dictation' })
-    expect(pickers.nextElementSibling).toBe(dictation)
+    expect(pickers).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Start dictation' })).toBeNull()
   })
 })

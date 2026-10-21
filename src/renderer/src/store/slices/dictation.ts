@@ -1,3 +1,4 @@
+import { SPEECH_ENABLED } from '../../../../shared/fork-feature-policy'
 import type { StateCreator } from 'zustand'
 import type { AppState } from '../types'
 import type { DictationState, SpeechModelState } from '../../../../shared/speech-types'
@@ -52,6 +53,10 @@ export const createDictationSlice: StateCreator<AppState, [], [], DictationSlice
     setModelStates,
 
     refreshModelStates: async () => {
+      if (!SPEECH_ENABLED) {
+        setModelStates([])
+        return
+      }
       try {
         setModelStates(await window.api.speech.getModelStates())
       } catch (err) {

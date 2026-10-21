@@ -11,8 +11,14 @@ import {
   saveOpenAiSpeechApiKey
 } from '../speech/openai-api-key-store'
 import type { Store } from '../persistence'
+import { SPEECH_ENABLED } from '../../shared/fork-feature-policy'
+import { registerUnavailableSpeechHandlers } from './speech-unavailable-handlers'
 
 export function registerSpeechHandlers(store: Store): void {
+  if (!SPEECH_ENABLED) {
+    registerUnavailableSpeechHandlers()
+    return
+  }
   ipcMain.handle('speech:getCatalog', () => {
     return getAvailableSpeechModels()
   })

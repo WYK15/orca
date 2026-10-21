@@ -1,4 +1,5 @@
 import type { GlobalSettings } from '../../../../shared/types'
+import { SPEECH_ENABLED } from '../../../../shared/fork-feature-policy'
 import type { FeatureInteractionState } from '../../../../shared/feature-interactions'
 import {
   FEATURE_TIPS,
@@ -17,6 +18,9 @@ export function getFeatureTipForModal(args: {
   settings: { voice?: GlobalSettings['voice'] } | null | undefined
 }): FeatureTip | null {
   const modalTipId = isFeatureTipId(args.modalData.tipId) ? args.modalData.tipId : null
+  if (!SPEECH_ENABLED && modalTipId === 'voice-dictation') {
+    return null
+  }
   if (modalTipId) {
     return FEATURE_TIPS.find((tip) => tip.id === modalTipId) ?? null
   }

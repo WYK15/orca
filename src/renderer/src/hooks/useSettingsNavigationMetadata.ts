@@ -1,3 +1,4 @@
+import { SPEECH_ENABLED, WEB_CLIENT_ENABLED } from '../../../shared/fork-feature-policy'
 /* oxlint-disable max-lines */
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -610,7 +611,10 @@ export function buildSettingsNavigationMetadata({
         group: 'repositories'
       }
     })
-  ]
+  ].filter(
+    (section) =>
+      (SPEECH_ENABLED || section.id !== 'voice') && (WEB_CLIENT_ENABLED || section.id !== 'mobile')
+  )
 }
 
 export function useSettingsNavigationMetadata(): SettingsNavSection[] {

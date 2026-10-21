@@ -1,6 +1,7 @@
 /* eslint-disable max-lines -- Why: keep the shortcut registry, parser, formatter, and conflict detector in one shared module so main/renderer/browser/Settings can't drift. */
 import type { TuiAgent } from './types'
 import { ALL_TUI_AGENTS, TUI_AGENT_DISPLAY_NAMES } from './tui-agent-display-names'
+import { SPEECH_ENABLED } from './fork-feature-policy'
 
 export type KeybindingScope =
   | 'global'
@@ -1817,6 +1818,9 @@ export function getEffectiveKeybindingsForAction(
   platform: NodeJS.Platform,
   overrides?: KeybindingOverrides
 ): string[] {
+  if (!SPEECH_ENABLED && actionId === 'voice.dictation') {
+    return []
+  }
   const definition = DEFINITIONS_BY_ID.get(actionId)
   const override = overrides?.[actionId]
   if (Array.isArray(override)) {

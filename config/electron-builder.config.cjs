@@ -15,6 +15,8 @@ const { verifyLinuxGlibcFloor } = require('./scripts/verify-linux-glibc-floor.cj
 const { writeMacBuildCompatibility } = require('./scripts/mac-build-compatibility.cjs')
 const { verifyPackagedPluginResources } = require('./scripts/verify-packaged-plugin-resources.cjs')
 const { verifySkillsCliRuntime } = require('./scripts/verify-skills-cli-runtime.cjs')
+const { verifyPackagedRipgrep } = require('./scripts/verify-packaged-ripgrep.cjs')
+const { verifyOrcawPackageFootprint } = require('./scripts/verify-orcaw-package-footprint.cjs')
 const productIdentity = require('./orcaw-product-identity.json')
 
 // Why: dev-channel builds must carry the *release* identity — same bundle id,
@@ -37,7 +39,8 @@ const devChannelBuildVersion = isMacHourly
 const appId = productIdentity.appId
 const featureWallResources = {
   from: 'resources/onboarding/feature-wall',
-  to: 'onboarding/feature-wall'
+  to: 'onboarding/feature-wall',
+  filter: ['*.poster.jpg']
 }
 // Why: freshness detection needs immutable identity metadata from this exact
 // app build, but never needs the skill package bytes or a runtime network read.
@@ -62,19 +65,13 @@ const bundledPluginResources = {
 // from package directories where pnpm's symlink farm is absent. Copy the exact
 // runtime dependency closure to Resources/node_modules so bare require() calls
 // do not fall through to a developer checkout's node_modules.
-const commonExtraResources = [relayExtraResource, bundledPluginResources, skillFreshnessResources]
-const macSpeechNativeResource = {
-  from: 'node_modules/sherpa-onnx-darwin-${arch}',
-  to: 'node_modules/sherpa-onnx-darwin-${arch}'
-}
-const linuxSpeechNativeResource = {
-  from: 'node_modules/sherpa-onnx-linux-${arch}',
-  to: 'node_modules/sherpa-onnx-linux-${arch}'
-}
-const winSpeechNativeResource = {
-  from: 'node_modules/sherpa-onnx-win-x64',
-  to: 'node_modules/sherpa-onnx-win-x64'
-}
+const commonExtraResources = [
+  relayExtraResource,
+  bundledPluginResources,
+  skillFreshnessResources,
+  { from: 'resources/ripgrep', to: 'ripgrep' },
+  { from: 'node_modules/@vscode/ripgrep-universal/LICENSE', to: 'ripgrep/LICENSE-vscode-ripgrep' }
+]
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
@@ -94,6 +91,11 @@ module.exports = {
   },
   files: [
     '!**/.vscode/*',
+    '!node_modules/@vscode/ripgrep-universal{,/**/*}',
+    '!out/web{,/**/*}',
+    '!out/relay{,/**/*}',
+    '!out/main/stt-worker.js',
+    '!node_modules/sherpa-onnx{,*/**}',
     // Why: these repo-only inputs are either bundled into out/ or copied via
     // extraResources. Shipping them in app.asar bloats the desktop bundle.
     '!src{,/**/*}',
@@ -129,6 +131,7 @@ module.exports = {
     // it from process.resourcesPath; exclude the source copy from app.asar.
     '!resources/onboarding/feature-wall/**',
     '!resources/skills/**',
+    '!resources/ripgrep/**',
     // Why: bundled plugins ship via extraResources to resources/plugins/launch;
     // packing the source tree into app.asar would duplicate those exact bytes.
     '!resources/plugins/launch/**',
@@ -136,8 +139,7 @@ module.exports = {
     // app.asar too lets asarUnpack:['resources/**'] extract a second copy at
     // app.asar.unpacked/resources/win32/bin/orcaw.cmd with no adjacent orcaw.exe,
     // which fails to launch the CLI (#7351).
-    '!resources/win32{,/**/*}',
-    ...(isWindowsArm64Release ? ['!node_modules/sherpa-onnx-win-x64/**'] : [])
+    '!resources/win32{,/**/*}'
   ],
   // Why: the CLI entry-point lives in out/cli/ but imports shared modules
   // from out/shared/ and local hook mutators from out/main/. These paths must be
@@ -182,8 +184,7 @@ module.exports = {
     'node_modules/ws/**',
     'node_modules/tweetnacl/**',
     'node_modules/zod/**',
-    'node_modules/yaml/**',
-    'node_modules/sherpa-onnx*/**'
+    'node_modules/yaml/**'
   ],
   afterPack: async (context) => {
     // Why: a Linux runner-image glibc bump silently shipped a node-pty pty.node
@@ -204,6 +205,8 @@ module.exports = {
     if (!existsSync(resourcesDir)) {
       throw new Error(`Missing packaged resources directory: ${resourcesDir}`)
     }
+    verifyPackagedRipgrep(resourcesDir, context.electronPlatformName, context.arch)
+    verifyOrcawPackageFootprint(resourcesDir)
     if (context.electronPlatformName === 'darwin') {
       const architectureByEnum = { 1: 'x64', 3: 'arm64' }
       const architecture = architectureByEnum[context.arch]
@@ -287,7 +290,11 @@ module.exports = {
     extraResources: [
       ...commonExtraResources,
       ...createPackagedRuntimeNodeModuleResources('win32'),
-      ...(isWindowsArm64Release ? [] : [winSpeechNativeResource]),
+      {
+        from: 'node_modules/@vscode/ripgrep-universal/bin/win32-${arch}',
+        to: 'ripgrep',
+        filter: ['rg.exe']
+      },
       {
         from: 'resources/win32/bin/orcaw.cmd',
         to: 'bin/orcaw.cmd'
@@ -360,7 +367,11 @@ module.exports = {
     extraResources: [
       ...commonExtraResources,
       ...createPackagedRuntimeNodeModuleResources('darwin'),
-      macSpeechNativeResource,
+      {
+        from: 'node_modules/@vscode/ripgrep-universal/bin/darwin-${arch}',
+        to: 'ripgrep',
+        filter: ['rg']
+      },
       {
         from: 'resources/darwin/bin/orcaw',
         to: 'bin/orcaw'
@@ -368,12 +379,6 @@ module.exports = {
       {
         from: 'node_modules/agent-browser/bin/agent-browser-darwin-${arch}',
         to: 'agent-browser-darwin-${arch}'
-      },
-      // Why: serve-sim resolves its helper binary and camera assets relative
-      // to dist/serve-sim.js, so the whole package must be a real resource dir.
-      {
-        from: 'node_modules/serve-sim',
-        to: 'serve-sim'
       },
       {
         from: `native/computer-use-macos/.build/release/${productIdentity.computerUseAppName}.app`,
@@ -423,7 +428,11 @@ module.exports = {
     extraResources: [
       ...commonExtraResources,
       ...createPackagedRuntimeNodeModuleResources('linux'),
-      linuxSpeechNativeResource,
+      {
+        from: 'node_modules/@vscode/ripgrep-universal/bin/linux-${arch}',
+        to: 'ripgrep',
+        filter: ['rg']
+      },
       {
         from: 'resources/linux/bin/orcaw-ide',
         to: 'bin/orcaw-ide'
@@ -522,8 +531,6 @@ function chmodMacServeSimHelpers(resourcesDir, electronPlatformName) {
     return
   }
   const helperPaths = [
-    join(resourcesDir, 'serve-sim', 'bin', 'serve-sim-bin'),
-    join(resourcesDir, 'serve-sim', 'dist', 'simcam', 'serve-sim-camera-helper'),
     join(resourcesDir, 'node_modules', 'serve-sim', 'bin', 'serve-sim-bin'),
     join(resourcesDir, 'node_modules', 'serve-sim', 'dist', 'simcam', 'serve-sim-camera-helper')
   ]
@@ -537,7 +544,9 @@ function chmodMacServeSimHelpers(resourcesDir, electronPlatformName) {
 async function signMacComputerUseHelper(helperAppPath, packager) {
   if (!existsSync(helperAppPath)) {
     if (isMacRelease) {
-      throw new Error(`Missing ${productIdentity.computerUseAppName} helper app at ${helperAppPath}`)
+      throw new Error(
+        `Missing ${productIdentity.computerUseAppName} helper app at ${helperAppPath}`
+      )
     }
     return
   }

@@ -1,3 +1,4 @@
+import { WEB_CLIENT_ENABLED } from '../shared/fork-feature-policy'
 /* eslint-disable max-lines -- main-process entry point; owns app lifecycle, service wiring, window creation, and hook/daemon startup with no cleaner split seam. */
 import { existsSync, statSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
@@ -1722,6 +1723,9 @@ function getServeOptions(argv = process.argv): ServeOptions {
 }
 
 function getBundledWebClientRoot(): string | undefined {
+  if (!WEB_CLIENT_ENABLED) {
+    return undefined
+  }
   const appPath = app.getAppPath()
   const roots = [
     join(appPath, 'out', 'web'),

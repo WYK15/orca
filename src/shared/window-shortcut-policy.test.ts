@@ -37,7 +37,7 @@ describe('resolveWindowShortcutAction', () => {
         { code: 'KeyE', key: 'e', meta: false, control: true, alt: false, shift: false },
         'linux'
       )
-    ).toEqual({ type: 'dictationKeyDown' })
+    ).toBeNull()
   })
 
   it('resolves the explicit window shortcut allowlist on macOS', () => {
@@ -306,13 +306,13 @@ describe('resolveWindowShortcutAction', () => {
     ).toEqual({ type: 'toggleWorktreePalette' })
   })
 
-  it('resolves dictation using the layout-aware key value', () => {
+  it('does not resolve dictation for any keyboard layout', () => {
     expect(
       resolveWindowShortcutAction(
         { code: 'KeyD', key: 'e', meta: true, control: false, alt: false, shift: false },
         'darwin'
       )
-    ).toEqual({ type: 'dictationKeyDown' })
+    ).toBeNull()
 
     expect(
       resolveWindowShortcutAction(
@@ -322,7 +322,7 @@ describe('resolveWindowShortcutAction', () => {
     ).toBeNull()
   })
 
-  it('applies custom keybinding overrides to dictation and main-process shortcuts', () => {
+  it('does not reenable dictation through legacy keybinding overrides', () => {
     expect(
       resolveWindowShortcutAction(
         { code: 'KeyE', key: 'e', meta: false, control: true, alt: false, shift: false },
@@ -337,7 +337,7 @@ describe('resolveWindowShortcutAction', () => {
         'linux',
         { 'voice.dictation': ['Mod+Shift+Y'] }
       )
-    ).toEqual({ type: 'dictationKeyDown' })
+    ).toBeNull()
   })
 
   it('applies custom keybinding overrides to main-process shortcuts', () => {

@@ -1,3 +1,4 @@
+import { SPEECH_ENABLED, WEB_CLIENT_ENABLED } from '../../shared/fork-feature-policy'
 /* eslint-disable max-lines */
 import {
   Suspense,
@@ -684,7 +685,7 @@ function App(): React.JSX.Element {
   const dictationState = useAppStore((s) => s.dictationState)
   const hasSshCredentialRequest = useAppStore((s) => s.sshCredentialQueue.length > 0)
   const shouldMountDictationController =
-    settings?.voice?.enabled === true || dictationState !== 'idle'
+    SPEECH_ENABLED && (settings?.voice?.enabled === true || dictationState !== 'idle')
   const primarySelectionMiddleClickPaste = resolvePrimarySelectionMiddleClickPaste(
     settings?.primarySelectionMiddleClickPaste
   )
@@ -2396,7 +2397,9 @@ function App(): React.JSX.Element {
                               {activeView === 'automations' ? <AutomationsPage /> : null}
                               {activeView === 'activity' ? <ActivityPrototypePage /> : null}
                               {activeView === 'space' ? <WorkspaceSpacePage /> : null}
-                              {activeView === 'mobile' ? <MobilePage /> : null}
+                              {WEB_CLIENT_ENABLED && activeView === 'mobile' ? (
+                                <MobilePage />
+                              ) : null}
                               {activeView === 'terminal' &&
                               creationLayoutActive &&
                               activePendingCreationId ? (
