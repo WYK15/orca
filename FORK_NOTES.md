@@ -23,6 +23,10 @@ Remove an entry after an upstream sync contains its equivalent commits.
   Tauri preview tags use `vX.Y.Z-wyk.N-tauri.N`, are excluded from Electron
   release builds, and publish signed/notarized Mac ARM64 ZIP and DMG assets
   as prereleases without replacing Latest.
+  Tauri can import the active Orcaw profile once, with native confirmation and
+  a local backup. Project IDs are remapped when deduplicating existing projects;
+  SSH/folder ownership and Tauri drafts are preserved. The applications retain
+  separate data, credentials and live-terminal identities.
   Migration status and limitations are recorded in `src-tauri/README.md`.
   The migration currently targets macOS ARM64 only. Embedded browser panes
   and browser automation are disabled in Tauri; links open in Chrome with a

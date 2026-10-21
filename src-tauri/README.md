@@ -23,9 +23,33 @@ the staged Node binary before packaging. Builds currently require a native
 macOS ARM64 runner. Other host platforms and Rust targets are rejected before building.
 
 The application identifier is `com.wyk15.orcaw.tauri`. Its data directory is
-separate from Orcaw's Electron data; it does not migrate the existing profile.
+separate from Orcaw's Electron data. A one-time importer can copy the active
+Orcaw profile's projects and regular settings after a native confirmation.
 The preparation scripts write generated files only under `out/` and
 `src-tauri/binaries/`.
+
+## Import Orcaw projects and settings
+
+On startup, macOS builds detect the active profile under
+`~/Library/Application Support/Orcaw`, including the current `profiles/` layout
+and legacy root configuration. Accept **Import** to merge projects and use the
+saved Orcaw preferences. **Later** keeps the current Tauri profile untouched and
+allows retry on a later launch. Source configuration is read only.
+
+The importer keeps existing Tauri projects, deduplicates by execution host and
+path, remaps project references, and includes SSH targets and non-Git folder
+workspaces. Existing Tauri drafts, terminal sessions and credentials are kept.
+Before writing, it creates an owner-only `orca-data.json.before-orcaw-import-*`
+backup. A completion marker prevents subsequent launches from reapplying old
+settings over newer Tauri edits. It does not synchronize the two applications.
+
+Electron safeStorage ciphertext and managed-account metadata are not imported:
+those credentials use a different identity/encryption format. Existing Tauri
+credentials/proxy URL remain intact; some accounts and proxies need to be
+configured again. Old PTY leases, automation schedules and browser data are not
+activated by importing project configuration. Completed onboarding is retained.
+A malformed source or failed import leaves the original Orcaw profile intact;
+Tauri can still open its own profile.
 
 ## Publish a preview
 

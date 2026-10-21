@@ -20,7 +20,7 @@ let pending = new Map()
 let nativeRequests = []
 let nativeResponses = new Map()
 
-async function startHost() {
+async function startHost(overrides = {}) {
   const env = {
     ...process.env,
     ORCA_TAURI_USER_DATA: join(directory, 'data'),
@@ -28,6 +28,8 @@ async function startHost() {
     ORCA_TAURI_RESOURCES: join(root, 'out/tauri-resources')
   }
   delete env.VITEST
+  delete env.ORCA_TAURI_ORCAW_DATA
+  Object.assign(env, overrides)
   host = spawn(process.execPath, [join(root, 'out/tauri-backend/desktop-host.cjs')], {
     cwd: root,
     env,
@@ -326,6 +328,52 @@ describe('standalone desktop backend', () => {
     await startHost()
     expect((await call('settings:get')).opencodeSessionCookie).toBe(token)
     await expect(call('credential-key')).rejects.toThrow('has not been migrated')
+  })
+
+  it('imports saved Orcaw projects/settings before starting services and preserves the Tauri project', async () => {
+    await call('repos:add', [{ path: project, kind: 'folder' }])
+    await stopHost()
+    const before = JSON.parse(await readFile(join(directory, 'data/orca-data.json'), 'utf8'))
+    const source = join(directory, 'legacy-Orcaw')
+    const importedPath = join(directory, 'imported-project')
+    await mkdir(source)
+    await mkdir(importedPath)
+    const legacy = structuredClone(before)
+    legacy.repos = [
+      { ...before.repos[0], id: 'source-repo', path: importedPath, displayName: 'Imported Orcaw' }
+    ]
+    legacy.projects = before.projects.map((row) => ({
+      ...row,
+      id: 'source-project',
+      sourceRepoIds: ['source-repo']
+    }))
+    legacy.projectHostSetups = before.projectHostSetups.map((row) => ({
+      ...row,
+      id: 'source-setup',
+      repoId: 'source-repo',
+      projectId: 'source-project',
+      path: importedPath
+    }))
+    legacy.settings.terminalFontSize = 19
+    legacy.settings.opencodeSessionCookie = 'must-not-copy-electron-ciphertext'
+    legacy.sshPtyConsumerRecoveries = [{ ownerLease: 'must-not-recover-electron-pty' }]
+    const original = JSON.stringify(legacy)
+    await writeFile(join(source, 'orca-data.json'), original)
+    nativeResponses.set('profile-import-confirm', true)
+    await startHost({ ORCA_TAURI_ORCAW_DATA: source })
+    expect((await call('repos:list')).map((repo) => repo.path).sort()).toEqual(
+      [project, importedPath].sort()
+    )
+    expect((await call('settings:get')).terminalFontSize).toBe(19)
+    expect((await call('settings:get')).opencodeSessionCookie).not.toBe(
+      'must-not-copy-electron-ciphertext'
+    )
+    expect(await readFile(join(source, 'orca-data.json'), 'utf8')).toBe(original)
+    const imported = JSON.parse(await readFile(join(directory, 'data/orca-data.json'), 'utf8'))
+    expect(imported.sshPtyConsumerRecoveries).toEqual(before.sshPtyConsumerRecoveries)
+    expect(nativeRequests.some((request) => request.channel === 'profile-import-confirm')).toBe(
+      true
+    )
   })
 
   it('installs the existing menu definition and routes a native click to the UI', async () => {

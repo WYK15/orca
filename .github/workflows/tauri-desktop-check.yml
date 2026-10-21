@@ -78,6 +78,8 @@ jobs:
           src/renderer/src/tauri/window-close-barrier.test.ts
           src/renderer/src/tauri/browser-policy.test.ts
           src/desktop-host/notification-port.test.ts
+          src/desktop-host/orcaw-profile-merge.test.ts
+          src/desktop-host/orcaw-profile-import.test.ts
           src/main/window/clipboard-file-copy.test.ts
           config/scripts/tauri-release-source.test.mjs
           config/scripts/publish-tauri-release.test.mjs

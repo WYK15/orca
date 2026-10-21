@@ -16,6 +16,7 @@ import { registerUnavailableCapabilities } from './register-unavailable-capabili
 import metadata from '../../package.json'
 import { registerClipboardHandlers } from './clipboard-handlers'
 import { registerApplicationMenu } from './register-application-menu'
+import { importOrcawProfile } from './orcaw-profile-import'
 
 let store: Store | undefined
 let stopping = false
@@ -54,6 +55,20 @@ async function initialize(): Promise<void> {
   // Defer initialization until stdout belongs exclusively to the RPC transport.
   await Promise.resolve()
   initializeCredentialEncryption(await nativeCall('credential-key'))
+  try {
+    await importOrcawProfile({
+      sourceDirectory: process.env.ORCA_TAURI_ORCAW_DATA,
+      targetDirectory: desktopPath('userData'),
+      home: desktopPath('home'),
+      confirm: async (request) => (await nativeCall('profile-import-confirm', request)) === true
+    })
+  } catch (error) {
+    console.error(
+      '[profile-import] Import did not complete:',
+      error instanceof Error ? error.message : 'Unknown error'
+    )
+    await nativeCall('profile-import-notice').catch(console.error)
+  }
   process.env.ORCA_APP_VERSION = metadata.version
   if (process.env.ORCA_TAURI_RESOURCES) {
     Object.defineProperty(process, 'resourcesPath', { value: process.env.ORCA_TAURI_RESOURCES })

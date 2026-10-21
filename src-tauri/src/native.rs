@@ -12,6 +12,37 @@ pub async fn dispatch(app: &AppHandle, frame: &Value) -> Result<Value, String> {
             .ok_or("Missing native path or text")
     };
     match frame["channel"].as_str() {
+        Some("profile-import-notice") => {
+            app.dialog().message("无法完成 Orcaw 配置导入，将继续打开 Tauri。原 Orcaw 数据未修改；如已创建备份，可在 Tauri 数据目录查看。\n\nCould not finish importing Orcaw settings. Tauri will continue opening; the Orcaw source data was not modified.")
+                .title("Orcaw Tauri")
+                .show(|_| {});
+            Ok(Value::Null)
+        }
+        Some("profile-import-confirm") => {
+            let request = args.first().ok_or("Missing import request")?;
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            app.dialog()
+                .message(
+                    request["message"]
+                        .as_str()
+                        .ok_or("Missing import message")?,
+                )
+                .title(request["title"].as_str().ok_or("Missing import title")?)
+                .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
+                    request["accept"]
+                        .as_str()
+                        .ok_or("Missing import button")?
+                        .into(),
+                    request["cancel"]
+                        .as_str()
+                        .ok_or("Missing cancel button")?
+                        .into(),
+                ))
+                .show(move |accepted| {
+                    let _ = tx.send(accepted);
+                });
+            Ok(json!(rx.await.map_err(|e| e.to_string())?))
+        }
         #[cfg(target_os = "macos")]
         Some(channel) if channel.starts_with("notification-") => {
             crate::notifications::dispatch(app, channel, args).await

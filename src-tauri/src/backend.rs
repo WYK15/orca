@@ -57,6 +57,10 @@ impl Backend {
         let data = app.path().app_data_dir()?;
         std::fs::create_dir_all(&data)?;
         let mut command = Command::new(node);
+        #[cfg(target_os = "macos")]
+        if let Some(parent) = data.parent() {
+            command.env("ORCA_TAURI_ORCAW_DATA", parent.join("Orcaw"));
+        }
         command
             .arg(backend.join("desktop-host.cjs"))
             .env("ORCA_TAURI_USER_DATA", data)
