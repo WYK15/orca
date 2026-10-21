@@ -13,6 +13,7 @@
     }
   },
   "app": {
+    "closeSaveFailed": "关闭前保存失败，窗口已保持打开，请重试。",
     "recoverableError": {
       "rootTitle": "Orca 遇到渲染器错误。",
       "rootDescription": "应用 shell 无法完成渲染。重试以重新挂载，如果错误仍然存在，请重新启动 Orca。",

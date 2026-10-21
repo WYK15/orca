@@ -13,6 +13,7 @@
     }
   },
   "app": {
+    "closeSaveFailed": "Couldn't save before closing. Your window is still open.",
     "recoverableError": {
       "rootTitle": "Orca hit a renderer error.",
       "rootDescription": "The app shell could not finish rendering. Retry to remount it, or relaunch Orca if the error persists.",

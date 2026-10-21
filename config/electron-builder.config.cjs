@@ -94,6 +94,8 @@ module.exports = {
     '!node_modules/@vscode/ripgrep-universal{,/**/*}',
     '!out/web{,/**/*}',
     '!out/relay{,/**/*}',
+    '!src-tauri{,/**/*}',
+    '!out/tauri-*{,/**/*}',
     '!out/main/stt-worker.js',
     '!node_modules/sherpa-onnx{,*/**}',
     // Why: these repo-only inputs are either bundled into out/ or copied via

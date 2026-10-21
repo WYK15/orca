@@ -66,6 +66,23 @@ describe('electron-builder config', () => {
     expect(packs('out/main/examples/index.js')).toBe(true)
   })
 
+  it('keeps Tauri sources, binaries and cached runtime archives out of Electron packages', () => {
+    const matcher = new FileMatcher('/app', '/dest', (value) => value, electronBuilderConfig.files)
+    matcher.prependPattern('**/*')
+    const packed = matcher.createFilter()
+    for (const path of [
+      'src-tauri/target/release/orcaw-tauri',
+      'src-tauri/binaries/orcaw-node-aarch64-apple-darwin',
+      'out/tauri-node/node-v24.22.0-darwin-arm64.tar.gz',
+      'out/tauri-backend/desktop-host.cjs',
+      'out/tauri-renderer/tauri-index.html',
+      'out/tauri-resources/relay/linux-x64/relay.js'
+    ]) {
+      expect(packed(join('/app', path), { isDirectory: () => false })).toBe(false)
+    }
+    expect(packed('/app/out/main/index.js', { isDirectory: () => false })).toBe(true)
+  })
+
   it('keeps runtime resources available through extraResources', () => {
     const bundledPluginResources = expect.objectContaining({
       from: 'resources/plugins/launch',

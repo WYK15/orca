@@ -83,6 +83,14 @@ describe('root directory guard', () => {
     expect(output).toContain('new-root.md')
   })
 
+  it('allows the Tauri desktop source root', () => {
+    const fixture = makeFixture()
+    const head = commitFiles(fixture.root, [
+      ['src-tauri/Cargo.toml', '[package]\nname = "desktop"\n']
+    ])
+    expect(runGuard({ ...fixture, head }).status).toBe(0)
+  })
+
   it('rejects a new top-level directory', () => {
     const fixture = makeFixture()
     const head = commitFiles(fixture.root, [['new-folder/file.txt', 'too prominent\n']])

@@ -13,6 +13,7 @@
     }
   },
   "app": {
+    "closeSaveFailed": "No se pudo guardar antes de cerrar. La ventana sigue abierta.",
     "recoverableError": {
       "rootTitle": "Orca tuvo un error de renderizado.",
       "rootDescription": "El shell de la aplicación no pudo terminar de renderizarse. Vuelva a intentar volver a montarlo o reinicie Orca si el error persiste.",

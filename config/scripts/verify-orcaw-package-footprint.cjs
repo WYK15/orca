@@ -8,6 +8,7 @@ function verifyOrcawPackageFootprint(resourcesDir, asar = require('@electron/asa
   const unwanted = entries.filter(
     (entry) =>
       /^out\/(web|relay)(\/|$)/.test(entry) ||
+      /^(src-tauri|out\/tauri-[^/]+)(\/|$)/.test(entry) ||
       entry === 'out/main/stt-worker.js' ||
       entry.startsWith('node_modules/sherpa-onnx')
   )

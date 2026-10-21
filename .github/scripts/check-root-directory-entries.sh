@@ -18,7 +18,7 @@ done < <(git ls-tree -z --name-only "$base_sha")
 
 blocked_entries=()
 while IFS= read -r -d '' entry; do
-  if [[ "$entry" == "FORK_NOTES.md" ]]; then
+  if [[ "$entry" == "FORK_NOTES.md" || "$entry" == "src-tauri" ]]; then
     continue
   fi
   entry_existed=false

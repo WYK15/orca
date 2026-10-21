@@ -13,6 +13,7 @@
     }
   },
   "app": {
+    "closeSaveFailed": "닫기 전에 저장하지 못했습니다. 창은 열린 상태로 유지됩니다.",
     "recoverableError": {
       "rootTitle": "Orca에 렌더러 오류가 발생했습니다.",
       "rootDescription": "앱 셸에서 렌더링을 완료할 수 없습니다. 다시 마운트해 보거나 오류가 지속되면 Orca를 다시 시작하세요.",

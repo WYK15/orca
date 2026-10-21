@@ -34,6 +34,9 @@ it.each([
   '/out/web/web-index.html',
   '/out/relay/relay.js',
   '/out/main/stt-worker.js',
+  '/src-tauri/target/release/orcaw-tauri',
+  '/out/tauri-node/node-v24.22.0-darwin-arm64/bin/node',
+  '/out/tauri-backend/desktop-host.cjs',
   '\\out\\web\\web-index.html'
 ])('rejects a stale removed archive entry: %s', (entry) => {
   expect(() => verifyOrcawPackageFootprint(root, { listPackage: () => [entry] })).toThrow(

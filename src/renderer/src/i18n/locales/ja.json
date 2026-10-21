@@ -13,6 +13,7 @@
     }
   },
   "app": {
+    "closeSaveFailed": "終了前に保存できませんでした。ウィンドウは開いたままです。",
     "recoverableError": {
       "rootTitle": "Orca でレンダラー エラーが発生しました。",
       "rootDescription": "アプリ シェルはレンダリングを完了できませんでした。再マウントを再試行するか、エラーが解決しない場合は Orca を再起動してください。",
