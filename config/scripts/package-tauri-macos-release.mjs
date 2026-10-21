@@ -32,6 +32,7 @@ const certificate = join(privateDirectory, 'developer-id.p12')
 const apiKey = join(privateDirectory, 'notary-key.p8')
 const password = randomBytes(32).toString('base64')
 let keychainCreated = false
+let originalKeychains
 
 function run(command, args, options = {}) {
   try {
@@ -119,6 +120,10 @@ try {
   await writeFile(apiKey, Buffer.from(process.env.APPLE_API_KEY, 'base64'), { mode: 0o600 })
   run('security', ['create-keychain', '-p', password, keychain])
   keychainCreated = true
+  originalKeychains = [
+    ...run('security', ['list-keychains', '-d', 'user']).matchAll(/"([^"]+)"/g)
+  ].map((match) => match[1])
+  run('security', ['list-keychains', '-d', 'user', '-s', keychain, ...originalKeychains])
   run('security', ['unlock-keychain', '-p', password, keychain])
   run('security', ['set-keychain-settings', '-lut', '21600', keychain])
   run('security', [
@@ -238,6 +243,13 @@ try {
   console.log('Verified signed, notarized Mac ARM64 ZIP and DMG packages.')
 } finally {
   if (keychainCreated) {
+    if (originalKeychains) {
+      try {
+        run('security', ['list-keychains', '-d', 'user', '-s', ...originalKeychains])
+      } catch {
+        console.error('Could not restore the keychain search list.')
+      }
+    }
     try {
       run('security', ['delete-keychain', keychain])
     } catch {
