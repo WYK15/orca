@@ -207,6 +207,11 @@ describe.skipIf(process.platform === 'win32')('verifyLinuxGlibcFloor', () => {
         'case "$f" in',
         '  *fail*) echo "objdump: $f: File format not recognized" >&2; exit 1 ;;',
         'esac',
+        'case "$f" in',
+        '  *static*)',
+        '    if [ "$1" = "-T" ]; then echo "not a dynamic object" >&2; exit 1; fi',
+        '    printf "Program Header:\\n    LOAD off 0x0\\n"; exit 0 ;;',
+        'esac',
         'if [ "$1" = "-T" ]; then',
         '  case "$f" in',
         '    *pty*) printf "0000 DF *UND* 0000 (GLIBC_2.2.5) openpty\\n" ;;',
@@ -233,6 +238,18 @@ describe.skipIf(process.platform === 'win32')('verifyLinuxGlibcFloor', () => {
     )
     return stubPath
   }
+
+  it('accepts static executables without asking GNU objdump for dynamic symbols', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'orca-glibc-static-'))
+    try {
+      const objdumpPath = await writeStubObjdump(root)
+      await mkdir(join(root, 'app', 'ripgrep'), { recursive: true })
+      await writeFile(join(root, 'app', 'ripgrep', 'static-rg'), ELF_HEADER)
+      verifyLinuxGlibcFloor(join(root, 'app'), { objdumpPath })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
 
   it('throws listing binaries over the floor (glibc, DT_RELR marker, and libstdc++)', async () => {
     const root = await mkdtemp(join(tmpdir(), 'orca-glibc-over-'))

@@ -293,9 +293,13 @@ function parseImportedSymbols(objdumpOutput) {
 /** Version needs + DT_NEEDED from a single `objdump -p` (fail-closed). */
 function readDynamicInfo(filePath, objdumpPath) {
   const output = runObjdump(objdumpPath, '-p', filePath)
+  const versionNeeds = parseVersionNeeds(output)
+  const neededLibraries = parseNeededLibraries(output)
   return {
-    versionNeeds: parseVersionNeeds(output),
-    neededLibraries: parseNeededLibraries(output)
+    versionNeeds,
+    neededLibraries,
+    hasDynamicLinkage:
+      /^\s*Dynamic Section:/m.test(output) || versionNeeds.length > 0 || neededLibraries.size > 0
   }
 }
 
@@ -329,15 +333,19 @@ function verifyLinuxGlibcFloor(rootDir, options = {}) {
 
   const offenders = []
   for (const filePath of binaries) {
-    const { versionNeeds, neededLibraries } = readDynamicInfo(filePath, objdumpPath)
+    const { versionNeeds, neededLibraries, hasDynamicLinkage } = readDynamicInfo(
+      filePath,
+      objdumpPath
+    )
     const floorViolations = findFloorViolations(versionNeeds, filePath)
     // Only pay for `objdump -T` when a relocated-symbol provider is not already
     // in DT_NEEDED (the common, healthy case short-circuits without it).
-    const providerViolations = Object.values(RELOCATED_SYMBOL_PROVIDERS).some(
-      (library) => !neededLibraries.has(library)
-    )
-      ? findMissingProviderDeps(readImportedSymbols(filePath, objdumpPath), neededLibraries)
-      : []
+    // Static ELF executables have no dynamic imports; GNU objdump -T rejects them.
+    const providerViolations =
+      hasDynamicLinkage &&
+      Object.values(RELOCATED_SYMBOL_PROVIDERS).some((library) => !neededLibraries.has(library))
+        ? findMissingProviderDeps(readImportedSymbols(filePath, objdumpPath), neededLibraries)
+        : []
     if (floorViolations.length > 0 || providerViolations.length > 0) {
       offenders.push({ filePath, floorViolations, providerViolations })
     }

@@ -75,6 +75,11 @@ crashes on launch.
 > follow-up — it would make the load path self-verifying and stay valid even if
 > the build ever moves to an old-glibc sysroot.
 
+Bundled ripgrep may be a fully static ELF executable. The gate validates its
+headers with `objdump -p`, then skips dynamic-symbol checks when it has no
+dynamic section, library dependencies, or symbol-version requirements. GNU
+`objdump -T` rejects such executables because they have no dynamic symbol table.
+
 The one carve-out is the `sherpa-onnx` speech prebuilt, which already requires
 `GLIBCXX_3.4.29` (GCC 11). It loads lazily in the speech worker
 (`src/main/speech/stt-worker.ts`), never at app launch, so it is exempt from the
