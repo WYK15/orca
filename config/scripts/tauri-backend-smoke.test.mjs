@@ -343,4 +343,132 @@ describe('standalone desktop backend', () => {
     await call('desktop:menu-click', [settings.id], 'send')
     expect(events).toContainEqual(expect.objectContaining({ channel: 'ui:openSettings' }))
   })
+
+  it('does not advertise or dispatch embedded browser capabilities', async () => {
+    const status = await call('runtime:getStatus')
+    expect(status.capabilities.filter((capability) => capability.startsWith('browser.'))).toEqual(
+      []
+    )
+    const result = await call('runtime:call', [
+      {
+        id: 'browser-disabled',
+        method: 'browser.tabCreate',
+        params: { worktree: 'folder:notes', url: 'https://example.com' }
+      }
+    ])
+    expect(result).toMatchObject({ error: { code: 'method_not_found' } })
+  })
+
+  it.skipIf(process.platform !== 'darwin')(
+    'routes notifications through native permission, delivery, click and dismissal',
+    async () => {
+      nativeResponses.set('notification-authorization', 'authorized')
+      nativeResponses.set('notification-show', null)
+      nativeResponses.set('notification-dismiss', null)
+      nativeResponses.set('notification-settings', null)
+      await call('settings:set', [
+        {
+          notifications: {
+            enabled: true,
+            agentTaskComplete: true,
+            terminalBell: true,
+            suppressWhenFocused: true,
+            customSoundId: 'system'
+          }
+        }
+      ])
+      expect(await call('notifications:probeDelivery')).toEqual({
+        state: 'delivered',
+        authoritative: true
+      })
+      const paneKey = 'tab-notify:10000000-0000-4000-8000-000000000001'
+      const args = {
+        source: 'test',
+        notificationId: 'request-1',
+        worktreeId: 'folder:notes',
+        paneKey,
+        requireDisplayConfirmation: true
+      }
+      expect(await call('notifications:dispatch', [args])).toEqual({ delivered: true })
+      const native = nativeRequests.findLast((frame) => frame.channel === 'notification-show')
+      expect(native.args[0]).toMatchObject({ title: 'Orca notifications are on', sound: 'default' })
+      await call('desktop:notification', [native.args[0].id, 'click'], 'send')
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          channel: 'ui:focusTerminal',
+          args: [
+            expect.objectContaining({
+              worktreeId: 'folder:notes',
+              tabId: 'tab-notify',
+              leafId: '10000000-0000-4000-8000-000000000001'
+            })
+          ]
+        })
+      )
+      await call('notifications:dispatch', [{ ...args, notificationId: 'request-2' }])
+      expect(await call('notifications:dismiss', [['request-2']])).toEqual({ dismissed: 1 })
+      nativeResponses.set('notification-authorization', 'denied')
+      expect(await call('notifications:dispatch', [args])).toEqual({
+        delivered: false,
+        reason: 'blocked-by-system'
+      })
+      expect(await call('notifications:probeDelivery')).toEqual({
+        state: 'blocked',
+        authoritative: true
+      })
+      await call('notifications:openSystemSettings')
+      await expect
+        .poll(() => nativeRequests.some((frame) => frame.channel === 'notification-settings'))
+        .toBe(true)
+    }
+  )
+
+  it.skipIf(process.platform !== 'darwin')(
+    'preserves notification focus suppression, source settings, cooldown and sound assets',
+    async () => {
+      nativeResponses.set('notification-authorization', 'authorized')
+      nativeResponses.set('notification-show', null)
+      nativeResponses.set('notification-dismiss', null)
+      await call('settings:set', [
+        {
+          notifications: {
+            enabled: true,
+            agentTaskComplete: true,
+            terminalBell: false,
+            suppressWhenFocused: true,
+            customSoundId: 'ding'
+          }
+        }
+      ])
+      await call(
+        'desktop:window-state',
+        [{ focused: true, visible: true, minimized: false }],
+        'send'
+      )
+      const args = {
+        source: 'agent-task-complete',
+        worktreeId: 'repo::/notes',
+        isActiveWorktree: true
+      }
+      expect(await call('notifications:dispatch', [args])).toEqual({
+        delivered: false,
+        reason: 'suppressed-focus'
+      })
+      expect(await call('notifications:dispatch', [{ ...args, source: 'terminal-bell' }])).toEqual({
+        delivered: false,
+        reason: 'source-disabled'
+      })
+      expect(await call('notifications:dispatch', [{ ...args, isActiveWorktree: false }])).toEqual({
+        delivered: true
+      })
+      expect(await call('notifications:dispatch', [{ ...args, isActiveWorktree: false }])).toEqual({
+        delivered: false,
+        reason: 'cooldown'
+      })
+      const sound = await call('notifications:resolveSoundPath')
+      expect(sound.ok).toBe(true)
+      expect((await readFile(sound.path)).length).toBeGreaterThan(0)
+      expect((await call('notifications:loadSound')).ok).toBe(true)
+    }
+  )
 })

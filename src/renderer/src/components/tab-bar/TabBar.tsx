@@ -1,5 +1,6 @@
 /* oxlint-disable max-lines -- Why: per-type tab render branches (terminal/browser/editor) share little beyond drag data; consolidating costs more clarity than the ~5 lines it saves. */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { EMBEDDED_BROWSER_ENABLED } from '../../../../shared/fork-feature-policy'
 import { useShallow } from 'zustand/react/shallow'
 import { SortableContext } from '@dnd-kit/sortable'
 import {
@@ -680,16 +681,17 @@ function TabBarInner({
         <DropdownMenuShortcut>{newTerminalShortcut}</DropdownMenuShortcut>
       </DropdownMenuItem>
     )
-  const newBrowserMenuItem = !terminalOnly ? (
-    <DropdownMenuItem
-      onSelect={onNewBrowserTab}
-      className="gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium"
-    >
-      <Globe className="size-4 text-muted-foreground" />
-      {translate('auto.components.tab.bar.TabBar.4833fb2cbe', 'New Browser Tab')}
-      <DropdownMenuShortcut>{newBrowserShortcut}</DropdownMenuShortcut>
-    </DropdownMenuItem>
-  ) : null
+  const newBrowserMenuItem =
+    EMBEDDED_BROWSER_ENABLED && !terminalOnly ? (
+      <DropdownMenuItem
+        onSelect={onNewBrowserTab}
+        className="gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium"
+      >
+        <Globe className="size-4 text-muted-foreground" />
+        {translate('auto.components.tab.bar.TabBar.4833fb2cbe', 'New Browser Tab')}
+        <DropdownMenuShortcut>{newBrowserShortcut}</DropdownMenuShortcut>
+      </DropdownMenuItem>
+    ) : null
   const newSimulatorMenuItem =
     !terminalOnly && mobileEmulatorEnabled && onNewSimulatorTab ? (
       workspaceHasSimulatorTab ? (

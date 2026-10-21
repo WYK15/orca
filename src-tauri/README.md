@@ -6,7 +6,8 @@ replacement for the Electron release yet.
 ## Run and build
 
 Install the normal pnpm dependencies and a current stable Rust toolchain.
-macOS also needs Xcode command line tools; Windows needs MSVC and WebView2.
+The current migration targets macOS ARM64 only and needs Xcode command line tools.
+Windows, Linux, and Intel macOS migration are deferred.
 The bundled official Node runtime sets the macOS minimum to 13.5.
 Tauri CI is currently manual-only while the migration is in progress.
 
@@ -19,7 +20,7 @@ pnpm build:tauri --bundles app --no-sign  # macOS test application
 its archive against the official SHA-256 manifest, and stages only native
 dependencies for the host platform. It runs a real terminal smoke test against
 the staged Node binary before packaging. Builds currently require a native
-runner for each target architecture.
+macOS ARM64 runner. Other host platforms and Rust targets are rejected before building.
 
 The application identifier is `com.wyk15.orcaw.tauri`. Its data directory is
 separate from Orcaw's Electron data; it does not migrate the existing profile.
@@ -43,8 +44,10 @@ flowchart LR
 - `src/renderer/src/tauri/` reuses the existing preload contract and React
   entry. The separate Vite configuration aliases only the preload's Electron
   imports. Browser/mobile pairing and `out/web` are not involved.
-- Rust owns the bundled Node process, native file dialogs, default file/link
-  opening, trash, and text/image/file clipboard. RPC stays on child-process pipes; no
+- Rust owns the bundled Node process, native file dialogs, file opening,
+  trash, text/image/file clipboard and macOS notifications. HTTP(S) links open
+  in Google Chrome, falling back to the system browser if Chrome is unavailable.
+  RPC stays on child-process pipes; no
   HTTP or WebSocket service is opened for desktop communication. Agent status
   hooks use the existing authenticated loopback listener separately.
 - The desktop command validates both the window label and origin. Remote
@@ -66,7 +69,12 @@ flowchart LR
 
 ## Verified so far
 
-- macOS ARM64: optimized unsigned `.app` builds and renders in WKWebView.
+- macOS ARM64: optimized unsigned `.app` builds, starts and quits normally.
+  The current local build is about 162 MiB.
+- Notification bridge tests cover authorization state, denied permissions,
+  delivery failure, focus suppression, cooldown, sounds, click routing for folder
+  panes, and dismissal while submission is pending. Browser policy tests cover
+  saved preferences, modifiers, legacy tab creation and capability/RPC removal.
 - Actual standalone backend: ordinary folder import, text read/write,
   content search, file authorization, Git status, native terminal input and
   output, and SSH target management.
@@ -80,7 +88,8 @@ flowchart LR
   creation, and rejecting file copies outside authorized workspaces. Image
   paste reuses SSH/runtime upload routing; Linux primary selection stays
   separate from the regular clipboard.
-- CI builds unsigned macOS ARM64, Windows x64, and Windows ARM64 applications.
+- Earlier CI builds produced macOS ARM64 and Windows applications. The current
+  manual workflow only builds macOS ARM64; no new Actions run is started.
 - macOS native startup unlocks Keychain, creates the native menu, and renders
   with the existing titlebar layout. A second launch focuses the original
   window; quitting and reopening succeeds with the same stored key.
@@ -92,36 +101,42 @@ flowchart LR
 The initial local `.app` is about 162 MiB. This is an unsigned development
 comparison, not a published installer measurement or a memory-use guarantee.
 
+## Product scope
+
+Embedded browser panes and CDP automation are excluded from this build:
+browser creation/setup/settings/shortcut entries are hidden, saved browser
+preferences cannot reactivate them, and runtime browser methods and capabilities
+are disabled. Markdown preview remains available.
+
 ## Remaining migration work
 
-- Embedded Chromium browser panes/CDP automation and simulator integration.
-- Native notifications, Windows copied-image-file paste fallback, Windows
-  native file drops, system resume, and complete menu/shortcut parity.
-  Windows keeps HTML5 workspace/tab dragging enabled; enabling Tauri's native
-  drop interceptor there disables that existing behavior.
+- Simulator integration.
+- Signed macOS notification verification (permission prompt, banner and click),
+  system resume, and complete menu/shortcut parity. The bridge reuses existing
+  notification settings, focus suppression, cooldown, custom sounds and pane
+  navigation. Permission is read from UserNotifications; accepted scheduling
+  does not guarantee a banner under Focus or other OS policies. Unbundled dev
+  binaries cannot use native notifications.
 - CLI installation, plugin panel rendering, managed agent hook installation,
   and complete agent/account startup reconciliation. The hook listener and
   plugin worker execution are connected.
-- Persistent terminal recovery in the full UI, Windows installer replacement,
-  and complete shutdown/crash coverage.
+- Persistent terminal recovery in the full UI and complete shutdown/crash coverage.
 - Real SSH connection, relay deployment, remote file editing, terminal resume,
   and credential prompts in end-to-end tests. Target CRUD alone does not prove
   remote execution works.
-- Windows x64/ARM64 manual WebView2 verification and native clipboard testing.
 - Profile import and authentication compatibility with the Electron release.
 
 Unsupported IPC invocations fail explicitly. A short list of disabled
 capabilities supplies their existing empty/unavailable status contract.
 Automatic updates remain disabled.
 
-## Linux compatibility
+## Deferred platforms
 
-Tauri 2 needs WebKitGTK 4.1. Availability on the required Ubuntu 20.04 baseline
-has not been established, so Linux Tauri installers are blocked in the launcher.
-`pnpm build:tauri --no-bundle` is available for development on a machine with
-the required system libraries. Both staged native modules and the final ELF
-binary are checked by Orca's existing glibc 2.31 floor verifier. The Electron
-Linux release keeps its established compatibility policy.
+Tauri builds are limited to macOS ARM64 during this migration. The existing
+Electron platform support and SSH relay targets remain intact. Before bringing
+Linux Tauri back, establish WebKitGTK 4.1 availability on Ubuntu 20.04 and restore
+the final executable glibc 2.31 verification. Windows needs separate WebView2,
+installer, file drop and clipboard verification.
 
 ## Focused tests
 

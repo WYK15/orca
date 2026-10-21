@@ -12,6 +12,7 @@ import { credentialEncryption } from './credential-encryption'
 
 export { ipcMain } from './ipc-port'
 export { Menu } from './application-menu'
+export { DesktopNotification as Notification } from './notification-port'
 
 export const app = Object.assign(new EventEmitter(), {
   isPackaged: false,
@@ -26,6 +27,7 @@ export const app = Object.assign(new EventEmitter(), {
   getAppMetrics: () => [],
   getLoginItemSettings: () => ({ openAtLogin: false }),
   dock: { setBadge: () => {}, bounce: () => 0, cancelBounce: () => {} },
+  focus: () => sendDesktopEvent('desktop:focus'),
   quit: () => sendDesktopEvent('window:close-requested', { isQuitting: true }),
   exit: () => sendDesktopEvent('window:close-requested', { isQuitting: true })
 })
@@ -85,14 +87,6 @@ export const session = {
     return unsupportedDesktopFeature('Chromium browser sessions')
   }
 }
-export class Notification extends EventEmitter {
-  static isSupported(): boolean {
-    return false
-  }
-  show(): never {
-    return unsupportedDesktopFeature('native notifications')
-  }
-}
 export const nativeImage = {
   createFromPath: () => unsupportedDesktopFeature('Electron native images'),
   createFromBuffer: () => unsupportedDesktopFeature('Electron native images'),
@@ -117,6 +111,11 @@ export const utilityProcess = {
 export class BaseWindow {
   constructor() {
     unsupportedDesktopFeature('embedded browser windows')
+  }
+}
+export class Tray {
+  constructor() {
+    unsupportedDesktopFeature('system tray')
   }
 }
 export class WebContentsView {

@@ -1,4 +1,5 @@
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
+import { EMBEDDED_BROWSER_ENABLED } from '../../../shared/fork-feature-policy'
 import type { useAppStore } from '@/store'
 import {
   callRuntimeRpc,
@@ -106,7 +107,10 @@ export async function openWorkspacePortInBrowser(args: {
       url = rawUrl
     }
   }
-  if (args.openInOrcaBrowser === false && args.runtimeTarget.kind === 'local') {
+  if (
+    (!EMBEDDED_BROWSER_ENABLED || args.openInOrcaBrowser === false) &&
+    args.runtimeTarget.kind === 'local'
+  ) {
     try {
       await window.api.shell.openUrl(url)
       return { ok: true }
@@ -118,6 +122,9 @@ export async function openWorkspacePortInBrowser(args: {
 
   const worktreeId =
     args.port.kind === 'workspace' ? args.port.owner.worktreeId : args.activeWorktreeId
+  if (!EMBEDDED_BROWSER_ENABLED) {
+    return { ok: false, reason: 'Forward the remote port before opening it in your browser.' }
+  }
   if (!worktreeId) {
     return { ok: false, reason: 'No workspace selected for the browser.' }
   }

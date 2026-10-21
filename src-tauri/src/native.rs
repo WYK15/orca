@@ -12,6 +12,10 @@ pub async fn dispatch(app: &AppHandle, frame: &Value) -> Result<Value, String> {
             .ok_or("Missing native path or text")
     };
     match frame["channel"].as_str() {
+        #[cfg(target_os = "macos")]
+        Some(channel) if channel.starts_with("notification-") => {
+            crate::notifications::dispatch(app, channel, args).await
+        }
         Some("menu-set") => {
             crate::application_menu::install(app, args.first().ok_or("Missing menu template")?)?;
             Ok(Value::Null)
@@ -35,9 +39,14 @@ pub async fn dispatch(app: &AppHandle, frame: &Value) -> Result<Value, String> {
             if !url.starts_with("https://") && !url.starts_with("http://") {
                 return Err("Only HTTP(S) links are supported".into());
             }
-            app.opener()
-                .open_url(url, None::<&str>)
-                .map_err(|e| e.to_string())?;
+            #[cfg(target_os = "macos")]
+            let opened = app
+                .opener()
+                .open_url(url, Some("Google Chrome"))
+                .or_else(|_| app.opener().open_url(url, None::<&str>));
+            #[cfg(not(target_os = "macos"))]
+            let opened = app.opener().open_url(url, None::<&str>);
+            opened.map_err(|e| e.to_string())?;
             Ok(Value::Null)
         }
         Some("open-path") => {

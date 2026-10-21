@@ -1,4 +1,8 @@
-import { SPEECH_ENABLED, WEB_CLIENT_ENABLED } from '../../../shared/fork-feature-policy'
+import {
+  EMBEDDED_BROWSER_ENABLED,
+  SPEECH_ENABLED,
+  WEB_CLIENT_ENABLED
+} from '../../../shared/fork-feature-policy'
 /* oxlint-disable max-lines */
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -613,7 +617,9 @@ export function buildSettingsNavigationMetadata({
     })
   ].filter(
     (section) =>
-      (SPEECH_ENABLED || section.id !== 'voice') && (WEB_CLIENT_ENABLED || section.id !== 'mobile')
+      (SPEECH_ENABLED || section.id !== 'voice') &&
+      (WEB_CLIENT_ENABLED || section.id !== 'mobile') &&
+      (EMBEDDED_BROWSER_ENABLED || section.id !== 'browser')
   )
 }
 

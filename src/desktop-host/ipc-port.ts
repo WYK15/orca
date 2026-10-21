@@ -26,6 +26,7 @@ export const desktopWindow = Object.assign(new EventEmitter(), {
   isFocused: () => windowState.focused,
   isMinimized: () => windowState.minimized,
   show: () => sendDesktopEvent('desktop:focus'),
+  restore: () => sendDesktopEvent('desktop:focus'),
   focus: () => sendDesktopEvent('desktop:focus')
 })
 

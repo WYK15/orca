@@ -7,6 +7,7 @@ import {
 } from './quick-action-context'
 import { translate } from '@/i18n/i18n'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
+import { EMBEDDED_BROWSER_ENABLED } from '../../../../shared/fork-feature-policy'
 
 export type CmdJQuickActionRunResult =
   | { status: 'ok' }
@@ -56,7 +57,7 @@ async function runWorkspaceAction(
 // Why: Cmd+J actions are for high-frequency, safe, context-light verbs.
 // Context-heavy setup flows such as Ghostty import and browser cookie import
 // stay inside their Settings panes where explanatory UI and failure states fit.
-export const getCmdJQuickActions = createLocalizedCatalog((): CmdJQuickAction[] => [
+const getAllCmdJQuickActions = createLocalizedCatalog((): CmdJQuickAction[] => [
   {
     id: 'new-browser-tab',
     kind: 'action',
@@ -180,3 +181,9 @@ export const getCmdJQuickActions = createLocalizedCatalog((): CmdJQuickAction[] 
     }
   }
 ])
+
+export const getCmdJQuickActions = createLocalizedCatalog(() =>
+  getAllCmdJQuickActions().filter(
+    (action) => EMBEDDED_BROWSER_ENABLED || action.id !== 'new-browser-tab'
+  )
+)

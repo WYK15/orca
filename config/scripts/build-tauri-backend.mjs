@@ -16,12 +16,26 @@ await build({
   minify: true,
   metafile: true,
   loader: { '.png': 'file', '.mp3': 'file', '.icns': 'file', '.ico': 'file' },
+  plugins: [
+    {
+      name: 'desktop-assets',
+      setup(builder) {
+        builder.onResolve({ filter: /\?asset$/ }, (args) => ({
+          path: resolve(args.resolveDir, args.path.slice(0, -6))
+        }))
+      }
+    }
+  ],
   external: ['node-pty', '@parcel/watcher', 'ssh2', 'cpu-features', 'windows-native-registry'],
   alias: {
     electron: join(root, 'src/desktop-host/electron-port.ts'),
     'jsonc-parser': join(root, 'node_modules/jsonc-parser/lib/esm/main.js')
   },
-  define: { 'process.env.NODE_ENV': '"production"', ORCA_FEATURE_WALL_ENABLED: 'false' }
+  define: {
+    'process.env.NODE_ENV': '"production"',
+    ORCA_FEATURE_WALL_ENABLED: 'false',
+    ORCA_EMBEDDED_BROWSER_ENABLED: 'false'
+  }
 })
 
 for (const [name, entry] of [

@@ -40,6 +40,9 @@ import { app } from './electron-port'
 import { getPtyIdForPaneKey } from '../main/ipc/pty'
 import { agentHookServer } from '../main/agent-hooks/server'
 import metadata from '../../package.json'
+import { registerNotificationHandlers } from '../main/ipc/notifications'
+import { nativeCall } from './desktop-context'
+import type { NotificationAuthorizationStatus } from '../main/ipc/notification-authorization-status'
 
 export function registerServiceHandlers(
   store: Store,
@@ -48,6 +51,13 @@ export function registerServiceHandlers(
   const data = desktopPath('userData')
   const keys = new KeybindingService({ homePath: data })
   registerKeybindingHandlers(keys)
+  registerNotificationHandlers(store, undefined, {
+    readAuthorization: async () =>
+      (await nativeCall('notification-authorization')) as NotificationAuthorizationStatus,
+    openSystemSettings: () => {
+      void nativeCall('notification-settings').catch(console.error)
+    }
+  })
   registerLinearHandlers()
   registerJiraHandlers()
   registerOrcaProfileHandlers(store)

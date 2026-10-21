@@ -58,6 +58,7 @@ import {
   type WorkspaceSessionHydrationOptions
 } from '@/lib/workspace-session-hydration-keys'
 import { buildValidWorktreeIdsForSessionHydration } from './degraded-repo-worktree-validity'
+import { EMBEDDED_BROWSER_ENABLED } from '../../../../shared/fork-feature-policy'
 
 type CreateBrowserTabOptions = {
   activate?: boolean
@@ -578,6 +579,20 @@ export const createBrowserSlice: StateCreator<AppState, [], [], BrowserSlice> = 
       options?.sessionPartition
     )
 
+    if (!EMBEDDED_BROWSER_ENABLED) {
+      if (/^https?:\/\//i.test(url)) {
+        void window.api.shell.openUrl(url)
+      }
+      if (
+        /^file:/i.test(url) &&
+        isLocalBrowserPageOwner(get(), worktreeId, options?.browserRuntimeEnvironmentId)
+      ) {
+        void window.api.shell.openFileUri(url)
+      }
+      // Legacy callers still read the result, but disabled builds never register a browser pane.
+      return browserTab
+    }
+
     set((s) => {
       const existingTabs = s.browserTabsByWorktree[worktreeId] ?? []
       const nextTabBarOrder = (() => {
@@ -664,6 +679,9 @@ export const createBrowserSlice: StateCreator<AppState, [], [], BrowserSlice> = 
   },
 
   openNewBrowserTabInActiveWorkspace: async (groupId) => {
+    if (!EMBEDDED_BROWSER_ENABLED) {
+      return
+    }
     const state = get()
     const worktreeId = state.activeWorktreeId
     if (!worktreeId) {
@@ -1597,6 +1615,9 @@ export const createBrowserSlice: StateCreator<AppState, [], [], BrowserSlice> = 
     }),
 
   hydrateBrowserSession: (session, options) => {
+    if (!EMBEDDED_BROWSER_ENABLED) {
+      return
+    }
     const persistedTabsByWorktree = session.browserTabsByWorktree ?? {}
     const currentState = get()
     const validWorktreeIdsForCleanup = buildValidWorktreeIdsForSessionHydration(

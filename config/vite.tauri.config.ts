@@ -23,7 +23,7 @@ export default defineConfig({
       ]
     }
   },
-  define: { ORCA_FEATURE_WALL_ENABLED: 'false' },
+  define: { ORCA_FEATURE_WALL_ENABLED: 'false', ORCA_EMBEDDED_BROWSER_ENABLED: 'false' },
   resolve: {
     alias: [
       { find: /^electron$/, replacement: transport },

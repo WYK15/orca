@@ -1,3 +1,4 @@
+import { EMBEDDED_BROWSER_ENABLED } from '../../../../shared/fork-feature-policy'
 /* eslint-disable max-lines -- Why: the floating panel owns window chrome,
  * resizing, orchestration setup, and mixed terminal/browser/editor tab
  * handling in one surface so the floating worktree does not drift from the
@@ -774,6 +775,9 @@ export function FloatingTerminalPanel({
   )
 
   const createFloatingBrowserTab = useCallback(() => {
+    if (!EMBEDDED_BROWSER_ENABLED) {
+      return
+    }
     const url = browserDefaultUrl ?? 'about:blank'
     createBrowserTab(FLOATING_TERMINAL_WORKTREE_ID, url, {
       title: translate(
@@ -2148,21 +2152,23 @@ function FloatingTerminalEmptyState({
           </span>
           <FloatingEmptyStateShortcut shortcut={openMarkdownShortcut} />
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          className="grid h-8 w-full grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-md px-3 py-0 text-sm font-normal text-foreground hover:bg-muted/40 hover:text-foreground"
-          onClick={onNewBrowser}
-        >
-          <Globe className="size-3.5 opacity-90" />
-          <span className="truncate text-left leading-none">
-            {translate(
-              'auto.components.floating.terminal.FloatingTerminalPanel.8b07759314',
-              'New Browser'
-            )}
-          </span>
-          <FloatingEmptyStateShortcut shortcut={newBrowserShortcut} />
-        </Button>
+        {EMBEDDED_BROWSER_ENABLED ? (
+          <Button
+            type="button"
+            variant="ghost"
+            className="grid h-8 w-full grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-md px-3 py-0 text-sm font-normal text-foreground hover:bg-muted/40 hover:text-foreground"
+            onClick={onNewBrowser}
+          >
+            <Globe className="size-3.5 opacity-90" />
+            <span className="truncate text-left leading-none">
+              {translate(
+                'auto.components.floating.terminal.FloatingTerminalPanel.8b07759314',
+                'New Browser'
+              )}
+            </span>
+            <FloatingEmptyStateShortcut shortcut={newBrowserShortcut} />
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant="ghost"

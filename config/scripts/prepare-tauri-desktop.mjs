@@ -5,6 +5,10 @@ import { resolve, join, dirname, basename, delimiter, relative, sep } from 'node
 import { homedir } from 'node:os'
 import { prepareTauriNode } from './tauri-node-runtime.mjs'
 
+if (process.platform !== 'darwin' || process.arch !== 'arm64') {
+  throw new Error('The Tauri migration currently supports macOS ARM64 only.')
+}
+
 const root = resolve(import.meta.dirname, '../..')
 const backend = join(root, 'out/tauri-backend')
 const resources = join(root, 'out/tauri-resources')

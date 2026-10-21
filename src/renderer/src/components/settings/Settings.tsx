@@ -1,4 +1,8 @@
-import { SPEECH_ENABLED, WEB_CLIENT_ENABLED } from '../../../../shared/fork-feature-policy'
+import {
+  EMBEDDED_BROWSER_ENABLED,
+  SPEECH_ENABLED,
+  WEB_CLIENT_ENABLED
+} from '../../../../shared/fork-feature-policy'
 /* eslint-disable max-lines */
 import {
   lazy,
@@ -1509,7 +1513,7 @@ function Settings(): React.JSX.Element {
                   ) : null}
                 </SettingsSection>
 
-                {showDesktopOnlySettings ? (
+                {showDesktopOnlySettings && EMBEDDED_BROWSER_ENABLED ? (
                   <SettingsSection
                     id="browser"
                     title={translate('auto.components.settings.Settings.c46215ea03', 'Browser')}

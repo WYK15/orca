@@ -25,6 +25,7 @@ import { recordRuntimeFeatureInteraction } from './runtime-feature-interaction'
 import { OrchestrationLegacyCompatibility } from './orchestration-legacy-compatibility'
 import type { RpcDispatchStreamingOptions } from './dispatcher-stream-options'
 import { invalidArgumentResponse, mapDispatcherError } from './dispatcher-error-response'
+import { EMBEDDED_BROWSER_ENABLED } from '../../../shared/fork-feature-policy'
 
 export type DispatcherOptions = { runtime: OrcaRuntimeService; methods?: readonly RpcAnyMethod[] }
 
@@ -36,7 +37,9 @@ export class RpcDispatcher {
 
   constructor({ runtime, methods = ALL_RPC_METHODS }: DispatcherOptions) {
     this.runtime = runtime
-    this.registry = buildRegistry(methods)
+    this.registry = buildRegistry(
+      methods.filter((method) => EMBEDDED_BROWSER_ENABLED || !method.name.startsWith('browser.'))
+    )
     this.orchestrationMutations = getOrchestrationMutationExecutor(runtime)
     this.legacyOrchestration = new OrchestrationLegacyCompatibility(runtime)
   }

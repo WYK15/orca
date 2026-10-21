@@ -1,4 +1,5 @@
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
+import { EMBEDDED_BROWSER_ENABLED } from '../../../shared/fork-feature-policy'
 import {
   parseLoopbackUrlWithPort,
   type LocalhostWorktreeLabelRoute
@@ -105,6 +106,7 @@ export function openHttpLink(url: string, opts: OpenHttpLinkOptions = {}): void 
     state?.settings?.openLinksInAppModifierInverts === true
   )
   const routeToOrca =
+    EMBEDDED_BROWSER_ENABLED &&
     sourceIsLocal &&
     !forceSystemBrowser &&
     !modifier.wantsSystemBrowser &&

@@ -1,3 +1,4 @@
+import { EMBEDDED_BROWSER_ENABLED } from '../../../shared/fork-feature-policy'
 /* eslint-disable max-lines */
 
 import React, { useEffect, useCallback, useMemo, useRef, useState, Suspense } from 'react'
@@ -2022,7 +2023,7 @@ function Terminal(): React.JSX.Element | null {
       }
 
       // Cmd/Ctrl+Shift+B - new browser tab
-      if (!e.repeat && matchShortcut('tab.newBrowser')) {
+      if (EMBEDDED_BROWSER_ENABLED && !e.repeat && matchShortcut('tab.newBrowser')) {
         e.preventDefault()
         notifyTerminalCapture('tab.newBrowser')
         if (floatingWorkspaceFocused) {

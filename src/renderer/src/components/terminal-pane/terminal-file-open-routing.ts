@@ -1,4 +1,5 @@
 import { absolutePathToFileUri } from '@/components/editor/markdown-internal-links'
+import { EMBEDDED_BROWSER_ENABLED } from '../../../../shared/fork-feature-policy'
 import { getConnectionId } from '@/lib/connection-context'
 import { detectLanguage } from '@/lib/language-detect'
 import { isPathInsideWorktree, toWorktreeRelativePath } from '@/lib/terminal-links'
@@ -25,6 +26,10 @@ export function isHtmlFilePath(filePath: string): boolean {
 }
 
 function openHtmlFileInBrowser(filePath: string, worktreeId: string): void {
+  if (!EMBEDDED_BROWSER_ENABLED) {
+    void window.api.shell.openFilePath(filePath)
+    return
+  }
   const store = useAppStore.getState()
   if (worktreeId) {
     // Why: following an HTML file link changes which worktree is foregrounded,

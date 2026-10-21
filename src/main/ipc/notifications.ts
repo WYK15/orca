@@ -1,7 +1,7 @@
 /* eslint-disable max-lines -- Why: notification IPC keeps permission, dispatch, custom sound asset, and sound-loading handlers colocated so renderer/main contracts stay auditable. */
 import { app, BrowserWindow, Notification, ipcMain, shell } from 'electron'
 import { readFile, stat } from 'node:fs/promises'
-import { extname, isAbsolute, normalize } from 'node:path'
+import { extname, isAbsolute, join, normalize } from 'node:path'
 import beepSoundPath from '../../../resources/notification-sounds/beep.mp3?asset'
 import blipSoundPath from '../../../resources/notification-sounds/blip.mp3?asset'
 import blopSoundPath from '../../../resources/notification-sounds/blop.mp3?asset'
@@ -25,6 +25,7 @@ import { getRepoIdFromWorktreeId } from '../../shared/worktree-id'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { buildNotificationOptions } from './notification-options'
 import { readNotificationAuthorizationStatus } from './notification-authorization-status'
+import type { NotificationAuthorizationStatus } from './notification-authorization-status'
 import { parsePaneKey } from '../../shared/stable-pane-id'
 import { setTrayAttention } from '../tray/system-tray'
 import { isMainWindowVisible } from '../window/main-window-visibility'
@@ -214,7 +215,9 @@ function getSelectedNotificationSoundPath(settings: NotificationSettings): {
   }
   if (customSoundId !== 'custom') {
     const builtInPath = BUILT_IN_NOTIFICATION_SOUNDS.get(customSoundId)
-    return builtInPath ? { path: builtInPath } : { path: null, reason: 'missing-path' }
+    return builtInPath
+      ? { path: isAbsolute(builtInPath) ? builtInPath : join(app.getAppPath(), builtInPath) }
+      : { path: null, reason: 'missing-path' }
   }
   if (!settings.customSoundPath) {
     return { path: null, reason: 'missing-path' }
@@ -307,7 +310,16 @@ function reserveNotificationCooldown(
   return true
 }
 
-export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntimeService): void {
+export function registerNotificationHandlers(
+  store: Store,
+  runtime?: OrcaRuntimeService,
+  native?: {
+    readAuthorization: () => Promise<NotificationAuthorizationStatus | null>
+    openSystemSettings: () => void
+  }
+): void {
+  const readAuthorization = native?.readAuthorization ?? readNotificationAuthorizationStatus
+  const openSystemSettings = native?.openSystemSettings ?? openNotificationSystemSettings
   const recentDesktopNotifications = new Map<string, number>()
   const recentMobileNotifications = new Map<string, number>()
   // Why: handler registration marks a fresh session; permission evidence from a previous one must not leak in.
@@ -319,7 +331,7 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
   ipcMain.removeHandler('notifications:getPermissionStatus')
   ipcMain.removeHandler('notifications:probeDelivery')
   ipcMain.handle('notifications:openSystemSettings', (): void => {
-    openNotificationSystemSettings()
+    openSystemSettings()
   })
 
   // Why: Electron's main process can't read macOS auth status; expose only what we can observe (platform support + whether we've prompted).
@@ -342,7 +354,7 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
         store.updateUI({ notificationPermissionRequested: true })
       }
       // Preferred source: the bundled helper reads real auth silently, so polling tracks System Settings changes without banners.
-      const authorization = await readNotificationAuthorizationStatus()
+      const authorization = await readAuthorization()
       if (authorization === 'authorized') {
         lastObservedDeliveryOutcome = 'delivered'
         return { state: 'delivered', authoritative: true }
@@ -508,9 +520,10 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
         }
         notification.on('failed', failedHandler)
 
-        // Why: worktreeId is formatted "repoId::worktreePath"; without the separator we can't extract a repoId, so skip the click-to-navigate binding.
-        if (args.worktreeId && args.worktreeId.includes('::')) {
-          const repoId = getRepoIdFromWorktreeId(args.worktreeId)
+        if (args.worktreeId && (args.worktreeId.includes('::') || args.paneKey)) {
+          const repoId = args.worktreeId.includes('::')
+            ? getRepoIdFromWorktreeId(args.worktreeId)
+            : null
           clickHandler = () => {
             release()
             const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
@@ -524,10 +537,12 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
               win.restore()
             }
             win.focus()
-            win.webContents.send('ui:activateWorktree', {
-              repoId,
-              worktreeId: args.worktreeId
-            })
+            if (repoId) {
+              win.webContents.send('ui:activateWorktree', {
+                repoId,
+                worktreeId: args.worktreeId
+              })
+            }
             // Why: focusTerminal targets the pane by stable leafId so split-pane notifications land on the exact pane.
             const paneTarget = args.paneKey ? parsePaneKey(args.paneKey) : null
             if (paneTarget) {
@@ -567,7 +582,7 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
         return deliverNativeNotification()
       }
       // Why: macOS silently swallows notifications while permission is denied/undecided (verified macOS 26); skip so the renderer can show a fallback.
-      return readNotificationAuthorizationStatus().then((authorization) => {
+      return readAuthorization().then((authorization) => {
         if (authorization === 'denied' || authorization === 'not-determined') {
           lastObservedDeliveryOutcome = 'failed'
           return { delivered: false, reason: 'blocked-by-system' }

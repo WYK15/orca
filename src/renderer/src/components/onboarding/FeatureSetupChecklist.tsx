@@ -6,6 +6,7 @@ import type {
   OnboardingFeatureSetupSelection
 } from './onboarding-feature-setup'
 import { translate } from '@/i18n/i18n'
+import { ONBOARDING_FEATURE_SETUP_IDS } from './onboarding-feature-setup'
 
 type FeatureSetupChecklistProps = {
   value: OnboardingFeatureSetupSelection
@@ -96,6 +97,10 @@ const FEATURE_SETUP_ROWS: readonly FeatureSetupRow[] = [
   }
 ]
 
+const AVAILABLE_FEATURE_SETUP_ROWS = FEATURE_SETUP_ROWS.filter((row) =>
+  ONBOARDING_FEATURE_SETUP_IDS.includes(row.id)
+)
+
 export function FeatureSetupChecklist({
   value,
   onChange
@@ -103,7 +108,7 @@ export function FeatureSetupChecklist({
   return (
     <section className="mt-6">
       <div className="grid gap-3 md:grid-cols-4">
-        {FEATURE_SETUP_ROWS.map((row) => {
+        {AVAILABLE_FEATURE_SETUP_ROWS.map((row) => {
           const selected = value[row.id]
           return (
             <button

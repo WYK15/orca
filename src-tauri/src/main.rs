@@ -6,6 +6,8 @@ mod clipboard;
 mod credential_key;
 mod file_drop;
 mod native;
+#[cfg(target_os = "macos")]
+mod notifications;
 mod window_state;
 
 use backend::Backend;
@@ -87,6 +89,8 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![backend_call])
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            notifications::initialize(app.handle());
             #[cfg(not(target_os = "macos"))]
             if let Some(window) = app.get_webview_window("main") {
                 window.set_decorations(false)?;

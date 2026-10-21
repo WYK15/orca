@@ -1,4 +1,5 @@
 import { toast } from 'sonner'
+import { EMBEDDED_BROWSER_ENABLED } from '../../../shared/fork-feature-policy'
 import { absolutePathToFileUri } from '@/components/editor/markdown-internal-links'
 import { getConnectionId } from '@/lib/connection-context'
 import { useAppStore } from '@/store'
@@ -45,6 +46,10 @@ export function openFileInBrowserTab(params: {
   filePath: string
   worktreeId: string
 }): WorkspaceFileBrowserOpenTarget {
+  if (!EMBEDDED_BROWSER_ENABLED && !getConnectionId(params.worktreeId)) {
+    void window.api.shell.openFilePath(params.filePath)
+    return { status: 'ready', url: absolutePathToFileUri(params.filePath), title: params.filePath }
+  }
   const target = getWorkspaceFileBrowserOpenTarget(params)
   if (target.status === 'unsupported') {
     return target
@@ -60,7 +65,7 @@ export function openFileInBrowserTab(params: {
 }
 
 export function canPreviewLanguage(language: string): language is PreviewableLanguage {
-  return language === 'html'
+  return EMBEDDED_BROWSER_ENABLED && language === 'html'
 }
 
 // Why: "Open Preview to the Side" mirrors the VS Code pattern — the rendered

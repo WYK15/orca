@@ -1,4 +1,4 @@
-import { SPEECH_ENABLED } from '../../shared/fork-feature-policy'
+import { EMBEDDED_BROWSER_ENABLED, SPEECH_ENABLED } from '../../shared/fork-feature-policy'
 /* eslint-disable max-lines -- Why: OrcaRuntimeService still owns the mutable live graph, PTY handles, waiters, mobile floor/layout state, and managed-worktree reconciliation. Stateless browser and file command adapters live beside it; the remaining split points need state-owner extraction before enforcing max-lines. */
 /* eslint-disable unicorn/no-useless-spread -- Why: waiter sets and handle keys are cloned intentionally before mutation so resolution and rejection can safely remove entries while iterating. */
 /* eslint-disable no-control-regex -- Why: terminal normalization must strip ANSI and OSC control sequences from PTY output before returning bounded text to agents. */
@@ -4722,10 +4722,12 @@ export class OrcaRuntimeService {
     // additionally tells clients this host owns browser pages with no renderer,
     // so they must not fall back to a local desktop browser tab.
     const hasRenderer = Boolean(this.getAvailableAuthoritativeWindow())
-    const hasOffscreen = !hasRenderer && Boolean(this.offscreenBrowserBackend)
-    const canBrowse = hasRenderer || hasOffscreen
+    const hasOffscreen =
+      EMBEDDED_BROWSER_ENABLED && !hasRenderer && Boolean(this.offscreenBrowserBackend)
+    const canBrowse = EMBEDDED_BROWSER_ENABLED && (hasRenderer || hasOffscreen)
     const capabilities: RuntimeCapability[] = RUNTIME_CAPABILITIES.filter(
       (capability) =>
+        (EMBEDDED_BROWSER_ENABLED || !capability.startsWith('browser.')) &&
         (capability !== 'browser.screencast.v1' || canBrowse) &&
         // Why: the nested-runtime E2E needs a real legacy transport without maintaining an old binary fixture.
         (process.env.ORCA_E2E_DISABLE_RUNTIME_SHARED_CONTROL !== '1' ||

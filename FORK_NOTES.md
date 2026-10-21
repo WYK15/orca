@@ -21,8 +21,11 @@ Remove an entry after an upstream sync contains its equivalent commits.
   encryption for existing storage callers, and reuses the translated application
   menu. Tauri build checks remain manual during the migration.
   Migration status and limitations are recorded in `src-tauri/README.md`.
-  Linux Tauri installers stay blocked pending WebKitGTK 4.1 compatibility on
-  Ubuntu 20.04; staged native binaries retain the glibc 2.31 gate.
+  The migration currently targets macOS ARM64 only. Embedded browser panes
+  and browser automation are disabled in Tauri; links open in Chrome with a
+  system-browser fallback. Native macOS notifications reuse existing notification
+  preferences and terminal navigation. Electron platform support and remote
+  SSH relay targets remain unchanged.
 
 - Markdown review notes are removed from preview, rich editing, and source
   editing, including note controls, review rails, shortcuts, and the settings

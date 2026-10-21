@@ -11,6 +11,7 @@ import {
   buildAgentFeatureSkillInstallCommand
 } from '@/lib/agent-feature-install-commands'
 import { BROWSER_USE_ENABLED_STORAGE_KEY } from '@/lib/browser-use-setup-state'
+import { EMBEDDED_BROWSER_ENABLED } from '../../../../shared/fork-feature-policy'
 import { e2eConfig } from '@/lib/e2e-config'
 import { showOrcaCliRegistrationPromptToast } from '@/lib/agent-skill-cli-prerequisite'
 import type { ProjectAgentSkillRuntime } from '@/lib/project-skill-runtime'
@@ -35,14 +36,14 @@ export type OnboardingFeatureSetupId =
 export type OnboardingFeatureSetupSelection = Record<OnboardingFeatureSetupId, boolean>
 
 export const DEFAULT_ONBOARDING_FEATURE_SETUP_SELECTION: OnboardingFeatureSetupSelection = {
-  browserUse: true,
+  browserUse: EMBEDDED_BROWSER_ENABLED,
   computerUse: true,
   orchestration: true,
   linearTickets: false
 }
 
 export const ONBOARDING_FEATURE_SETUP_IDS: readonly OnboardingFeatureSetupId[] = [
-  'browserUse',
+  ...(EMBEDDED_BROWSER_ENABLED ? ['browserUse' as const] : []),
   'computerUse',
   'orchestration',
   'linearTickets'
