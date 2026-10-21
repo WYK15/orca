@@ -37,6 +37,17 @@ const target = execFileSync('rustc', ['--print', 'host-tuple'], {
   env: cargoEnv,
   encoding: 'utf8'
 }).trim()
+const rustArchitecture = { x64: 'x86_64', arm64: 'aarch64' }[process.arch]
+const rustPlatform = {
+  darwin: 'apple-darwin',
+  win32: 'pc-windows-msvc',
+  linux: 'unknown-linux-gnu'
+}[process.platform]
+if (!rustArchitecture || !rustPlatform || target !== `${rustArchitecture}-${rustPlatform}`) {
+  throw new Error(
+    `Rust host ${target} does not match ${process.platform}-${process.arch}; select a native Rust toolchain before preparing the sidecar`
+  )
+}
 const executable = `orcaw-node-${target}${process.platform === 'win32' ? '.exe' : ''}`
 for (const path of [backend, resources, binaryDir]) {
   await mkdir(path, { recursive: true })
