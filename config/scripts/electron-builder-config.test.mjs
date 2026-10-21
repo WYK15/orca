@@ -410,6 +410,20 @@ describe('electron-builder config', () => {
         const resourcesDir = join(root, 'linux-unpacked', 'resources')
         const launcherPath = join(resourcesDir, 'bin', 'orcaw-ide')
         await mkdir(join(resourcesDir, 'bin'), { recursive: true })
+        await mkdir(join(resourcesDir, 'ripgrep'), { recursive: true })
+        await writeFile(join(resourcesDir, 'ripgrep', 'rg'), 'ripgrep fixture')
+        await mkdir(join(resourcesDir, 'relay'))
+        const archiveSource = join(root, 'archive-source')
+        await mkdir(archiveSource)
+        await writeFile(join(archiveSource, 'package.json'), '{}')
+        await mkdir(join(archiveSource, 'out', 'main'), { recursive: true })
+        await writeFile(join(archiveSource, 'out', 'main', 'index.js'), '')
+        await mkdir(join(archiveSource, 'out', 'main', 'agent-hooks'))
+        await writeFile(
+          join(archiveSource, 'out', 'main', 'agent-hooks', 'managed-agent-hook-controls.js'),
+          ''
+        )
+        await require('@electron/asar').createPackage(archiveSource, join(resourcesDir, 'app.asar'))
         await cp(
           join(process.cwd(), 'resources', 'plugins', 'launch'),
           join(resourcesDir, 'plugins', 'launch'),
