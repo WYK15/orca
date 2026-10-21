@@ -7,6 +7,7 @@ import {
 } from '../../shared/keybindings'
 import type { UpdateCheckOptions } from '../../shared/types'
 import { translateMain } from '../i18n/main-i18n'
+import { WEB_CLIENT_ENABLED } from '../../shared/fork-feature-policy'
 
 export type AppearanceMenuState = {
   showTasksButton: boolean
@@ -231,12 +232,16 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
         checked: appearance.showAutomationsButton,
         click: () => onToggleAppearance('showAutomationsButton')
       },
-      {
-        label: translateMain('menu.showMobileButton', 'Show Orca Mobile Button'),
-        type: 'checkbox',
-        checked: appearance.showMobileButton,
-        click: () => onToggleAppearance('showMobileButton')
-      },
+      ...(WEB_CLIENT_ENABLED
+        ? [
+            {
+              label: translateMain('menu.showMobileButton', 'Show Orca Mobile Button'),
+              type: 'checkbox' as const,
+              checked: appearance.showMobileButton,
+              click: () => onToggleAppearance('showMobileButton')
+            }
+          ]
+        : []),
       {
         label: translateMain('menu.showTitlebarAppName', 'Show Titlebar App Name'),
         type: 'checkbox',

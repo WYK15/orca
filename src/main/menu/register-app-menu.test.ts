@@ -354,8 +354,7 @@ describe('registerAppMenu', () => {
     expect(automationsItem?.checked).toBe(false)
 
     const mobileItem = appearanceSubmenu.find((item) => item.label === 'Show Orca Mobile Button')
-    expect(mobileItem?.type).toBe('checkbox')
-    expect(mobileItem?.checked).toBe(true)
+    expect(mobileItem).toBeUndefined()
 
     const titlebarItem = appearanceSubmenu.find((item) => item.label === 'Show Titlebar App Name')
     expect(titlebarItem?.checked).toBe(true)
@@ -387,7 +386,7 @@ describe('registerAppMenu', () => {
 
     expect(options.onToggleAppearance).toHaveBeenCalledWith('showTasksButton')
     expect(options.onToggleAppearance).toHaveBeenCalledWith('showAutomationsButton')
-    expect(options.onToggleAppearance).toHaveBeenCalledWith('showMobileButton')
+    expect(options.onToggleAppearance).not.toHaveBeenCalledWith('showMobileButton')
     expect(options.onToggleAppearance).toHaveBeenCalledWith('showTitlebarAppName')
   })
 
