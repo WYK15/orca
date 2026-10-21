@@ -1,19 +1,6 @@
 name: Tauri Desktop Check
 
 on:
-  push:
-    branches:
-      - refactor/tauri-desktop
-    paths:
-      - src-tauri/**
-      - src/desktop-host/**
-      - src/renderer/src/tauri/**
-      - src/shared/desktop-wire-codec*
-      - config/scripts/*tauri*
-      - config/vite.tauri.config.ts
-      - .github/workflows/tauri-desktop-check.yml
-      - package.json
-      - pnpm-lock.yaml
   workflow_dispatch:
     inputs:
       ref:
