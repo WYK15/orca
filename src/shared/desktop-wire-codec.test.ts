@@ -2,6 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { decodeDesktopValue, encodeDesktopValue } from './desktop-wire-codec'
 
 describe('desktop wire values', () => {
+  it('preserves undefined positional arguments and optional object fields', () => {
+    const value = { options: undefined, args: [undefined, null, 'value'] }
+    expect(decodeDesktopValue(JSON.parse(JSON.stringify(encodeDesktopValue(value))))).toEqual(value)
+  })
+
+  it('does not confuse application records with transport tags', () => {
+    const value = {
+      __orcaw_wire_v1: 'undefined',
+      nested: { __orcaw_wire_v1: 'bytes', data: 'content' }
+    }
+    expect(decodeDesktopValue(JSON.parse(JSON.stringify(encodeDesktopValue(value))))).toEqual(value)
+  })
   it('round trips nested binary terminal frames through JSON', () => {
     const original = { args: [new Uint8Array([0, 10, 27, 128, 255]), { text: '中文 -> &gt;' }] }
     const json = JSON.stringify(encodeDesktopValue(original))
