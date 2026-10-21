@@ -27,6 +27,24 @@ separate from Orcaw's Electron data; it does not migrate the existing profile.
 The preparation scripts write generated files only under `out/` and
 `src-tauri/binaries/`.
 
+## Publish a preview
+
+Tauri previews use `vX.Y.Z-wyk.N-tauri.N` tags; `package.json`, the Tauri
+configuration and the Rust crate carry the same version. The Electron fork
+workflow excludes these tags. Publishing a Tauri preview never marks it Latest.
+
+Push the release commit and tag, then manually run **Tauri Desktop Check**
+with `ref` set to that tag and `publish_release` enabled. Ordinary checks remain
+unsigned and do not publish. Release builds use the existing Developer ID and
+App Store Connect secrets. All bundled Mach-O binaries are signed, including
+Node, native dependencies and terminal helpers. Only Node receives the JIT
+entitlement. The signed runtime must pass a PTY/native-module smoke test.
+
+Both the application and DMG must pass Apple notarization and stapling before
+ZIP, DMG and SHA-256 files reach a draft prerelease. The draft is published only
+when all expected assets are uploaded. The workflow validates the exact tag,
+commit, app identifier and version; a published release cannot be overwritten.
+
 ## Architecture
 
 ```mermaid

@@ -8,16 +8,23 @@ on:
         required: false
         default: refactor/tauri-desktop
         type: string
+      publish_release:
+        description: Sign, notarize and publish a Tauri prerelease for an existing tag
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
-  group: tauri-desktop-${{ github.ref }}
-  cancel-in-progress: true
+  group: tauri-desktop-${{ inputs.ref || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   check:
+    outputs:
+      release_tag: ${{ steps.release.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -37,6 +44,13 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
           persist-credentials: false
+          fetch-depth: 0
+      - name: Validate release source
+        id: release
+        if: inputs.publish_release
+        env:
+          RELEASE_TAG: ${{ inputs.ref }}
+        run: node config/scripts/tauri-release-source.mjs
       - uses: pnpm/action-setup@v6
         with:
           run_install: false
@@ -62,14 +76,27 @@ jobs:
           src/shared/desktop-wire-codec.test.ts
           src/renderer/src/tauri/host-transport.test.ts
           src/renderer/src/tauri/window-close-barrier.test.ts
+          src/renderer/src/tauri/browser-policy.test.ts
+          src/desktop-host/notification-port.test.ts
           src/main/window/clipboard-file-copy.test.ts
+          config/scripts/tauri-release-source.test.mjs
+          config/scripts/publish-tauri-release.test.mjs
           config/scripts/tauri-backend-smoke.test.mjs
       - name: Build unsigned test application
         run: pnpm build:tauri --bundles ${{ matrix.bundles }} --no-sign
       - name: Test native image clipboard limits
         run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Sign, notarize and package release
+        if: inputs.publish_release
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: node config/scripts/package-tauri-macos-release.mjs
       - name: Archive macOS application with executable permissions
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && !inputs.publish_release
         shell: bash
         run: |
           mkdir -p out/tauri-artifacts
@@ -77,6 +104,27 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: tauri-${{ matrix.platform }}
-          path: ${{ matrix.artifacts }}
+          path: out/tauri-artifacts/*
           retention-days: 14
           if-no-files-found: error
+
+  publish:
+    if: inputs.publish_release
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ needs.check.outputs.release_tag }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v6
+        with:
+          name: tauri-macos-arm64
+          path: out/tauri-artifacts
+      - name: Publish verified prerelease assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.check.outputs.release_tag }}
+        run: node config/scripts/publish-tauri-release.mjs

@@ -19,7 +19,10 @@ Remove an entry after an upstream sync contains its equivalent commits.
   text/image/file clipboard operations use Rust while retaining SSH upload routing.
   The Tauri host keeps its credential key in the OS vault, uses authenticated
   encryption for existing storage callers, and reuses the translated application
-  menu. Tauri build checks remain manual during the migration.
+  menu. Tauri checks and preview releases remain manual during the migration.
+  Tauri preview tags use `vX.Y.Z-wyk.N-tauri.N`, are excluded from Electron
+  release builds, and publish signed/notarized Mac ARM64 ZIP and DMG assets
+  as prereleases without replacing Latest.
   Migration status and limitations are recorded in `src-tauri/README.md`.
   The migration currently targets macOS ARM64 only. Embedded browser panes
   and browser automation are disabled in Tauri; links open in Chrome with a
