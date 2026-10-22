@@ -106,6 +106,13 @@ jobs:
         run: pnpm build:tauri --bundles ${{ matrix.bundles }} --no-sign
       - name: Test native image clipboard limits
         run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Use HTTPS for Apple notarization tickets
+        if: inputs.publish_release
+        shell: bash
+        # GitHub-hosted macOS HTTP/3 can fail stapling: actions/runner-images#14924.
+        run: |
+          printf '%s\n' 'block return out quick proto udp from any to any port 443' | sudo pfctl -f -
+          sudo pfctl -E
       - name: Sign, notarize and package release
         if: inputs.publish_release
         env:
