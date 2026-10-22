@@ -4,7 +4,6 @@ import { Store } from '../main/persistence'
 import { hydrateShellPath, mergePathSegments } from '../main/startup/hydrate-shell-path'
 import { closeAllWatchers } from '../main/ipc/filesystem-watcher'
 import { killAllPty } from '../main/ipc/pty'
-import { disconnectRegisteredSshTarget, listRegisteredSshTargets } from '../main/ipc/ssh'
 import { registerRendererShutdownCheckpointHandler } from '../main/ipc/renderer-shutdown-checkpoint'
 import { desktopPath, nativeCall, setDesktopTransport } from './desktop-context'
 import { clearCredentialEncryption, initializeCredentialEncryption } from './credential-encryption'
@@ -131,9 +130,6 @@ async function shutdown(): Promise<void> {
     await ready.catch(() => {})
     await closeAllWatchers()
     await Promise.allSettled(cleanup.map((stop) => stop()))
-    await Promise.allSettled(
-      listRegisteredSshTargets().map((target) => disconnectRegisteredSshTarget(target.id))
-    )
     killAllPty()
     await store?.flushPendingAsync()
     store?.flushOrThrow()

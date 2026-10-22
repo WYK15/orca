@@ -1,10 +1,11 @@
 import { build } from 'esbuild'
-import { mkdir, copyFile } from 'node:fs/promises'
+import { mkdir, copyFile, rm } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
 
 const root = resolve(import.meta.dirname, '../..')
 const output = join(root, 'out/tauri-backend')
 await mkdir(output, { recursive: true })
+await rm(join(output, 'plugin-host-entry.js'), { force: true })
 
 await build({
   entryPoints: [join(root, 'src/desktop-host/index.ts')],
@@ -34,14 +35,14 @@ await build({
   define: {
     'process.env.NODE_ENV': '"production"',
     ORCA_FEATURE_WALL_ENABLED: 'false',
+    ORCA_PERSONAL_DESKTOP_ENABLED: 'true',
     ORCA_EMBEDDED_BROWSER_ENABLED: 'false'
   }
 })
 
 for (const [name, entry] of [
   ['parcel-watcher-process-entry', 'ipc/parcel-watcher-process-entry.ts'],
-  ['daemon-entry', 'daemon/daemon-entry.ts'],
-  ['plugin-host-entry', 'plugins/plugin-host-entry.ts']
+  ['daemon-entry', 'daemon/daemon-entry.ts']
 ]) {
   await build({
     entryPoints: [join(root, 'src/main', entry)],

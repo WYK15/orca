@@ -1,4 +1,4 @@
-import { EMBEDDED_BROWSER_ENABLED } from '../../../shared/fork-feature-policy'
+import { EMBEDDED_BROWSER_ENABLED, SIMULATOR_ENABLED } from '../../../shared/fork-feature-policy'
 /* eslint-disable max-lines */
 
 import React, { useEffect, useCallback, useMemo, useRef, useState, Suspense } from 'react'
@@ -362,7 +362,9 @@ function Terminal(): React.JSX.Element | null {
   const terminalShortcutPolicy = useAppStore(
     (s) => s.settings?.terminalShortcutPolicy ?? 'orca-first'
   )
-  const mobileEmulatorEnabled = useAppStore((s) => s.settings?.mobileEmulatorEnabled !== false)
+  const mobileEmulatorEnabled = useAppStore(
+    (s) => SIMULATOR_ENABLED && s.settings?.mobileEmulatorEnabled !== false
+  )
   const setActiveTabType = useAppStore((s) => s.setActiveTabType)
   const setActiveFile = useAppStore((s) => s.setActiveFile)
   const closeFile = useAppStore((s) => s.closeFile)

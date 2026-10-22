@@ -2,6 +2,7 @@
  * coordinator spanning workspace creation, SSH readiness, terminal launch/reuse,
  * completion bookkeeping, and focus restoration. */
 import { useEffect } from 'react'
+import { AUTOMATIONS_ENABLED } from '../../../shared/fork-feature-policy'
 import { launchAgentBackgroundSession } from '@/lib/launch-agent-background-session'
 import { submitPromptToAgentPty } from '@/lib/agent-paste-draft'
 import { findReusableAutomationSession } from '@/lib/automation-session-reuse'
@@ -56,6 +57,9 @@ function buildAutomationWorkspaceName(runTitle: string, scheduledFor: number): s
 
 export function useAutomationDispatchEvents(): void {
   useEffect(() => {
+    if (!AUTOMATIONS_ENABLED) {
+      return
+    }
     const unsubscribe = window.api.automations.onDispatchRequested(
       async ({ automation, run, dispatchToken }) => {
         const markDispatchResult = async (result: AutomationDispatchResult): Promise<void> => {

@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- Why: repo selector, task-source controls, and task list stay co-located so their wiring reads in one place. */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ISSUE_TRACKERS_ENABLED } from '../../../shared/fork-feature-policy'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
 import {
@@ -7290,10 +7291,10 @@ export default function TaskPage(): React.JSX.Element {
     if (!preflightStatusCurrent || !preflightStatusChecked) {
       void refreshPreflightStatus()
     }
-    if (!linearStatusReady) {
+    if (ISSUE_TRACKERS_ENABLED && !linearStatusReady) {
       void checkLinearConnection()
     }
-    if (!jiraStatusReady) {
+    if (ISSUE_TRACKERS_ENABLED && !jiraStatusReady) {
       void checkJiraConnection()
     }
   }, [

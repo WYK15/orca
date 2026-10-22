@@ -6,7 +6,11 @@ import {
 } from '../../../../shared/keybindings'
 import { normalizeDisabledTuiAgents } from '../../../../shared/tui-agent-selection'
 import type { TuiAgent } from '../../../../shared/types'
-import { SPEECH_ENABLED } from '../../../../shared/fork-feature-policy'
+import {
+  SIMULATOR_ENABLED,
+  SPEECH_ENABLED,
+  WORKSPACE_BOARD_ENABLED
+} from '../../../../shared/fork-feature-policy'
 
 export type ShortcutGroup = {
   title: string
@@ -35,6 +39,8 @@ export function groupDefinitions(
   for (const definition of [...KEYBINDING_DEFINITIONS, ...additionalDefinitions]) {
     if (
       hiddenAgentActionIds.has(definition.id) ||
+      (!WORKSPACE_BOARD_ENABLED && definition.id === 'workspace.openBoard') ||
+      (!SIMULATOR_ENABLED && definition.id === 'tab.newSimulator') ||
       (!SPEECH_ENABLED && definition.id === 'voice.dictation')
     ) {
       continue

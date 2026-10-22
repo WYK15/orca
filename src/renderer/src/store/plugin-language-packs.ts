@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { ORCA_PLUGINS_ENABLED } from '../../../shared/fork-feature-policy'
 import { create } from 'zustand'
 import type { PluginLanguagePackRegistration } from '../../../shared/plugins/plugin-language-pack-artifact'
 
@@ -17,7 +18,7 @@ export const usePluginLanguagePackStore = create<PluginLanguagePackState>()((set
   fetchPacks: async () => {
     const generation = ++requestGeneration
     const api = window.api?.plugins
-    if (!api?.listLanguagePacks) {
+    if (!ORCA_PLUGINS_ENABLED || !api?.listLanguagePacks) {
       if (generation === requestGeneration) {
         set({ packs: [], loaded: true })
       }
@@ -41,7 +42,7 @@ export function ensurePluginLanguagePacksLoaded(): void {
   if (!state.loaded) {
     void state.fetchPacks()
   }
-  if (!changeSubscriptionStarted && window.api?.plugins?.onChanged) {
+  if (ORCA_PLUGINS_ENABLED && !changeSubscriptionStarted && window.api?.plugins?.onChanged) {
     changeSubscriptionStarted = true
     window.api.plugins.onChanged((event) => {
       if (event?.contentPacksChanged ?? true) {

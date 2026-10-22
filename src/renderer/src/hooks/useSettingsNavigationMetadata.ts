@@ -1,5 +1,12 @@
 import {
   EMBEDDED_BROWSER_ENABLED,
+  EXPERIMENTAL_FEATURES_ENABLED,
+  ISSUE_TRACKERS_ENABLED,
+  ONBOARDING_ENABLED,
+  ORCA_PLUGINS_ENABLED,
+  ORCHESTRATION_ENABLED,
+  REMOTE_HOSTS_ENABLED,
+  SIMULATOR_ENABLED,
   SPEECH_ENABLED,
   WEB_CLIENT_ENABLED
 } from '../../../shared/fork-feature-policy'
@@ -619,7 +626,14 @@ export function buildSettingsNavigationMetadata({
     (section) =>
       (SPEECH_ENABLED || section.id !== 'voice') &&
       (WEB_CLIENT_ENABLED || section.id !== 'mobile') &&
-      (EMBEDDED_BROWSER_ENABLED || section.id !== 'browser')
+      (EMBEDDED_BROWSER_ENABLED || section.id !== 'browser') &&
+      (ORCA_PLUGINS_ENABLED || section.id !== 'plugins') &&
+      (ORCHESTRATION_ENABLED || section.id !== 'orchestration') &&
+      (REMOTE_HOSTS_ENABLED || (section.id !== 'ssh' && section.id !== 'servers')) &&
+      (EXPERIMENTAL_FEATURES_ENABLED || section.group !== 'experimental') &&
+      (ONBOARDING_ENABLED || section.id !== 'setup-guide') &&
+      (ISSUE_TRACKERS_ENABLED || section.id !== 'linear') &&
+      (SIMULATOR_ENABLED || section.id !== 'mobile-emulator')
   )
 }
 

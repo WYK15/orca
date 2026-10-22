@@ -25,7 +25,12 @@ import { recordRuntimeFeatureInteraction } from './runtime-feature-interaction'
 import { OrchestrationLegacyCompatibility } from './orchestration-legacy-compatibility'
 import type { RpcDispatchStreamingOptions } from './dispatcher-stream-options'
 import { invalidArgumentResponse, mapDispatcherError } from './dispatcher-error-response'
-import { EMBEDDED_BROWSER_ENABLED } from '../../../shared/fork-feature-policy'
+import {
+  EMBEDDED_BROWSER_ENABLED,
+  EXPERIMENTAL_FEATURES_ENABLED,
+  ORCHESTRATION_ENABLED,
+  REMOTE_HOSTS_ENABLED
+} from '../../../shared/fork-feature-policy'
 
 export type DispatcherOptions = { runtime: OrcaRuntimeService; methods?: readonly RpcAnyMethod[] }
 
@@ -38,7 +43,14 @@ export class RpcDispatcher {
   constructor({ runtime, methods = ALL_RPC_METHODS }: DispatcherOptions) {
     this.runtime = runtime
     this.registry = buildRegistry(
-      methods.filter((method) => EMBEDDED_BROWSER_ENABLED || !method.name.startsWith('browser.'))
+      methods.filter(
+        (method) =>
+          (EMBEDDED_BROWSER_ENABLED || !method.name.startsWith('browser.')) &&
+          (ORCHESTRATION_ENABLED || !method.name.startsWith('orchestration.')) &&
+          (REMOTE_HOSTS_ENABLED ||
+            (!method.name.startsWith('ssh.') && !method.name.startsWith('pairing.'))) &&
+          (EXPERIMENTAL_FEATURES_ENABLED || !method.name.startsWith('nativeChat.'))
+      )
     )
     this.orchestrationMutations = getOrchestrationMutationExecutor(runtime)
     this.legacyOrchestration = new OrchestrationLegacyCompatibility(runtime)

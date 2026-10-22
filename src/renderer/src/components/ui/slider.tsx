@@ -5,8 +5,11 @@ import { cn } from '@/lib/utils'
 
 function Slider({
   className,
+  thumbLabel,
   ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>): React.ReactElement {
+}: React.ComponentProps<typeof SliderPrimitive.Root> & {
+  thumbLabel?: string
+}): React.ReactElement {
   return (
     <SliderPrimitive.Root
       data-slot="slider"
@@ -24,6 +27,7 @@ function Slider({
         <SliderPrimitive.Range data-slot="slider-range" className="absolute h-full bg-primary" />
       </SliderPrimitive.Track>
       <SliderPrimitive.Thumb
+        aria-label={thumbLabel}
         data-slot="slider-thumb"
         className={cn(
           'block size-4 rounded-full border border-primary/40 bg-background shadow-sm',

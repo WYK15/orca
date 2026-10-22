@@ -963,10 +963,17 @@ function getManualOrderAnchorRepo(
 function sortProjectEntries(
   entries: OrderedGroupEntry[],
   projectOrderBy: ProjectOrderBy,
-  repoOrder: Map<string, number> | undefined
+  repoOrder: Map<string, number> | undefined,
+  pinnedRepoIds: ReadonlySet<string> = new Set()
 ): OrderedGroupEntry[] {
+  const pinRank = (entry: OrderedGroupEntry) =>
+    [...entry[1].repoIds].some((id) => pinnedRepoIds.has(id)) ? 0 : 1
   if (projectOrderBy === 'recent') {
     return [...entries].sort((a, b) => {
+      const byPin = pinRank(a) - pinRank(b)
+      if (byPin) {
+        return byPin
+      }
       const byRecent = compareRecentRank(recentRankForEntry(a), recentRankForEntry(b))
       if (byRecent !== 0) {
         return byRecent
@@ -983,6 +990,10 @@ function sortProjectEntries(
     return entries
   }
   return [...entries].sort((a, b) => {
+    const byPin = pinRank(a) - pinRank(b)
+    if (byPin) {
+      return byPin
+    }
     const ra = manualRankForEntry(a, repoOrder)
     const rb = manualRankForEntry(b, repoOrder)
     if (ra !== rb) {
@@ -1026,6 +1037,7 @@ export function buildRows(
   pinnedDisplayPolicy: PinnedWorktreeDisplayPolicy = getPinnedWorktreeDisplayPolicy(settings)
 ): Row[] {
   const result: Row[] = []
+  const pinnedProjectRepoIds = new Set(settings?.sidebarPinnedRepoIds ?? [])
   const projectIndex = buildProjectGroupingIndex(projectGrouping)
   const cyclicLineageIds = nestLineage
     ? getCyclicProjectedWorktreeLineageIds(lineageById, worktreeMap)
@@ -1235,7 +1247,12 @@ export function buildRows(
     // Why: project header order is its own user choice (projectOrderBy),
     // decoupled from workspace sortBy. Manual uses the canonical repoOrder so
     // header drag has a stable source of truth; Recent follows activity.
-    const entries = sortProjectEntries(Array.from(grouped.entries()), projectOrderBy, repoOrder)
+    const entries = sortProjectEntries(
+      Array.from(grouped.entries()),
+      projectOrderBy,
+      repoOrder,
+      pinnedProjectRepoIds
+    )
     // Why: large imported repo sets can have one group per repo; spreading
     // those entries into push can exceed V8's argument limit.
     for (const entry of entries) {
@@ -1379,15 +1396,23 @@ export function buildRows(
   }
 
   const sortRepoEntriesWithinGroup = (entries: OrderedGroupEntry[]): OrderedGroupEntry[] => {
+    const pinRank = (entry: OrderedGroupEntry) =>
+      [...entry[1].repoIds].some((id) => pinnedProjectRepoIds.has(id)) ? 0 : 1
     if (projectOrderBy === 'recent') {
-      return [...entries].sort((left, right) =>
-        compareRecentRank(recentRankForEntry(left), recentRankForEntry(right))
+      return [...entries].sort(
+        (left, right) =>
+          pinRank(left) - pinRank(right) ||
+          compareRecentRank(recentRankForEntry(left), recentRankForEntry(right))
       )
     }
     // Manual: within a Project Group, projects order by their per-group rank
     // (projectGroupOrder), falling back to global repoOrder when unset so drag
     // midpoint commits and the rendered order stay aligned.
     return [...entries].sort((left, right) => {
+      const byPin = pinRank(left) - pinRank(right)
+      if (byPin) {
+        return byPin
+      }
       const leftRank = getEffectiveProjectGroupManualRank(left[1].repo, repoOrder)
       const rightRank = getEffectiveProjectGroupManualRank(right[1].repo, repoOrder)
       return leftRank - rightRank

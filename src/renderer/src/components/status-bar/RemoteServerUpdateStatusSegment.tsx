@@ -1,4 +1,5 @@
 import type React from 'react'
+import { REMOTE_HOSTS_ENABLED } from '../../../../shared/fork-feature-policy'
 import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAppStore } from '@/store'
@@ -21,7 +22,7 @@ export function RemoteServerUpdateStatusSegment({
     )
   )
 
-  if (!running && failed === 0 && updated === 0) {
+  if (!REMOTE_HOSTS_ENABLED || (!running && failed === 0 && updated === 0)) {
     return null
   }
 

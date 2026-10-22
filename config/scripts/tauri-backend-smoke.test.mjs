@@ -6,7 +6,6 @@ import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promi
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { promisify } from 'node:util'
-import { startPluginWorker } from '../../src/main/plugins/plugin-host-process'
 
 const execute = promisify(execFile)
 const root = resolve(import.meta.dirname, '../..')
@@ -171,13 +170,35 @@ describe('standalone desktop backend', () => {
     expect(await call('pty:hasPty', [{ id: terminal.id }])).toBe(false)
   })
 
-  it('retains SSH target CRUD and reports unmigrated operations explicitly', async () => {
+  it('omits remote hosts and rejects connections and orchestration while retaining local runtime calls', async () => {
     expect(await call('ssh:listTargets')).toEqual([])
-    const target = await call('ssh:addTarget', [
-      { target: { label: 'Fixture', host: 'example.invalid', port: 22, username: 'tester' } }
-    ])
-    expect(JSON.stringify(target)).toContain('example.invalid')
-    expect(await call('ssh:listTargets')).toHaveLength(1)
+    await expect(
+      call('ssh:addTarget', [
+        { target: { label: 'Fixture', host: 'example.invalid', port: 22, username: 'tester' } }
+      ])
+    ).rejects.toThrow()
+    expect(await call('runtimeEnvironments:list')).toEqual([])
+    await expect(call('ssh:connect', [{ targetId: 'old-target' }])).rejects.toThrow()
+    await expect(
+      call('runtimeEnvironments:connect', [{ selector: 'old-server' }])
+    ).rejects.toThrow()
+    for (const method of [
+      'ssh.connect',
+      'orchestration.runList',
+      'nativeChat.readSession',
+      'pairing.getEndpoints'
+    ]) {
+      expect(await call('runtime:call', [{ method, params: {} }])).toMatchObject({
+        error: { code: 'method_not_found' }
+      })
+    }
+    const status = await call('runtime:getStatus')
+    expect(
+      status.capabilities.some(
+        (capability) =>
+          capability.startsWith('orchestration.') || capability === 'runtime.environments.v1'
+      )
+    ).toBe(false)
     await expect(call('unmigrated:operation')).rejects.toThrow('has not been migrated')
     await call('desktop:flush')
   })
@@ -256,30 +277,85 @@ describe('standalone desktop backend', () => {
     )
   })
 
-  it('executes and shuts down a plugin with the packaged worker entry', async () => {
-    await writeFile(
-      join(project, 'worker.mjs'),
-      `export default function(orca) {
-      orca.commands.register('run', async (args) => ({ input: args, runtime: process.versions.node }))
-    }`
-    )
-    const worker = await startPluginWorker({
-      pluginId: 'fixture.smoke',
-      rootDir: project,
-      mainEntry: 'worker.mjs',
-      entryPath: join(root, 'out/tauri-backend/plugin-host-entry.js'),
-      grantedCapabilities: [],
-      executeHostCall: async () => ({ ok: true, value: null }),
-      log: () => {}
-    })
-    try {
-      expect(await worker.invokeCommand('run', 'tauri-plugin-worker')).toEqual({
-        input: 'tauri-plugin-worker',
-        runtime: process.versions.node
-      })
-    } finally {
-      await worker.dispose()
+  it('omits the Orca plugin worker and leaves removed integrations disconnected', async () => {
+    expect(await call('plugins:list')).toEqual([])
+    expect(await call('plugins:listLanguagePacks')).toEqual([])
+    expect(await call('linear:status')).toEqual({ connected: false, viewer: null })
+    expect(await call('jira:status')).toEqual({ connected: false, viewer: null })
+    await expect(
+      readFile(join(root, 'out/tauri-backend/plugin-host-entry.js'))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(call('plugins:install', [{}])).rejects.toThrow()
+    await expect(call('automations:list')).rejects.toThrow()
+  })
+
+  it('persists appearance and project organization across restart while retaining the folder catalog', async () => {
+    const { repo } = await call('repos:add', [{ path: project, kind: 'folder' }])
+    const preferences = {
+      desktopAppearance: { iconSize: 24, textSize: 16, density: 'spacious' },
+      sidebarProjectArchive: { [repo.id]: 123 },
+      sidebarPinnedRepoIds: [repo.id]
     }
+    await call('settings:set', [preferences])
+    await stopHost()
+    await startHost()
+    expect(await call('settings:get')).toMatchObject(preferences)
+    expect(await call('repos:list')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: repo.id, path: project, kind: 'folder' })
+      ])
+    )
+  })
+
+  it('keeps experimental features and remote routing disabled after settings updates and restart', async () => {
+    const disabled = {
+      experimentalPet: false,
+      experimentalActivity: false,
+      experimentalAgentDashboardPopout: false,
+      experimentalAgentHibernation: false,
+      experimentalNativeChat: false,
+      experimentalEphemeralVms: false,
+      experimentalNewWorktreeCardStyle: false,
+      openAgentTabsInChatByDefault: false,
+      activeRuntimeEnvironmentId: null
+    }
+    await call('settings:set', [
+      {
+        ...Object.fromEntries(Object.keys(disabled).map((key) => [key, true])),
+        activeRuntimeEnvironmentId: 'legacy-server'
+      }
+    ])
+    expect(await call('settings:get')).toMatchObject(disabled)
+    await stopHost()
+    await startHost()
+    expect(await call('settings:get')).toMatchObject(disabled)
+  })
+
+  it('keeps legacy remote records on disk while exposing only local projects', async () => {
+    const { repo } = await call('repos:add', [{ path: project, kind: 'folder' }])
+    await stopHost()
+    const file = join(directory, 'data/orca-data.json')
+    const snapshot = JSON.parse(await readFile(file, 'utf8'))
+    snapshot.repos.push({
+      ...repo,
+      id: 'legacy-ssh',
+      connectionId: 'old-host',
+      executionHostId: 'ssh:old-host'
+    })
+    snapshot.settings.experimentalPet = true
+    snapshot.settings.activeRuntimeEnvironmentId = 'old-server'
+    await writeFile(file, JSON.stringify(snapshot))
+    await startHost()
+    expect((await call('repos:list')).map((item) => item.id)).toEqual([repo.id])
+    expect(await call('settings:get')).toMatchObject({
+      experimentalPet: false,
+      activeRuntimeEnvironmentId: null
+    })
+    await call('desktop:flush')
+    const retained = JSON.parse(await readFile(file, 'utf8'))
+    expect(retained.repos.some((item) => item.id === 'legacy-ssh')).toBe(true)
+    expect(retained.settings.experimentalPet).toBe(true)
+    expect(retained.settings.activeRuntimeEnvironmentId).toBe('old-server')
   })
 
   it('routes image paste through native clipboard and checks copied file access', async () => {

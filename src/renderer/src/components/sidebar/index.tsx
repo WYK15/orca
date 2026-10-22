@@ -7,6 +7,11 @@ import SidebarNav from './SidebarNav'
 import SetupScriptPromptCard from './SetupScriptPromptCard'
 import WorktreeList from './WorktreeList'
 import SidebarToolbar from './SidebarToolbar'
+import { ProjectArchivePanel } from './ProjectArchivePanel'
+import {
+  PERSONAL_DESKTOP_ENABLED,
+  WORKSPACE_BOARD_ENABLED
+} from '../../../../shared/fork-feature-policy'
 import WorkspaceKanbanDrawer from './WorkspaceKanbanDrawer'
 import { AgentDashboardDrawer } from '@/components/dashboard/AgentDashboardDrawer'
 import type { VirtualizedScrollAnchor } from '@/hooks/useVirtualizedScrollAnchor'
@@ -128,6 +133,7 @@ function Sidebar({
     <TooltipProvider delayDuration={400}>
       <div
         ref={containerRef}
+        data-desktop-chrome="sidebar"
         data-native-file-drop-target={sidebarOpen ? nativeDropTarget : undefined}
         className="relative min-h-0 flex-shrink-0 bg-worktree-sidebar flex flex-col overflow-hidden scrollbar-sleek-parent"
         style={leftSidebarStyle}
@@ -149,6 +155,7 @@ function Sidebar({
             />
 
             <div className="relative shrink-0">
+              {PERSONAL_DESKTOP_ENABLED && <ProjectArchivePanel />}
               <SetupScriptPromptCard />
 
               {/* Fixed bottom toolbar */}
@@ -206,7 +213,7 @@ function Sidebar({
         {activeModal === 'confirm-orca-yaml-hooks' ? <OrcaYamlTrustDialog /> : null}
         {activeModal === 'forget-ssh-workspace' ? <ForgetSshWorkspaceDialog /> : null}
       </React.Suspense>
-      {sidebarOpen ? (
+      {WORKSPACE_BOARD_ENABLED && sidebarOpen ? (
         <WorkspaceKanbanDrawer
           leftSidebarStyle={leftSidebarStyle}
           open={workspaceBoardRenderedOpen}

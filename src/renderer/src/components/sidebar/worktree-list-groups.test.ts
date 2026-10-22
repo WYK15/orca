@@ -22,6 +22,7 @@ import {
 import { getWorktreeLineageAncestors } from './worktree-lineage-projection'
 import type {
   DetectedWorktree,
+  GlobalSettings,
   Project,
   ProjectHostSetup,
   FolderWorkspace,
@@ -2120,6 +2121,39 @@ describe('buildRows with pinned worktrees', () => {
 })
 
 describe('buildRows project grouping order', () => {
+  it('keeps explicitly pinned projects first in both Manual and Recent modes', () => {
+    const olderRepo = { ...repo, id: 'pinned-project', displayName: 'pinned' }
+    const newerRepo = { ...repo, id: 'recent-project', displayName: 'recent' }
+    const older = { ...worktree, id: 'old', repoId: olderRepo.id, lastActivityAt: 1 }
+    const newer = { ...worktree, id: 'new', repoId: newerRepo.id, lastActivityAt: 100 }
+    const map = new Map([
+      [olderRepo.id, olderRepo],
+      [newerRepo.id, newerRepo]
+    ])
+    for (const order of ['manual', 'recent'] as const) {
+      const rows = buildRows(
+        'repo',
+        [newer, older],
+        map,
+        null,
+        new Set(),
+        new Map([
+          [newerRepo.id, 0],
+          [olderRepo.id, 1]
+        ]),
+        undefined,
+        order,
+        {},
+        undefined,
+        false,
+        { sidebarPinnedRepoIds: [olderRepo.id] } as GlobalSettings
+      )
+      expect(rows.filter((row) => row.type === 'header').map((row) => row.key)).toEqual([
+        'repo:pinned-project',
+        'repo:recent-project'
+      ])
+    }
+  })
   const repoA: Repo = { ...repo, id: 'repo-a', displayName: 'alpha' }
   const repoB: Repo = { ...repo, id: 'repo-b', displayName: 'beta' }
   const repoC: Repo = { ...repo, id: 'repo-c', displayName: 'gamma' }
@@ -3996,15 +4030,17 @@ describe('WorktreeList header styles', () => {
 
   it('collapses repo header actions without reserving title width', () => {
     expect(REPO_HEADER_ACTION_REVEAL_CLASS).toContain('min-w-0 max-w-0 -ml-1.5')
-    expect(REPO_HEADER_ACTION_REVEAL_CLASS).toContain('focus:ml-0 focus:max-w-5 focus:opacity-100')
     expect(REPO_HEADER_ACTION_REVEAL_CLASS).toContain(
-      'group-hover:ml-0 group-hover:max-w-5 group-hover:opacity-100'
+      'focus:ml-0 focus:max-w-(--desktop-control-size) focus:opacity-100'
+    )
+    expect(REPO_HEADER_ACTION_REVEAL_CLASS).toContain(
+      'group-hover:ml-0 group-hover:max-w-(--desktop-control-size) group-hover:opacity-100'
     )
     expect(REPO_HEADER_ACTION_BUTTON_CLASS).toContain(
       'transition-[margin,max-width,opacity,background-color,color]'
     )
     expect(REPO_HEADER_ACTION_BUTTON_CLASS).toContain(
-      'data-[state=open]:ml-0 data-[state=open]:max-w-5 data-[state=open]:opacity-100'
+      'data-[state=open]:ml-0 data-[state=open]:max-w-(--desktop-control-size) data-[state=open]:opacity-100'
     )
   })
 

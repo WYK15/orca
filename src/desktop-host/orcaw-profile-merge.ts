@@ -35,7 +35,8 @@ const REFERENCE_LISTS = new Set([
   'sourceRepoIds',
   'manualRepoOrder',
   'filterRepoIds',
-  'setupScriptPromptDismissedRepoIds'
+  'setupScriptPromptDismissedRepoIds',
+  'sidebarPinnedRepoIds'
 ])
 const PRESERVE_SETTINGS = new Set([
   'opencodeSessionCookie',
@@ -222,6 +223,31 @@ export function mergeOrcawProfile(
     ...Object.fromEntries(
       Object.entries(source.settings).filter(([key]) => !PRESERVE_SETTINGS.has(key))
     )
+  }
+  if (profileRecord(source.settings.sidebarProjectArchive)) {
+    snapshot.settings.sidebarProjectArchive = {
+      ...Object.fromEntries(
+        Object.entries(source.settings.sidebarProjectArchive).map(([id, value]) => [
+          reference(id, ids),
+          value
+        ])
+      ),
+      ...(profileRecord(target.settings.sidebarProjectArchive)
+        ? target.settings.sidebarProjectArchive
+        : {})
+    }
+  }
+  if (Array.isArray(source.settings.sidebarPinnedRepoIds)) {
+    snapshot.settings.sidebarPinnedRepoIds = [
+      ...new Set([
+        ...(Array.isArray(target.settings.sidebarPinnedRepoIds)
+          ? target.settings.sidebarPinnedRepoIds
+          : []),
+        ...source.settings.sidebarPinnedRepoIds
+          .filter((id): id is string => typeof id === 'string')
+          .map((id) => reference(id, ids))
+      ])
+    ]
   }
   const sourceUi = profileRecord(source.ui) ? source.ui : {}
   snapshot.ui = {

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { REMOTE_HOSTS_ENABLED } from '../../../../shared/fork-feature-policy'
 import { AddRepoHostSelector } from './AddRepoHostSelector'
 import type { useAddRepoHostSelection } from './use-add-repo-host-selection'
 import { AddRemoteHostDialog, type AddRemoteHostMode } from './AddRemoteHostDialog'
@@ -9,6 +10,9 @@ export function AddRepoHostSelectorSlot({
   hostSelection: ReturnType<typeof useAddRepoHostSelection>
 }) {
   const [addRemoteHostMode, setAddRemoteHostMode] = useState<AddRemoteHostMode | null>(null)
+  if (!REMOTE_HOSTS_ENABLED) {
+    return null
+  }
 
   return (
     <>

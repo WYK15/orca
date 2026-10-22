@@ -6,6 +6,7 @@
 @import './markdown-preview.css';
 @import './terminal.css';
 @import './mobile-page.css';
+@import './desktop-appearance.css';
 
 @font-face {
   font-family: 'Geist';
@@ -124,6 +125,12 @@
 /* ── Light Mode ──────────────────────────────────────── */
 
 :root {
+  --desktop-icon-size: 20px;
+  --desktop-small-icon-size: 16px;
+  --desktop-detail-icon-size: 18px;
+  --desktop-control-size: 32px;
+  --desktop-text-size: 13px;
+  --desktop-row-padding: 6px;
   --app-font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-sans: var(--app-font-family);
   --font-mono:

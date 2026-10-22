@@ -1,6 +1,7 @@
 import type React from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { useEffect } from 'react'
+import { REMOTE_HOSTS_ENABLED } from '../../../../shared/fork-feature-policy'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
@@ -17,10 +18,12 @@ export function GeneralRemoteServerUpdates(): React.JSX.Element | null {
   const updateCheckHint = getUpdateCheckHint()
 
   useEffect(() => {
-    void refresh()
+    if (REMOTE_HOSTS_ENABLED) {
+      void refresh()
+    }
   }, [refresh])
 
-  if (entries.length === 0) {
+  if (!REMOTE_HOSTS_ENABLED || entries.length === 0) {
     return null
   }
 

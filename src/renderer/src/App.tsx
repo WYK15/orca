@@ -1,4 +1,12 @@
-import { SPEECH_ENABLED, WEB_CLIENT_ENABLED } from '../../shared/fork-feature-policy'
+import {
+  AUTOMATIONS_ENABLED,
+  EXPERIMENTAL_FEATURES_ENABLED,
+  ONBOARDING_ENABLED,
+  REMOTE_HOSTS_ENABLED,
+  SPEECH_ENABLED,
+  WEB_CLIENT_ENABLED,
+  WORKSPACE_BOARD_ENABLED
+} from '../../shared/fork-feature-policy'
 /* eslint-disable max-lines */
 import {
   Suspense,
@@ -33,6 +41,7 @@ import {
 import { resolveLeftTitlebarChromeLayout } from '@/lib/titlebar-left-chrome'
 import { shouldShowWorktreeCreationSurface } from '@/lib/worktree-creation-surface'
 import { buildAppFontFamily } from '@/lib/app-font-family'
+import { useDesktopAppearance } from '@/hooks/use-desktop-appearance'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -233,6 +242,9 @@ const hasCustomTitleBar = shouldRenderDesktopWindowChrome({
 })
 
 async function listRuntimeSessionHostIdsForStartup(): Promise<ExecutionHostId[]> {
+  if (!REMOTE_HOSTS_ENABLED) {
+    return []
+  }
   try {
     return (await window.api.runtimeEnvironments.list()).map((environment) =>
       toRuntimeExecutionHostId(environment.id)
@@ -331,7 +343,9 @@ const WorktreeCreationPanel = lazy(
   () => import('./components/worktree-creation/WorktreeCreationPanel')
 )
 const TaskPage = lazy(() => import('./components/TaskPage'))
-const AutomationsPage = lazy(() => import('./components/automations/AutomationsPage'))
+const AutomationsPage = AUTOMATIONS_ENABLED
+  ? lazy(() => import('./components/automations/AutomationsPage'))
+  : () => null
 const ActivityPrototypePage = lazy(() => import('./components/activity/ActivityPrototypePage'))
 const Settings = lazy(() => import('./components/settings/Settings'))
 const SkillsPage = lazy(() => import('./components/skills/SkillsPage'))
@@ -346,7 +360,9 @@ const Terminal = lazy(() => import('./components/Terminal'))
 const StatusBar = lazy(() =>
   import('./components/status-bar/StatusBar').then((module) => ({ default: module.StatusBar }))
 )
-const SetupGuideModal = lazy(() => import('./components/setup-guide/SetupGuideModal'))
+const SetupGuideModal = ONBOARDING_ENABLED
+  ? lazy(() => import('./components/setup-guide/SetupGuideModal'))
+  : () => null
 const FeatureWallModal = lazy(() => import('./components/feature-wall/FeatureWallModal'))
 const FeatureTipsModal = lazy(() => import('./components/feature-tips/FeatureTipsModal'))
 const AddRepoDialog = lazy(() => import('./components/sidebar/AddRepoDialog'))
@@ -372,16 +388,20 @@ const UpdateCard = lazy(() =>
 const RemoteServerUpdateDialog = lazy(
   () => import('./components/settings/RemoteServerUpdateDialog')
 )
-const ContextualTourOverlay = lazy(() =>
-  import('./components/contextual-tours/ContextualTourOverlay').then((module) => ({
-    default: module.ContextualTourOverlay
-  }))
-)
-const SetupGuideTelemetryObserver = lazy(() =>
-  import('./components/setup-guide/SetupGuideTelemetryObserver').then((module) => ({
-    default: module.SetupGuideTelemetryObserver
-  }))
-)
+const ContextualTourOverlay = ONBOARDING_ENABLED
+  ? lazy(() =>
+      import('./components/contextual-tours/ContextualTourOverlay').then((module) => ({
+        default: module.ContextualTourOverlay
+      }))
+    )
+  : () => null
+const SetupGuideTelemetryObserver = ONBOARDING_ENABLED
+  ? lazy(() =>
+      import('./components/setup-guide/SetupGuideTelemetryObserver').then((module) => ({
+        default: module.SetupGuideTelemetryObserver
+      }))
+    )
+  : () => null
 const FloatingTerminalPanel = lazy(() =>
   import('./components/floating-terminal/FloatingTerminalPanel').then((module) => ({
     default: module.FloatingTerminalPanel
@@ -390,7 +410,9 @@ const FloatingTerminalPanel = lazy(() =>
 // Why: lazy so the WebP asset + overlay module aren't fetched unless the experimental flag is on.
 const PetOverlay = lazy(() => import('./components/pet/PetOverlay'))
 // Why: lazy so onboarding's step modules + assets aren't fetched for users past first-launch.
-const OnboardingFlow = lazy(() => import('./components/onboarding/OnboardingFlow'))
+const OnboardingFlow = ONBOARDING_ENABLED
+  ? lazy(() => import('./components/onboarding/OnboardingFlow'))
+  : () => null
 
 function applyRemoteWorkspacePatchStatus(
   targetId: string,
@@ -665,9 +687,9 @@ function App(): React.JSX.Element {
   const filterRepoIds = useAppStore((s) => s.filterRepoIds)
   const acknowledgedAgentsByPaneKey = useAppStore((s) => s.acknowledgedAgentsByPaneKey)
   const persistedUIReady = useAppStore((s) => s.persistedUIReady)
-  const shouldMountContextualTourOverlay = activeContextualTourId !== null
+  const shouldMountContextualTourOverlay = ONBOARDING_ENABLED && activeContextualTourId !== null
   useOsc52ClipboardDefaultOnNotice(persistedUIReady)
-  const shouldMountSetupGuideTelemetryObserver = persistedUIReady
+  const shouldMountSetupGuideTelemetryObserver = ONBOARDING_ENABLED && persistedUIReady
   const shouldMountUpdateCard = shouldMountUpdateCardForStatus(updateStatus)
   const rightSidebarWidth = useAppStore((s) => s.rightSidebarWidth)
   const markdownTocPanelWidth = useAppStore((s) => s.markdownTocPanelWidth)
@@ -677,6 +699,15 @@ function App(): React.JSX.Element {
   const rightSidebarExplorerView = useAppStore((s) => s.rightSidebarExplorerView)
   const isFullScreen = useAppStore((s) => s.isFullScreen)
   const settings = useAppStore((s) => s.settings)
+  useDesktopAppearance(settings)
+  useEffect(() => {
+    if (
+      (!AUTOMATIONS_ENABLED && activeView === 'automations') ||
+      (!EXPERIMENTAL_FEATURES_ENABLED && activeView === 'activity')
+    ) {
+      useAppStore.getState().setActiveView('terminal')
+    }
+  }, [activeView])
   const systemPrefersDark = useSystemPrefersDark()
   const leftSidebarStyle = useMemo(
     () => resolveLeftSidebarStyleVariables(settings, systemPrefersDark),
@@ -713,7 +744,8 @@ function App(): React.JSX.Element {
   const unmountAddRepoDialogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [featureTipCliInstalled, setFeatureTipCliInstalled] = useState<boolean | null>(null)
   const [onboardingSettingsDetour, setOnboardingSettingsDetour] = useState(false)
-  const shouldRenderOnboarding = onboarding !== null && shouldShowOnboarding(onboarding)
+  const shouldRenderOnboarding =
+    ONBOARDING_ENABLED && onboarding !== null && shouldShowOnboarding(onboarding)
   const onboardingSettingsDetourActive =
     onboardingSettingsDetour && activeView === 'settings' && shouldRenderOnboarding
   if (onboardingSettingsDetour && !onboardingSettingsDetourActive) {
@@ -998,7 +1030,7 @@ function App(): React.JSX.Element {
           const connectionIds = (sessionRead.session.activeConnectionIdsAtShutdown ?? []).filter(
             (targetId) => !isRuntimeOwnedSshTargetId(targetId)
           )
-          if (connectionIds.length > 0) {
+          if (REMOTE_HOSTS_ENABLED && connectionIds.length > 0) {
             try {
               const SSH_RECONNECT_TIMEOUT_MS = 15_000
               const allTargets = await timeRendererStartupStep('ssh-list-targets', () =>
@@ -1678,7 +1710,7 @@ function App(): React.JSX.Element {
         [
           'workspace.openBoard',
           () => {
-            if (activeView === 'settings') {
+            if (!WORKSPACE_BOARD_ENABLED || activeView === 'settings') {
               return false
             }
             return claim('workspace.openBoard', () => {
@@ -2394,8 +2426,12 @@ function App(): React.JSX.Element {
                               {activeView === 'settings' ? <Settings /> : null}
                               {activeView === 'skills' ? <SkillsPage /> : null}
                               {activeView === 'tasks' ? <TaskPage /> : null}
-                              {activeView === 'automations' ? <AutomationsPage /> : null}
-                              {activeView === 'activity' ? <ActivityPrototypePage /> : null}
+                              {AUTOMATIONS_ENABLED && activeView === 'automations' ? (
+                                <AutomationsPage />
+                              ) : null}
+                              {EXPERIMENTAL_FEATURES_ENABLED && activeView === 'activity' ? (
+                                <ActivityPrototypePage />
+                              ) : null}
                               {activeView === 'space' ? <WorkspaceSpacePage /> : null}
                               {WEB_CLIENT_ENABLED && activeView === 'mobile' ? (
                                 <MobilePage />
@@ -2579,7 +2615,7 @@ function App(): React.JSX.Element {
                   <WorktreeJumpPalette />
                 </RecoverableRenderErrorBoundary>
               ) : null}
-              {resolvedMountedLazyModalIds.has('setup-guide') ? (
+              {ONBOARDING_ENABLED && resolvedMountedLazyModalIds.has('setup-guide') ? (
                 <RecoverableRenderErrorBoundary
                   boundaryId="modal.setup-guide"
                   surface="modal"
@@ -2773,15 +2809,17 @@ function App(): React.JSX.Element {
             >
               <SkillFreshnessUpdateDialog />
             </RecoverableRenderErrorBoundary>
-            <Suspense fallback={null}>
-              <RecoverableRenderErrorBoundary
-                boundaryId="overlay.remote-server-update-dialog"
-                surface="overlay"
-                compact
-              >
-                <RemoteServerUpdateDialog />
-              </RecoverableRenderErrorBoundary>
-            </Suspense>
+            {REMOTE_HOSTS_ENABLED && (
+              <Suspense fallback={null}>
+                <RecoverableRenderErrorBoundary
+                  boundaryId="overlay.remote-server-update-dialog"
+                  surface="overlay"
+                  compact
+                >
+                  <RemoteServerUpdateDialog />
+                </RecoverableRenderErrorBoundary>
+              </Suspense>
+            )}
           </LinkRoutingPreferenceDialogProvider>
         </ConfirmationDialogProvider>
       </TooltipProvider>

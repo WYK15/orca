@@ -88,6 +88,23 @@ function visibleOptions(overrides: Partial<VisibleOptions> = {}): VisibleOptions
 }
 
 describe('computeVisibleWorktreeIds', () => {
+  it('hides every workspace of an archived project without changing workspace lifecycle state', () => {
+    const first = makeWorktree('first', 'repo1')
+    const second = { ...makeWorktree('second', 'repo1'), isPinned: true }
+    const other = makeWorktree('other', 'repo2')
+    expect(
+      computeVisibleWorktreeIds(
+        { repo1: [first, second], repo2: [other] },
+        ['first', 'second', 'other'],
+        visibleOptions({
+          archivedRepoIds: new Set(['repo1']),
+          forcedVisibleWorktreeIds: ['second']
+        })
+      )
+    ).toEqual(['other'])
+    expect(first.isArchived).toBe(false)
+    expect(second.isPinned).toBe(true)
+  })
   it('keeps browser-tab worktrees visible when sleeping workspaces are hidden', () => {
     const wt = makeWorktree('wt-browser')
 

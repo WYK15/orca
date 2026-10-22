@@ -2,6 +2,7 @@ import type { SettingsSearchEntry } from './settings-search'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
+import { AUTOMATIONS_ENABLED, WEB_CLIENT_ENABLED } from '../../../../shared/fork-feature-policy'
 
 export const getLeftSidebarAppearanceEntry = createLocalizedCatalog(
   (): SettingsSearchEntry => ({
@@ -195,3 +196,9 @@ export const getSidebarEntries = createLocalizedCatalog((): SettingsSearchEntry[
   getLeftSidebarAppearanceEntry(),
   getShowPinnedWorktreesInGroupsEntry()
 ])
+
+export function getVisibleSidebarEntries(): SettingsSearchEntry[] {
+  return getSidebarEntries().filter(
+    (_, index) => (AUTOMATIONS_ENABLED || index !== 1) && (WEB_CLIENT_ENABLED || index !== 2)
+  )
+}

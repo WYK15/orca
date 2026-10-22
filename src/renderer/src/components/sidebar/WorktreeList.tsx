@@ -1,5 +1,12 @@
 /* eslint-disable max-lines */
 import React, { useMemo, useCallback, useRef, useState, useEffect, useLayoutEffect } from 'react'
+import {
+  SidebarProjectContextMenu,
+  SidebarProjectOrganizationMenu,
+  SidebarProjectPinnedIndicator
+} from './SidebarProjectOrganizationMenu'
+import { useSidebarProjectCatalog } from './use-sidebar-project-catalog'
+import { orderSidebarPinnedRepos } from '../../../../shared/sidebar-project-archive'
 import { toast } from 'sonner'
 import {
   measureElement as measureVirtualElementSize,
@@ -4358,15 +4365,18 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
                         </div>
                       ) : null}
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex min-w-0 items-center gap-1.5">
-                          <div className="min-w-0 truncate text-[13px] font-semibold leading-none">
-                            {row.label}
+                      <SidebarProjectContextMenu repo={row.repo}>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <div className="min-w-0 truncate text-[13px] font-semibold leading-none">
+                              {row.label}
+                            </div>
+                            <SidebarProjectPinnedIndicator repo={row.repo} />
+                            <RepoForkIndicator upstream={row.repo?.upstream} />
+                            <FolderPathStatusIndicator status={projectGroupPathStatus} />
                           </div>
-                          <RepoForkIndicator upstream={row.repo?.upstream} />
-                          <FolderPathStatusIndicator status={projectGroupPathStatus} />
                         </div>
-                      </div>
+                      </SidebarProjectContextMenu>
                     </div>
 
                     <ProjectHeaderActions>
@@ -4551,6 +4561,7 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
                             onClick={stopRepoHeaderMenuEvent}
                             onKeyDown={stopRepoHeaderMenuEvent}
                           >
+                            <SidebarProjectOrganizationMenu repo={row.repo} />
                             <DropdownMenuItem
                               onSelect={() => {
                                 if (row.repo) {
@@ -5192,6 +5203,12 @@ const WorktreeList = React.memo(function WorktreeList({
   onWorkspaceBoardDragPreviewCommit = NOOP_WORKSPACE_BOARD_DRAG_PREVIEW_CALLBACK,
   onWorkspaceBoardDragPreviewCancel = NOOP_WORKSPACE_BOARD_DRAG_PREVIEW_CALLBACK
 }: WorktreeListProps) {
+  const projectCatalog = useSidebarProjectCatalog()
+  const archivedRepoIds = useMemo(
+    () =>
+      new Set(projectCatalog.flatMap((entry) => (entry.archivedAt === null ? [] : entry.repoIds))),
+    [projectCatalog]
+  )
   // ── Granular selectors (each is a primitive or shallow-stable ref) ──
   const allWorktrees = useAllWorktrees()
   const repoMap = useRepoMap()
@@ -5492,6 +5509,7 @@ const WorktreeList = React.memo(function WorktreeList({
   const recomputedVisibleWorktrees = useMemo(() => {
     void agentStatusEpoch
     const ids = computeVisibleWorktreeIds(worktreesByRepo, sortedIds, {
+      archivedRepoIds,
       filterRepoIds,
       showSleepingWorkspaces,
       tabsByWorktree,
@@ -5518,6 +5536,7 @@ const WorktreeList = React.memo(function WorktreeList({
     })
     return ids.map((id) => worktreeMap.get(id)).filter((w): w is Worktree => w != null)
   }, [
+    archivedRepoIds,
     agentSendTargetWorktreeId,
     agentStatusEpoch,
     filterRepoIds,
@@ -5550,13 +5569,21 @@ const WorktreeList = React.memo(function WorktreeList({
   // Why: manual header order is bound to state.repos; Recent/Smart derive order from the sorted worktree stream.
   const repos = useAppStore((s) => s.repos)
   const projectHostSetupProjection = useProjectHostSetupProjection()
-  const projectGrouping = useMemo(
-    () => ({
-      projects: projectHostSetupProjection.projects,
-      projectHostSetups: projectHostSetupProjection.setups
-    }),
-    [projectHostSetupProjection]
-  )
+  const projectGrouping = useMemo(() => {
+    const archivedProjectIds = new Set(
+      projectHostSetupProjection.projects
+        .filter((project) => project.sourceRepoIds.some((id) => archivedRepoIds.has(id)))
+        .map((project) => project.id)
+    )
+    return {
+      projects: projectHostSetupProjection.projects.filter(
+        (project) => !archivedProjectIds.has(project.id)
+      ),
+      projectHostSetups: projectHostSetupProjection.setups.filter(
+        (setup) => !archivedProjectIds.has(setup.projectId)
+      )
+    }
+  }, [projectHostSetupProjection, archivedRepoIds])
   const projectGroups = useAppStore((s) => s.projectGroups ?? EMPTY_PROJECT_GROUPS)
   const folderWorkspaces = useAppStore((s) => s.folderWorkspaces)
   const effectiveCollapsedGroups = useMemo(() => {
@@ -5613,14 +5640,14 @@ const WorktreeList = React.memo(function WorktreeList({
   )
   const visibleReposForRows = useMemo(() => {
     if (!visibleHostIdSet) {
-      return repos
+      return repos.filter((repo) => !archivedRepoIds.has(repo.id))
     }
     return repos.filter((repo) => {
       const hostId =
         repo.connectionId || repo.executionHostId ? getRepoExecutionHostId(repo) : defaultHostId
-      return visibleHostIdSet.has(hostId)
+      return visibleHostIdSet.has(hostId) && !archivedRepoIds.has(repo.id)
     })
-  }, [defaultHostId, repos, visibleHostIdSet])
+  }, [defaultHostId, repos, visibleHostIdSet, archivedRepoIds])
   const visibleProjectGroupsForRows = useMemo(
     () => filterProjectGroupsForVisibleHosts(projectGroups, visibleHostIdSet, defaultHostId),
     [defaultHostId, projectGroups, visibleHostIdSet]
@@ -5636,8 +5663,10 @@ const WorktreeList = React.memo(function WorktreeList({
     [defaultHostId, folderWorkspaces, projectGroups, visibleHostIdSet]
   )
   const repoOrder = useMemo(() => {
-    return getLogicalRepoOrderRankById(repos.map((repo) => repo.id))
-  }, [repos])
+    return getLogicalRepoOrderRankById(
+      orderSidebarPinnedRepos(repos, settings?.sidebarPinnedRepoIds).map((repo) => repo.id)
+    )
+  }, [repos, settings?.sidebarPinnedRepoIds])
   const [importedWorktreeCardActionState, setImportedWorktreeCardActionState] = useState<
     Map<string, ImportedWorktreeCardActionState>
   >(new Map())

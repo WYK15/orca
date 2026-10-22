@@ -15,6 +15,7 @@ import type { RuntimeStatus } from './runtime-types'
 import type { SshConnectionState, SshConnectionStatus } from './ssh-types'
 import type { RuntimeEnvironmentSource } from './runtime-environments'
 import type { GlobalSettings, Repo } from './types'
+import { REMOTE_HOSTS_ENABLED } from './fork-feature-policy'
 
 export type ExecutionHostHealth =
   | 'local'
@@ -193,6 +194,10 @@ export function buildExecutionHostRegistry(args: {
     detail: 'This computer',
     health: 'local'
   })
+
+  if (!REMOTE_HOSTS_ENABLED) {
+    return [...hosts.values()]
+  }
 
   for (const environment of args.runtimeEnvironments ?? []) {
     const environmentId = normalizeHostPart(environment.id)

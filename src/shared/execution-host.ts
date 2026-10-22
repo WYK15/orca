@@ -1,4 +1,5 @@
 import type { GlobalSettings, Repo, Worktree } from './types'
+import { REMOTE_HOSTS_ENABLED } from './fork-feature-policy'
 
 export const LOCAL_EXECUTION_HOST_ID = 'local'
 export const ALL_EXECUTION_HOSTS_SCOPE = 'all'
@@ -166,7 +167,9 @@ export function getWorktreeExecutionHostId(
 export function getSettingsFocusedExecutionHostId(
   settings: Pick<GlobalSettings, 'activeRuntimeEnvironmentId'> | null | undefined
 ): ExecutionHostId {
-  const runtimeEnvironmentId = normalizeHostPart(settings?.activeRuntimeEnvironmentId)
+  const runtimeEnvironmentId = REMOTE_HOSTS_ENABLED
+    ? normalizeHostPart(settings?.activeRuntimeEnvironmentId)
+    : null
   return runtimeEnvironmentId
     ? toRuntimeExecutionHostId(runtimeEnvironmentId)
     : LOCAL_EXECUTION_HOST_ID

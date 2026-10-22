@@ -14,6 +14,8 @@ import {
   SquareTerminal
 } from 'lucide-react'
 import { useAppStore } from '@/store'
+import { SIMULATOR_ENABLED } from '../../../shared/fork-feature-policy'
+import { useSidebarProjectCatalog } from './sidebar/use-sidebar-project-catalog'
 import { getRepoMapFromState, useAllWorktrees } from '@/store/selectors'
 import { selectPaletteStatusInputs } from './worktree-jump-palette-status-inputs'
 import {
@@ -331,6 +333,12 @@ function getSettingsTargetFromSectionId(sectionId: string): {
 }
 
 export default function WorktreeJumpPalette(): React.JSX.Element | null {
+  const projectCatalog = useSidebarProjectCatalog()
+  const archivedRepoIds = useMemo(
+    () =>
+      new Set(projectCatalog.flatMap((entry) => (entry.archivedAt === null ? [] : entry.repoIds))),
+    [projectCatalog]
+  )
   // Why: subscribe to language changes so translated memos recompute without a fake i18n.language dependency.
   useTranslation()
   const visible = useAppStore((s) => s.activeModal === 'worktree-palette')
@@ -484,7 +492,7 @@ export default function WorktreeJumpPalette(): React.JSX.Element | null {
   const emptyQueryVisibleWorktrees = useMemo(
     () =>
       allWorktrees.filter((worktree) => {
-        if (worktree.isArchived) {
+        if (worktree.isArchived || archivedRepoIds.has(worktree.repoId)) {
           return false
         }
         if (hideDefaultBranchWorkspace && isDefaultBranchWorkspace(worktree)) {
@@ -515,6 +523,7 @@ export default function WorktreeJumpPalette(): React.JSX.Element | null {
       }),
     [
       allWorktrees,
+      archivedRepoIds,
       browserTabsByWorktree,
       hideAutomationGeneratedWorkspaces,
       hideCliCreatedWorkspaces,
@@ -689,6 +698,9 @@ export default function WorktreeJumpPalette(): React.JSX.Element | null {
   )
 
   const simulatorTabEntries = useMemo<SearchableSimulatorTab[]>(() => {
+    if (!SIMULATOR_ENABLED) {
+      return []
+    }
     return buildSearchableSimulatorTabs({
       worktrees: browserSortedWorktrees,
       repoMap,
@@ -1881,6 +1893,11 @@ export default function WorktreeJumpPalette(): React.JSX.Element | null {
                                 worktreeLabel
                               )}
                             </span>
+                            {archivedRepoIds.has(worktree.repoId) && (
+                              <span className="shrink-0 rounded border border-border px-1.5 py-px text-[11px] text-muted-foreground">
+                                {translate('fork.archive.archivedLabel', 'Archived')}
+                              </span>
+                            )}
                             {isCurrentWorktree && (
                               <span className="shrink-0 self-center rounded-[6px] border border-border/60 bg-background/45 px-1.5 py-px text-[9px] font-medium leading-normal text-muted-foreground/88">
                                 {translate(

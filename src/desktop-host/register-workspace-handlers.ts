@@ -7,13 +7,10 @@ import { registerSettingsHandlers } from '../main/ipc/settings'
 import { registerUIHandlers, setTrustedUIRendererWebContentsId } from '../main/ipc/ui'
 import { registerPreflightHandlers } from '../main/ipc/preflight'
 import { registerRuntimeHandlers } from '../main/ipc/runtime'
-import { registerRuntimeEnvironmentHandlers } from '../main/ipc/runtime-environments'
 import { registerPtyHandlers, getLocalPtyProvider, getSshPtyProvider } from '../main/ipc/pty'
-import { registerSshHandlers } from '../main/ipc/ssh'
 import { registerShellHandlers } from '../main/ipc/shell'
 import { registerOnboardingHandlers } from '../main/ipc/onboarding'
 import { registerAiVaultHandlers } from '../main/ipc/ai-vault'
-import { registerNativeChatHandlers } from '../main/ipc/native-chat'
 import { registerSkillsHandlers } from '../main/ipc/skills'
 import { registerGitHubHandlers } from '../main/ipc/github'
 import { registerGitLabHandlers } from '../main/ipc/gitlab'
@@ -72,7 +69,6 @@ export function registerWorkspaceHandlers(store: Store): {
     awaitLocalPtyStartup: () => terminals.localPtyReady,
     awaitLocalPtyProviderStartup: () => terminals.localPtyProviderReady
   })
-  registerSshHandlers(store, () => window, runtime)
   registerFilesystemHandlers(store)
   registerFilesystemWatcherHandlers()
   registerSessionHandlers(store)
@@ -80,11 +76,9 @@ export function registerWorkspaceHandlers(store: Store): {
   registerUIHandlers(store)
   registerPreflightHandlers()
   registerRuntimeHandlers(runtime)
-  registerRuntimeEnvironmentHandlers(store)
   registerShellHandlers(store)
   registerOnboardingHandlers(store)
   registerAiVaultHandlers()
-  registerNativeChatHandlers()
   registerSkillsHandlers(store)
   registerGitHubHandlers(store, stats)
   registerGitLabHandlers(store)

@@ -37,6 +37,10 @@ import {
   nextAutomationOccurrenceAfter
 } from '../shared/automation-schedules'
 import { getAutomationLegacyRepoId } from '../shared/automation-run-identity'
+import { normalizeDesktopAppearance } from '../shared/desktop-appearance'
+import { applyPersonalDesktopSettings } from '../shared/personal-desktop-settings'
+import { REMOTE_HOSTS_ENABLED } from '../shared/fork-feature-policy'
+import { normalizeSidebarProjectArchive } from '../shared/sidebar-project-archive'
 import { normalizeAutomationPrecheck } from '../shared/automation-precheck'
 import type {
   PersistedState,
@@ -4095,11 +4099,21 @@ export class Store {
   // ── Repos ──────────────────────────────────────────────────────────
 
   getRepos(): Repo[] {
-    return this.state.repos.map((repo) => this.hydrateRepo(repo))
+    return this.state.repos
+      .filter(
+        (repo) => REMOTE_HOSTS_ENABLED || getRepoExecutionHostId(repo) === LOCAL_EXECUTION_HOST_ID
+      )
+      .map((repo) => this.hydrateRepo(repo))
   }
 
   getProjects(): Project[] {
-    return [...this.state.projects]
+    if (REMOTE_HOSTS_ENABLED) {
+      return [...this.state.projects]
+    }
+    const repoIds = new Set(this.getRepos().map((repo) => repo.id))
+    return this.state.projects.filter((project) =>
+      project.sourceRepoIds.some((id) => repoIds.has(id))
+    )
   }
 
   updateProject(id: string, updates: ProjectUpdateArgs['updates']): Project | null {
@@ -4122,7 +4136,13 @@ export class Store {
   }
 
   getProjectHostSetups(): ProjectHostSetup[] {
-    return [...this.state.projectHostSetups]
+    return this.state.projectHostSetups.filter(
+      (setup) =>
+        REMOTE_HOSTS_ENABLED ||
+        (!setup.runtimeOwnerEnvironmentId &&
+          setup.hostId === LOCAL_EXECUTION_HOST_ID &&
+          getRepoExecutionHostId(setup) === LOCAL_EXECUTION_HOST_ID)
+    )
   }
 
   createProjectHostSetup(args: ProjectHostSetupCreateArgs): ProjectHostSetupCreateResult | null {
@@ -4246,9 +4266,14 @@ export class Store {
   }
 
   getProjectGroups(): ProjectGroup[] {
-    return [...(this.state.projectGroups ?? [])].sort(
-      (left, right) => left.tabOrder - right.tabOrder || left.name.localeCompare(right.name)
-    )
+    return (this.state.projectGroups ?? [])
+      .filter(
+        (group) =>
+          REMOTE_HOSTS_ENABLED ||
+          (!group.connectionId &&
+            (!group.executionHostId || group.executionHostId === LOCAL_EXECUTION_HOST_ID))
+      )
+      .sort((left, right) => left.tabOrder - right.tabOrder || left.name.localeCompare(right.name))
   }
 
   createProjectGroup(input: {
@@ -4332,9 +4357,14 @@ export class Store {
   }
 
   getFolderWorkspaces(): FolderWorkspace[] {
-    return [...(this.state.folderWorkspaces ?? [])].sort(
-      (left, right) => right.sortOrder - left.sortOrder || left.name.localeCompare(right.name)
-    )
+    return (this.state.folderWorkspaces ?? [])
+      .filter(
+        (workspace) =>
+          REMOTE_HOSTS_ENABLED || getRepoExecutionHostId(workspace) === LOCAL_EXECUTION_HOST_ID
+      )
+      .sort(
+        (left, right) => right.sortOrder - left.sortOrder || left.name.localeCompare(right.name)
+      )
   }
 
   getFolderWorkspace(id: string): FolderWorkspace | undefined {
@@ -5628,7 +5658,7 @@ export class Store {
   // ── Settings ───────────────────────────────────────────────────────
 
   getSettings(): GlobalSettings {
-    return this.state.settings
+    return applyPersonalDesktopSettings(this.state.settings)
   }
 
   onSettingsChanged(
@@ -5676,6 +5706,23 @@ export class Store {
     options: { notifyListeners?: boolean; originWebContentsId?: number } = {}
   ): GlobalSettings {
     const sanitizedUpdates = stripLegacyTerminalScrollbackBytes(updates)
+    if ('desktopAppearance' in updates) {
+      sanitizedUpdates.desktopAppearance = normalizeDesktopAppearance(updates.desktopAppearance)
+    }
+    if ('sidebarProjectArchive' in updates) {
+      sanitizedUpdates.sidebarProjectArchive = normalizeSidebarProjectArchive(
+        updates.sidebarProjectArchive
+      )
+    }
+    if ('sidebarPinnedRepoIds' in updates) {
+      sanitizedUpdates.sidebarPinnedRepoIds = Array.isArray(updates.sidebarPinnedRepoIds)
+        ? [
+            ...new Set(
+              updates.sidebarPinnedRepoIds.filter((id) => typeof id === 'string' && id.length > 0)
+            )
+          ]
+        : []
+    }
     // Why: coerce to boolean here (not the IPC edge) so every write path is covered and a truthy non-bool can't persist as "tray-minimize on".
     if ('minimizeToTrayOnClose' in updates) {
       sanitizedUpdates.minimizeToTrayOnClose = updates.minimizeToTrayOnClose === true
@@ -5839,7 +5886,7 @@ export class Store {
     if (options.notifyListeners === true && Object.keys(changedUpdates).length > 0) {
       this.notifySettingsChanged(changedUpdates, options.originWebContentsId)
     }
-    return this.state.settings
+    return this.getSettings()
   }
 
   // ── UI State ───────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 /* oxlint-disable max-lines -- Why: per-type tab render branches (terminal/browser/editor) share little beyond drag data; consolidating costs more clarity than the ~5 lines it saves. */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { EMBEDDED_BROWSER_ENABLED } from '../../../../shared/fork-feature-policy'
+import { EMBEDDED_BROWSER_ENABLED, SIMULATOR_ENABLED } from '../../../../shared/fork-feature-policy'
 import { useShallow } from 'zustand/react/shallow'
 import { SortableContext } from '@dnd-kit/sortable'
 import {
@@ -279,7 +279,9 @@ function TabBarInner({
   const newFileShortcut = useShortcutLabel('tab.newMarkdown')
   const openMarkdownShortcut = useOptionalShortcutLabel('tab.openMarkdown')
   const generatedTabTitlesEnabled = useAppStore((s) => s.settings?.tabAutoGenerateTitle === true)
-  const mobileEmulatorEnabled = useAppStore((s) => s.settings?.mobileEmulatorEnabled !== false)
+  const mobileEmulatorEnabled = useAppStore(
+    (s) => SIMULATOR_ENABLED && s.settings?.mobileEmulatorEnabled !== false
+  )
   const persistedUIReady = useAppStore((s) => s.persistedUIReady)
   const mobileEmulatorTabIntroDismissed = useAppStore((s) => s.mobileEmulatorTabIntroDismissed)
   const showMobileEmulatorIntroCallout = shouldShowMobileEmulatorTabIntro({

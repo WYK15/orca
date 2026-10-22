@@ -38,7 +38,8 @@ allows retry on a later launch. Source configuration is read only.
 
 The importer keeps existing Tauri projects, deduplicates by execution host and
 path, remaps project references, and includes SSH targets and non-Git folder
-workspaces. Existing Tauri drafts, terminal sessions and credentials are kept.
+workspaces. SSH records are retained for compatibility but unavailable in the
+personal local-only build. Existing Tauri drafts, terminal sessions and credentials are kept.
 Before writing, it creates an owner-only `orca-data.json.before-orcaw-import-*`
 backup. A completion marker prevents subsequent launches from reapplying old
 settings over newer Tauri edits. It does not synchronize the two applications.
@@ -80,7 +81,7 @@ flowchart LR
   UI[Existing React renderer] --> Adapter[Tauri preload transport]
   Adapter --> Rust[Tauri native window]
   Rust <-->|stdio RPC| Node[Standalone Node backend]
-  Node --> Services[Existing Git, files, PTY and SSH services]
+  Node --> Services[Existing local Git, files and PTY services]
   Node -->|native requests| Rust
 ```
 
@@ -122,17 +123,17 @@ flowchart LR
   panes, and dismissal while submission is pending. Browser policy tests cover
   saved preferences, modifiers, legacy tab creation and capability/RPC removal.
 - Actual standalone backend: ordinary folder import, text read/write,
-  content search, file authorization, Git status, native terminal input and
-  output, and SSH target management.
+  content search, file authorization, Git status, and native terminal input
+  and output. Personal builds reject SSH/server connections and orchestration.
 - Unit coverage includes native request lifetime, binary frames, and save
   failure/retry during window close.
 - Persistent terminal daemon: the same shell PID survives backend shutdown
   and a forced backend crash, reattaches, and accepts further input.
-- Authenticated loopback agent hook events reach the renderer; packaged plugin
-  workers execute commands under ordinary Node and shut down cleanly.
+- Authenticated loopback agent hook events reach the renderer. Personal builds
+  omit the Orca plugin worker and automation scheduler.
 - Clipboard tests cover PNG pixel preservation, image size limits, temp-file
   creation, and rejecting file copies outside authorized workspaces. Image
-  paste reuses SSH/runtime upload routing; Linux primary selection stays
+  paste retains workspace authorization; Linux primary selection stays
   separate from the regular clipboard.
 - Earlier CI builds produced macOS ARM64 and Windows applications. The current
   manual workflow only builds macOS ARM64. The tauri.2 preview passed signing,
@@ -150,6 +151,24 @@ comparison, not a published installer measurement or a memory-use guarantee.
 
 ## Product scope
 
+Scheduled automations, Orca plugin management, Linear/Jira, simulator entry
+points, first-use onboarding, SSH hosts, paired remote Orca servers,
+orchestration, experimental features, and the workspace board are excluded
+from the personal Tauri build. Remote connection IPC and orchestration RPC
+are unavailable, and packages omit SSH relay payloads. Effective settings
+keep experimental features off and select the local runtime even when an old
+profile saved different preferences; original records remain on disk.
+Codex plugins keep their own management and execution inside Codex.
+Existing profile records are retained for compatibility.
+
+Projects can be pinned or archived from their name's context menu. The fixed
+Archive entry supports search, bulk archive/restore, and opening an archived
+project without restoring it. Archiving preserves files and live terminals;
+it hides the project's host setups from ordinary sidebar navigation. Explicit
+workspace search can still find them. Settings > Appearance > Interface controls
+icon size (16–24px), sidebar/explorer text (12–16px), and list spacing.
+Settings survive backend restarts and imported repo identity remapping.
+
 Embedded browser panes and CDP automation are excluded from this build:
 browser creation/setup/settings/shortcut entries are hidden, saved browser
 preferences cannot reactivate them, and runtime browser methods and capabilities
@@ -157,20 +176,15 @@ are disabled. Markdown preview remains available.
 
 ## Remaining migration work
 
-- Simulator integration.
 - Signed macOS notification verification (permission prompt, banner and click),
   system resume, and complete menu/shortcut parity. The bridge reuses existing
   notification settings, focus suppression, cooldown, custom sounds and pane
   navigation. Permission is read from UserNotifications; accepted scheduling
   does not guarantee a banner under Focus or other OS policies. Unbundled dev
   binaries cannot use native notifications.
-- CLI installation, plugin panel rendering, managed agent hook installation,
-  and complete agent/account startup reconciliation. The hook listener and
-  plugin worker execution are connected.
+- CLI installation, managed agent hook installation, and complete agent/account
+  startup reconciliation. The hook listener is connected.
 - Persistent terminal recovery in the full UI and complete shutdown/crash coverage.
-- Real SSH connection, relay deployment, remote file editing, terminal resume,
-  and credential prompts in end-to-end tests. Target CRUD alone does not prove
-  remote execution works.
 - Electron account/credential compatibility beyond the implemented one-time
   project and preference import. Old safeStorage ciphertext is not portable.
 

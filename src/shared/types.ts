@@ -1,4 +1,6 @@
 /* eslint-disable max-lines */
+import type { DesktopAppearance } from './desktop-appearance'
+import type { SidebarProjectArchive } from './sidebar-project-archive'
 import type { ExecutionHostId } from './execution-host'
 import type {
   RemovedSshTargetTombstone,
@@ -2717,6 +2719,9 @@ export type HostSettingOverrides = {
 export type AgentDashboardMode = 'in-window' | 'popout'
 
 export type GlobalSettings = {
+  desktopAppearance?: DesktopAppearance
+  sidebarProjectArchive?: SidebarProjectArchive
+  sidebarPinnedRepoIds?: string[]
   workspaceDir: string
   /** Per-host overrides keyed by ExecutionHostId. Effective value for a
    *  host-varying setting is `host override ?? client default`. */

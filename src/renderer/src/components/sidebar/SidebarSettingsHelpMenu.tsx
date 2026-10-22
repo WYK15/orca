@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { ONBOARDING_ENABLED } from '../../../../shared/fork-feature-policy'
 import {
   BookOpen,
   CircleHelp,
@@ -90,7 +91,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const updateStatus = useAppStore((s) => s.updateStatus)
-  const setupProgress = useSetupGuideProgress(true, false, false)
+  const setupProgress = useSetupGuideProgress(ONBOARDING_ENABLED, false, false)
 
   const settingsShortcut = useShortcutKeyDetails('app.settings')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -248,7 +249,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
                 'Send Feedback'
               )}
             </DropdownMenuItem>
-            {showMilestones ? (
+            {ONBOARDING_ENABLED && showMilestones ? (
               <DropdownMenuItem onSelect={openMilestones}>
                 <img
                   src={logo}
@@ -268,7 +269,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
                 />
               </DropdownMenuItem>
             ) : null}
-            {showAdminOptions ? (
+            {ONBOARDING_ENABLED && showAdminOptions ? (
               <DropdownMenuItem
                 className="whitespace-nowrap"
                 onClick={handleShowOnboarding}

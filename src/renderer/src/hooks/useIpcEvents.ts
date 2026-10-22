@@ -1,5 +1,6 @@
 /* oxlint-disable max-lines -- Why: this App-level IPC bridge intentionally keeps the renderer's main-process event contract in one place so shortcut, runtime, updater, and agent-status wiring do not drift across files. */
 import { useEffect } from 'react'
+import { REMOTE_HOSTS_ENABLED } from '../../../shared/fork-feature-policy'
 import { toast } from 'sonner'
 import { useAppStore } from '../store'
 import { getTabIdsAwaitingHostHydrationRemount } from '@/lib/parked-terminal-host-hydration'
@@ -2663,6 +2664,9 @@ export function useIpcEvents(): void {
 
     // Why: hydrate initial SSH state for all targets so worktree cards show correct connect state on launch.
     void (async () => {
+      if (!REMOTE_HOSTS_ENABLED) {
+        return
+      }
       try {
         const targets = await window.api.ssh.listTargets()
         if (directSshEffectStopped) {

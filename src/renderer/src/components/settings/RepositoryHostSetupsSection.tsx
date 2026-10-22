@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { REMOTE_HOSTS_ENABLED } from '../../../../shared/fork-feature-policy'
 import {
   getExecutionHostLabel,
   parseExecutionHostId,
@@ -148,6 +149,9 @@ export function RepositoryHostSetupsSection({
     return null
   }
 
+  if (!REMOTE_HOSTS_ENABLED) {
+    return null
+  }
   return (
     <SearchableSetting
       title={translate('auto.components.settings.RepositoryPane.availableHosts', 'Available Hosts')}

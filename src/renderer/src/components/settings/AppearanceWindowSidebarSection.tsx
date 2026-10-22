@@ -1,4 +1,4 @@
-import { WEB_CLIENT_ENABLED } from '../../../../shared/fork-feature-policy'
+import { AUTOMATIONS_ENABLED, WEB_CLIENT_ENABLED } from '../../../../shared/fork-feature-policy'
 import type React from 'react'
 
 import type { GlobalSettings, StatusBarItem } from '../../../../shared/types'
@@ -261,29 +261,31 @@ export function AppearanceWindowSidebarSection({
                     />
                   </SearchableSetting>
 
-                  <SearchableSetting
-                    title={translate(
-                      'auto.components.settings.AppearancePane.511f270ebb',
-                      'Show Automations Button'
-                    )}
-                    description={sidebarEntries[1]?.description}
-                    keywords={
-                      sidebarEntries[1]?.keywords ?? ['automations', 'automation', 'schedule']
-                    }
-                  >
-                    <SettingsSwitchRow
-                      label={translate(
+                  {AUTOMATIONS_ENABLED && (
+                    <SearchableSetting
+                      title={translate(
                         'auto.components.settings.AppearancePane.511f270ebb',
                         'Show Automations Button'
                       )}
-                      checked={settings.showAutomationsButton !== false}
-                      onChange={() =>
-                        updateSettings({
-                          showAutomationsButton: !(settings.showAutomationsButton !== false)
-                        })
+                      description={sidebarEntries[1]?.description}
+                      keywords={
+                        sidebarEntries[1]?.keywords ?? ['automations', 'automation', 'schedule']
                       }
-                    />
-                  </SearchableSetting>
+                    >
+                      <SettingsSwitchRow
+                        label={translate(
+                          'auto.components.settings.AppearancePane.511f270ebb',
+                          'Show Automations Button'
+                        )}
+                        checked={settings.showAutomationsButton !== false}
+                        onChange={() =>
+                          updateSettings({
+                            showAutomationsButton: !(settings.showAutomationsButton !== false)
+                          })
+                        }
+                      />
+                    </SearchableSetting>
+                  )}
 
                   {WEB_CLIENT_ENABLED && (
                     <SearchableSetting

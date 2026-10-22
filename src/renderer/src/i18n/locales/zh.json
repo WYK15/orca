@@ -14687,5 +14687,50 @@
         "unknown": "Restart Orca to try again."
       }
     }
+  },
+  "fork": {
+    "appearance": {
+      "iconSize": "图标大小",
+      "iconDescription": "主要图标与辅助图标按比例调整。",
+      "textSize": "界面文字大小",
+      "textDescription": "项目列表和文件面板的字号。",
+      "density": "列表密度",
+      "densityDescription": "项目与文件列表的行间距。",
+      "current": "当前 {{value}}px · 默认 {{defaultSize}}px",
+      "compact": "紧凑",
+      "standard": "标准",
+      "spacious": "宽松",
+      "reset": "恢复默认大小",
+      "saveFailed": "无法保存外观设置。"
+    },
+    "archive": {
+      "title": "归档",
+      "manage": "整理项目",
+      "description": "归档会保留项目文件、配置及运行中的终端。",
+      "search": "搜索项目",
+      "searchPlaceholder": "搜索项目名称或路径…",
+      "active": "活跃项目",
+      "deselect": "取消全选",
+      "selectAll": "选择搜索结果",
+      "restoreSelected": "恢复所选（{{count}}）",
+      "archiveSelected": "归档所选（{{count}}）",
+      "selectProject": "选择 {{name}}",
+      "restore": "恢复",
+      "archiveProject": "归档项目",
+      "noResults": "没有匹配的项目。",
+      "empty": "还没有归档项目。",
+      "noActive": "所有项目均已归档。",
+      "clearSearch": "清空搜索",
+      "saveFailed": "无法保存项目收纳状态。",
+      "archived": "已归档 {{count}} 个项目。",
+      "restored": "已恢复 {{count}} 个项目。",
+      "undo": "撤销",
+      "workspaceUnavailable": "没有可用的工作区，请恢复项目或检查主机连接。",
+      "openFailed": "无法打开项目。",
+      "unpin": "取消置顶",
+      "pin": "置顶项目",
+      "pinned": "已置顶项目",
+      "archivedLabel": "已归档"
+    }
   }
 }

@@ -189,6 +189,14 @@ Icons come from **`lucide-react`**. Don't import a second icon library.
 - **Color:** inherit from surrounding text — `text-muted-foreground` for secondary, `text-destructive` for destructive, etc. Don't apply a token to the SVG directly when the parent already carries the right color.
 - **Spinner:** the canonical loading icon is `<Loader2 className="size-4 animate-spin" />`. For 3s+ multi-step work, prefer a label that names the stage ("Cloning…" → "Installing…") over an unlabeled spinner. See _UX rule 1_.
 
+The personal Tauri build applies the persisted Appearance settings through
+`--desktop-*` tokens in `main.css`. Main icons default to 20px (16–24px), with
+secondary icons sized proportionally; compact icon buttons retain a minimum
+32px hit target. Sidebar/explorer text defaults to 13px (12–16px), and list
+spacing has compact, standard, and spacious presets. Keep semantic `size-3`,
+`size-3.5`, and `size-4` classes so `desktop-appearance.css` can scale them.
+Editor and terminal font preferences remain independent.
+
 ### Keyboard shortcut chips
 
 Use **`<ShortcutKeyCombo />`** from `src/renderer/src/components/ShortcutKeyCombo.tsx`. It renders a consistent key-cap style and inserts a `+` separator on Windows/Linux (Mac shows adjacent glyphs, no separator). It does **not** transform key strings — the _caller_ picks the platform-appropriate labels and passes them in:

@@ -1,5 +1,6 @@
 /* eslint-disable max-lines */
 import type { StateCreator } from 'zustand'
+import { AUTOMATIONS_ENABLED } from '../../../../shared/fork-feature-policy'
 import type { AppState } from '../types'
 import { normalizeRightSidebarRoute } from '../right-sidebar-route'
 import {
@@ -1434,6 +1435,9 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
   setPendingAutomationRunNavigation: (navigation) =>
     set({ pendingAutomationRunNavigation: navigation }),
   openAutomationsPage: () => {
+    if (!AUTOMATIONS_ENABLED) {
+      return
+    }
     get().recordViewVisit('automations')
     set((state) => ({
       activeView: 'automations',

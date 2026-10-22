@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from 'react'
+import { REMOTE_HOSTS_ENABLED } from '../../../../shared/fork-feature-policy'
 import { AlertTriangle, Loader2, MonitorSmartphone, Server, ServerOff } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -274,7 +275,7 @@ export function SshStatusSegment({
     [recordFeatureInteraction, setRuntimeEnvironmentStatus]
   )
 
-  if (targets.length === 0 && runtimeHosts.length === 0) {
+  if (!REMOTE_HOSTS_ENABLED || (targets.length === 0 && runtimeHosts.length === 0)) {
     return null
   }
 

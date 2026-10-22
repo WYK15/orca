@@ -1,4 +1,5 @@
 import { translate } from '@/i18n/i18n'
+import { SIMULATOR_ENABLED } from '../../../../shared/fork-feature-policy'
 import { normalizeMatchQuery, scoreQueryTokens } from './query-token-match'
 import type { BuiltInWindowsTerminalShell } from '../../../../shared/windows-terminal-shell'
 import { isClipboardTextByteLengthOverLimit } from '../../../../shared/clipboard-text'
@@ -145,7 +146,7 @@ export function buildTabCreateMenuOptions(
     })
   }
 
-  if (context.hasSimulator) {
+  if (SIMULATOR_ENABLED && context.hasSimulator) {
     const label = context.simulatorIsGoTo
       ? translate('auto.components.tab.bar.TabBar.b426bb2615', 'Go to Mobile Emulator')
       : translate('auto.components.tab.bar.TabBar.fd2b42aaa3', 'New Mobile Emulator')

@@ -1,5 +1,12 @@
 import {
   EMBEDDED_BROWSER_ENABLED,
+  EXPERIMENTAL_FEATURES_ENABLED,
+  ISSUE_TRACKERS_ENABLED,
+  ONBOARDING_ENABLED,
+  ORCA_PLUGINS_ENABLED,
+  ORCHESTRATION_ENABLED,
+  REMOTE_HOSTS_ENABLED,
+  SIMULATOR_ENABLED,
   SPEECH_ENABLED,
   WEB_CLIENT_ENABLED
 } from '../../../../shared/fork-feature-policy'
@@ -344,6 +351,7 @@ function Settings(): React.JSX.Element {
   const linearConnected = useLinearProviderConnected()
   const activeSkillRuntime = useActiveProjectSkillRuntime()
   const orchestrationSkill = useInstalledAgentSkill(ORCHESTRATION_SKILL_NAME, {
+    enabled: ORCHESTRATION_ENABLED,
     discoveryTarget: activeSkillRuntime.discoveryTarget,
     sourceKinds: GLOBAL_AGENT_SKILL_SOURCE_KINDS
   })
@@ -1287,19 +1295,24 @@ function Settings(): React.JSX.Element {
                   ) : null}
                 </SettingsSection>
 
-                <SettingsSection
-                  id="orchestration"
-                  title={translate('auto.components.settings.Settings.00c3a7950d', 'Orchestration')}
-                  description={translate(
-                    'auto.components.settings.Settings.475980f53d',
-                    'Coordinate multiple coding agents through Orca.'
-                  )}
-                  searchEntries={getSectionSearchEntries('orchestration')}
-                >
-                  {isSectionMounted('orchestration') ? <OrchestrationPane /> : null}
-                </SettingsSection>
+                {ORCHESTRATION_ENABLED && (
+                  <SettingsSection
+                    id="orchestration"
+                    title={translate(
+                      'auto.components.settings.Settings.00c3a7950d',
+                      'Orchestration'
+                    )}
+                    description={translate(
+                      'auto.components.settings.Settings.475980f53d',
+                      'Coordinate multiple coding agents through Orca.'
+                    )}
+                    searchEntries={getSectionSearchEntries('orchestration')}
+                  >
+                    {isSectionMounted('orchestration') ? <OrchestrationPane /> : null}
+                  </SettingsSection>
+                )}
 
-                {linearConnected ? (
+                {ISSUE_TRACKERS_ENABLED && linearConnected ? (
                   <SettingsSection
                     id="linear"
                     title={translate('auto.components.settings.Settings.linearTitle', 'Linear')}
@@ -1348,21 +1361,23 @@ function Settings(): React.JSX.Element {
                   </>
                 ) : null}
 
-                <SettingsSection
-                  id="setup-guide"
-                  title={translate(
-                    'auto.components.settings.Settings.6d119427ef',
-                    'Onboarding checklist'
-                  )}
-                  description={translate(
-                    'auto.components.settings.Settings.6855b0f77d',
-                    'Finish the core workflows that make Orca useful for parallel agent work.'
-                  )}
-                  searchEntries={getSectionSearchEntries('setup-guide')}
-                  bodyClassName="overflow-hidden rounded-none border-0 bg-transparent p-0 shadow-none"
-                >
-                  {isSectionMounted('setup-guide') ? <SettingsSetupGuidePane /> : null}
-                </SettingsSection>
+                {ONBOARDING_ENABLED && (
+                  <SettingsSection
+                    id="setup-guide"
+                    title={translate(
+                      'auto.components.settings.Settings.6d119427ef',
+                      'Onboarding checklist'
+                    )}
+                    description={translate(
+                      'auto.components.settings.Settings.6855b0f77d',
+                      'Finish the core workflows that make Orca useful for parallel agent work.'
+                    )}
+                    searchEntries={getSectionSearchEntries('setup-guide')}
+                    bodyClassName="overflow-hidden rounded-none border-0 bg-transparent p-0 shadow-none"
+                  >
+                    {isSectionMounted('setup-guide') ? <SettingsSetupGuidePane /> : null}
+                  </SettingsSection>
+                )}
 
                 <SettingsSection
                   id="general"
@@ -1533,7 +1548,7 @@ function Settings(): React.JSX.Element {
                   </SettingsSection>
                 ) : null}
 
-                {showDesktopOnlySettings ? (
+                {SIMULATOR_ENABLED && showDesktopOnlySettings ? (
                   <SettingsSection
                     id="mobile-emulator"
                     title={translate(
@@ -1662,38 +1677,42 @@ function Settings(): React.JSX.Element {
                   {isSectionMounted('stats') ? <StatsPane /> : null}
                 </SettingsSection>
 
-                <SettingsSection
-                  id="servers"
-                  title={translate(
-                    'auto.components.settings.Settings.bd0181eeca',
-                    'Remote Orca Servers'
-                  )}
-                  badge="Beta"
-                  description={
-                    isWebClient
-                      ? translate(
-                          'auto.components.settings.Settings.7686cb5c36',
-                          'Connect this browser to a saved Orca server.'
-                        )
-                      : translate(
-                          'auto.components.settings.Settings.b5ee17826b',
-                          'Pair remote Orca runtimes for persistent sessions, richer remote state, and web or mobile handoff.'
-                        )
-                  }
-                  searchEntries={getSectionSearchEntries('servers')}
-                >
-                  {isSectionMounted('servers') ? (
-                    <RuntimeEnvironmentsPane
-                      settings={settings}
-                      setActiveRuntimeEnvironmentPreference={setActiveRuntimeEnvironmentPreference}
-                      canGeneratePairingUrl={!isWebClient}
-                      allowLocalRuntime={!isWebClient}
-                      addServerIntentSignal={remoteServerAddIntentSignal}
-                    />
-                  ) : null}
-                </SettingsSection>
+                {REMOTE_HOSTS_ENABLED && (
+                  <SettingsSection
+                    id="servers"
+                    title={translate(
+                      'auto.components.settings.Settings.bd0181eeca',
+                      'Remote Orca Servers'
+                    )}
+                    badge="Beta"
+                    description={
+                      isWebClient
+                        ? translate(
+                            'auto.components.settings.Settings.7686cb5c36',
+                            'Connect this browser to a saved Orca server.'
+                          )
+                        : translate(
+                            'auto.components.settings.Settings.b5ee17826b',
+                            'Pair remote Orca runtimes for persistent sessions, richer remote state, and web or mobile handoff.'
+                          )
+                    }
+                    searchEntries={getSectionSearchEntries('servers')}
+                  >
+                    {isSectionMounted('servers') ? (
+                      <RuntimeEnvironmentsPane
+                        settings={settings}
+                        setActiveRuntimeEnvironmentPreference={
+                          setActiveRuntimeEnvironmentPreference
+                        }
+                        canGeneratePairingUrl={!isWebClient}
+                        allowLocalRuntime={!isWebClient}
+                        addServerIntentSignal={remoteServerAddIntentSignal}
+                      />
+                    ) : null}
+                  </SettingsSection>
+                )}
 
-                {showDesktopOnlySettings ? (
+                {REMOTE_HOSTS_ENABLED && showDesktopOnlySettings ? (
                   <SettingsSection
                     id="ssh"
                     title={translate('auto.components.settings.Settings.9b02492d1f', 'SSH Hosts')}
@@ -1779,25 +1798,30 @@ function Settings(): React.JSX.Element {
                   </SettingsSection>
                 ) : null}
 
-                <SettingsSection
-                  id="experimental"
-                  title={translate('auto.components.settings.Settings.8b017f2506', 'Experimental')}
-                  description={translate(
-                    'auto.components.settings.Settings.075341c763',
-                    'New features that are still taking shape. Give them a try.'
-                  )}
-                  searchEntries={getSectionSearchEntries('experimental')}
-                >
-                  {isSectionMounted('experimental') ? (
-                    <ExperimentalPane
-                      settings={settings}
-                      updateSettings={updateSettings}
-                      hiddenExperimentalUnlocked={hiddenExperimentalUnlocked}
-                    />
-                  ) : null}
-                </SettingsSection>
+                {EXPERIMENTAL_FEATURES_ENABLED && (
+                  <SettingsSection
+                    id="experimental"
+                    title={translate(
+                      'auto.components.settings.Settings.8b017f2506',
+                      'Experimental'
+                    )}
+                    description={translate(
+                      'auto.components.settings.Settings.075341c763',
+                      'New features that are still taking shape. Give them a try.'
+                    )}
+                    searchEntries={getSectionSearchEntries('experimental')}
+                  >
+                    {isSectionMounted('experimental') ? (
+                      <ExperimentalPane
+                        settings={settings}
+                        updateSettings={updateSettings}
+                        hiddenExperimentalUnlocked={hiddenExperimentalUnlocked}
+                      />
+                    ) : null}
+                  </SettingsSection>
+                )}
 
-                {showDesktopOnlySettings ? (
+                {ORCA_PLUGINS_ENABLED && showDesktopOnlySettings ? (
                   <PluginsSettingsSection
                     mounted={isSectionMounted('plugins')}
                     settings={settings}

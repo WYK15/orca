@@ -1,11 +1,12 @@
 import type { GlobalSettings } from '../../../shared/types'
+import { REMOTE_HOSTS_ENABLED } from '../../../shared/fork-feature-policy'
 
 export type RuntimeClientTarget = { kind: 'local' } | { kind: 'environment'; environmentId: string }
 
 export function getActiveRuntimeTarget(
   settings: Pick<GlobalSettings, 'activeRuntimeEnvironmentId'> | null | undefined
 ): RuntimeClientTarget {
-  const environmentId = settings?.activeRuntimeEnvironmentId?.trim()
+  const environmentId = REMOTE_HOSTS_ENABLED ? settings?.activeRuntimeEnvironmentId?.trim() : null
   return environmentId ? { kind: 'environment', environmentId } : { kind: 'local' }
 }
 

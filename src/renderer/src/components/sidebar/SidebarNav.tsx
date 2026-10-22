@@ -1,4 +1,9 @@
-import { WEB_CLIENT_ENABLED } from '../../../../shared/fork-feature-policy'
+import {
+  AUTOMATIONS_ENABLED,
+  EXPERIMENTAL_FEATURES_ENABLED,
+  ONBOARDING_ENABLED,
+  WEB_CLIENT_ENABLED
+} from '../../../../shared/fork-feature-policy'
 import React from 'react'
 import {
   Bell,
@@ -32,13 +37,13 @@ export { getSetupGuideSidebarEntryReady, shouldShowSetupGuideEntry } from './Set
 export function shouldShowAgentsButton(
   settings: Pick<GlobalSettings, 'experimentalActivity'> | null | undefined
 ): boolean {
-  return settings?.experimentalActivity === true
+  return EXPERIMENTAL_FEATURES_ENABLED && settings?.experimentalActivity === true
 }
 
 export function shouldShowAgentDashboardButton(
   settings: Pick<GlobalSettings, 'experimentalAgentDashboardPopout'> | null | undefined
 ): boolean {
-  return settings?.experimentalAgentDashboardPopout === true
+  return EXPERIMENTAL_FEATURES_ENABLED && settings?.experimentalAgentDashboardPopout === true
 }
 
 // Why: in-window is the default surface; only an explicit 'popout' choice opens
@@ -58,7 +63,7 @@ export function shouldShowMobileButton(
 export function shouldShowAutomationsButton(
   settings: Pick<GlobalSettings, 'showAutomationsButton'> | null | undefined
 ): boolean {
-  return settings?.showAutomationsButton !== false
+  return AUTOMATIONS_ENABLED && settings?.showAutomationsButton !== false
 }
 
 const DASHBOARD_BUCKET_DOT_CLASS: Record<'working' | 'done' | 'idle', string> = {
@@ -181,7 +186,7 @@ const SidebarNav = React.memo(function SidebarNav() {
       className="flex flex-col gap-0.5 px-2 pt-2 pb-1"
       data-contextual-tour-target="sidebar-navigation"
     >
-      <SetupGuideSidebarEntry />
+      {ONBOARDING_ENABLED && <SetupGuideSidebarEntry />}
       <SidebarTaskNavButton />
       {showAutomationsButton ? (
         <ContextMenu>

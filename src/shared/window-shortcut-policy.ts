@@ -1,3 +1,4 @@
+import { WORKSPACE_BOARD_ENABLED } from './fork-feature-policy'
 import {
   getKeybindingDefinition,
   isKeybindingAllowedInTerminal,
@@ -239,7 +240,10 @@ export function resolveWindowShortcutAction(
     return { type: 'deleteCurrentWorkspace' }
   }
 
-  if (actionMatches('workspace.openBoard', input, platform, keybindings, options)) {
+  if (
+    WORKSPACE_BOARD_ENABLED &&
+    actionMatches('workspace.openBoard', input, platform, keybindings, options)
+  ) {
     return { type: 'openWorkspaceBoard' }
   }
 

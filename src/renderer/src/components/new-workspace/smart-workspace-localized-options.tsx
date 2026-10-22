@@ -1,4 +1,5 @@
 import type React from 'react'
+import { ISSUE_TRACKERS_ENABLED } from '../../../../shared/fork-feature-policy'
 import { CaseSensitive, GitBranch, Github, Gitlab, Sparkles } from 'lucide-react'
 
 import { JiraIcon } from '@/components/icons/JiraIcon'
@@ -43,7 +44,7 @@ export function getMrStateFilters(): { id: MrStateFilter; label: string }[] {
 }
 
 export function getSmartWorkspaceNameModes(): SmartWorkspaceNameModeOption[] {
-  return [
+  const options: SmartWorkspaceNameModeOption[] = [
     {
       id: 'smart',
       label: translate('auto.components.new.workspace.SmartWorkspaceNameField.b3c60c2b7c', 'Smart'),
@@ -92,4 +93,7 @@ export function getSmartWorkspaceNameModes(): SmartWorkspaceNameModeOption[] {
       Icon: CaseSensitive
     }
   ]
+  return options.filter(
+    (option) => ISSUE_TRACKERS_ENABLED || (option.id !== 'linear' && option.id !== 'jira')
+  )
 }

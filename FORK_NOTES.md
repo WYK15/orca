@@ -12,11 +12,25 @@ Remove an entry after an upstream sync contains its equivalent commits.
 
 ## Persistent customizations
 
+- The personal Tauri build omits scheduled automations, Orca plugin management
+  and its worker, Linear/Jira, simulator entry points, and first-use tours.
+  It also excludes SSH hosts, paired Orca servers, Orca orchestration,
+  experimental features, and the workspace board. Remote connection IPC and
+  orchestration RPC are unavailable; packages omit SSH relay payloads. Effective
+  settings ignore legacy remote selection and experimental enablement while
+  retaining their stored records. Local folder and Git workspaces remain usable.
+  Codex's own plugins remain managed by Codex. Legacy settings stay readable.
+  Sidebar projects support pinning, archiving, searchable bulk restore, and undo.
+  Archiving is a display preference keyed by source repo identity across project
+  host setups; it preserves files, workspace state, and running terminals.
+  Appearance settings persist independent icon size, sidebar/explorer text size,
+  and list spacing. These preferences also survive profile import ID remapping.
+
 - The `refactor/tauri-desktop` branch adds a Mac ARM64 Tauri shell and
   standalone Node backend beside the Electron desktop. It uses isolated
   `com.wyk15.orcaw.tauri` data and reuses the existing renderer/preload contract.
   Persistent terminals use the existing daemon under bundled Node; native
-  text/image/file clipboard operations use Rust while retaining SSH upload routing.
+  text/image/file clipboard operations use Rust with workspace authorization.
   The Tauri host keeps its credential key in the OS vault, uses authenticated
   encryption for existing storage callers, and reuses the translated application
   menu. Tauri checks and releases remain manual during the migration.

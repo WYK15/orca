@@ -12,6 +12,7 @@ import { addHostSectionRows } from './host-section-rows'
 import { orderHostSectionOptions } from './host-section-order'
 import { buildSidebarHostOptions } from './sidebar-host-options'
 import { getLogicalRepoOrderRankById } from './project-header-drop'
+import { orderSidebarPinnedRepos } from '../../../../shared/sidebar-project-archive'
 import { getRenderedWorktreesInSidebarOrder } from './worktree-sidebar-row-preference'
 import { selectWorktreeListReviewCacheInputs } from './worktree-list-review-cache-inputs'
 import {
@@ -58,7 +59,11 @@ export function computeRenderedSidebarWorktreeOrder(
     getRepoMapFromState(state),
     prCache,
     state.collapsedGroups,
-    getLogicalRepoOrderRankById(state.repos.map((repo) => repo.id)),
+    getLogicalRepoOrderRankById(
+      orderSidebarPinnedRepos(state.repos, state.settings?.sidebarPinnedRepoIds).map(
+        (repo) => repo.id
+      )
+    ),
     state.workspaceStatuses,
     state.projectOrderBy,
     state.worktreeLineageById,

@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { ORCA_PLUGINS_ENABLED } from '../../../shared/fork-feature-policy'
 import { create } from 'zustand'
 import type { PluginHostListEntry, PluginHostPanel } from '../../../preload/api-types'
 
@@ -55,7 +56,7 @@ export const usePluginPanelsStore = create<PluginPanelsState>()((set) => ({
     // Why: preload may predate the plugins namespace (web client pairing an
     // older desktop build); treat a missing bridge as "no plugins" fail-soft.
     const pluginsApi = window.api?.plugins
-    if (!pluginsApi) {
+    if (!ORCA_PLUGINS_ENABLED || !pluginsApi) {
       if (generation === pluginListGeneration) {
         pluginListRetryAttempt = 0
         set({ fetchStatus: 'ready', plugins: [], panelErrors: {} })

@@ -1,0 +1,43 @@
+html[data-desktop-appearance='custom'] {
+  & svg.lucide[class~='size-3'] {
+    width: var(--desktop-small-icon-size);
+    height: var(--desktop-small-icon-size);
+  }
+  & svg.lucide[class~='size-3.5'] {
+    width: var(--desktop-detail-icon-size);
+    height: var(--desktop-detail-icon-size);
+  }
+  & svg.lucide[class~='size-4'] {
+    width: var(--desktop-icon-size);
+    height: var(--desktop-icon-size);
+  }
+  & button[data-size='icon-xs'],
+  & button[data-size='icon-sm'] {
+    min-width: var(--desktop-control-size);
+    min-height: var(--desktop-control-size);
+  }
+  & button[data-size='icon-xs'] > svg.lucide,
+  & button[data-size='icon-sm'] > svg.lucide {
+    width: var(--desktop-icon-size);
+    height: var(--desktop-icon-size);
+  }
+  & [data-slot='dropdown-menu-item'] > svg.lucide,
+  & [data-slot='context-menu-item'] > svg.lucide {
+    width: var(--desktop-detail-icon-size);
+    height: var(--desktop-detail-icon-size);
+  }
+  & [data-desktop-chrome] [class~='text-[13px]'] {
+    font-size: var(--desktop-text-size);
+  }
+  & [data-desktop-chrome] [class~='text-xs'] {
+    font-size: max(11px, calc(var(--desktop-text-size) - 1px));
+  }
+  & [data-desktop-chrome] [class~='text-[11px]'] {
+    font-size: max(11px, calc(var(--desktop-text-size) - 2px));
+  }
+  & [data-worktree-card-surface],
+  & [data-file-explorer-row] {
+    padding-top: var(--desktop-row-padding);
+    padding-bottom: var(--desktop-row-padding);
+  }
+}

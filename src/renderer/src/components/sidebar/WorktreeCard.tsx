@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- Why: the worktree card centralizes sidebar card state (selection, drag, agent status, git info, context menu) in one cohesive component so sidebar rendering doesn't fan out across files. */
 import React, { useEffect, useCallback, useState } from 'react'
+import { AUTOMATIONS_ENABLED } from '../../../../shared/fork-feature-policy'
 import { useAppStore } from '@/store'
 import { getHostedReviewCacheKey } from '@/store/slices/hosted-review'
 import { issueCacheKey as getIssueCacheKey } from '@/store/slices/github'
@@ -643,7 +644,7 @@ const WorktreeCard = React.memo(function WorktreeCard({
   const showLinearIssue = cardProps.includes('linear-issue')
   const showJiraIssue = cardProps.includes('jira-issue')
   const showPR = cardProps.includes('pr')
-  const showAutomation = cardProps.includes('automation')
+  const showAutomation = AUTOMATIONS_ENABLED && cardProps.includes('automation')
   const showCli = cardProps.includes('cli')
   const showComment = cardProps.includes('comment')
   const showPorts = cardProps.includes('ports')

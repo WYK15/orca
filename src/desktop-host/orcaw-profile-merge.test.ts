@@ -9,6 +9,22 @@ function snapshot(value: Record<string, unknown> = {}) {
 }
 
 describe('Orcaw project/settings compatibility', () => {
+  it('remaps archived and pinned project references while merging an overlapping profile', () => {
+    const source = snapshot({
+      repos: [{ id: 'old', path: '/work/same' }],
+      settings: { sidebarProjectArchive: { old: 123 }, sidebarPinnedRepoIds: ['old'] }
+    })
+    const target = snapshot({
+      repos: [
+        { id: 'current', path: '/work/same' },
+        { id: 'other', path: '/work/other' }
+      ],
+      settings: { sidebarProjectArchive: { other: 234 }, sidebarPinnedRepoIds: ['other'] }
+    })
+    const result = mergeOrcawProfile(source, target)
+    expect(result.snapshot.settings.sidebarProjectArchive).toEqual({ current: 123, other: 234 })
+    expect(result.snapshot.settings.sidebarPinnedRepoIds).toEqual(['other', 'current'])
+  })
   it('deduplicates a local project and remaps project, worktree and sidebar references', () => {
     const source = snapshot({
       repos: [

@@ -7,7 +7,7 @@ import {
 } from '../../shared/keybindings'
 import type { UpdateCheckOptions } from '../../shared/types'
 import { translateMain } from '../i18n/main-i18n'
-import { WEB_CLIENT_ENABLED } from '../../shared/fork-feature-policy'
+import { AUTOMATIONS_ENABLED, WEB_CLIENT_ENABLED } from '../../shared/fork-feature-policy'
 
 export type AppearanceMenuState = {
   showTasksButton: boolean
@@ -226,12 +226,16 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
         checked: appearance.showTasksButton,
         click: () => onToggleAppearance('showTasksButton')
       },
-      {
-        label: translateMain('menu.showAutomationsButton', 'Show Automations Button'),
-        type: 'checkbox',
-        checked: appearance.showAutomationsButton,
-        click: () => onToggleAppearance('showAutomationsButton')
-      },
+      ...(AUTOMATIONS_ENABLED
+        ? [
+            {
+              label: translateMain('menu.showAutomationsButton', 'Show Automations Button'),
+              type: 'checkbox' as const,
+              checked: appearance.showAutomationsButton,
+              click: () => onToggleAppearance('showAutomationsButton')
+            }
+          ]
+        : []),
       ...(WEB_CLIENT_ENABLED
         ? [
             {

@@ -1,4 +1,5 @@
 import type React from 'react'
+import { REMOTE_HOSTS_ENABLED } from '../../../../shared/fork-feature-policy'
 import {
   DropdownMenuCheckboxItem,
   DropdownMenuLabel,
@@ -61,7 +62,10 @@ export function SidebarHostScopeMenuSection({
   setWorkspaceHostScope,
   visibleWorkspaceHostIds,
   setVisibleWorkspaceHostIds
-}: SidebarHostScopeMenuSectionProps): React.JSX.Element {
+}: SidebarHostScopeMenuSectionProps): React.JSX.Element | null {
+  if (!REMOTE_HOSTS_ENABLED) {
+    return null
+  }
   const allVisible = !visibleWorkspaceHostIds
   const visibleHostIdSet = new Set(visibleWorkspaceHostIds ?? [])
 

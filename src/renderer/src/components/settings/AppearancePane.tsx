@@ -1,4 +1,5 @@
 import type React from 'react'
+import { getDesktopAppearanceEntries } from './desktop-appearance-search'
 import { useLayoutEffect, useState } from 'react'
 import { AppWindow, PanelLeft, TerminalSquare } from 'lucide-react'
 
@@ -17,7 +18,7 @@ import {
   getLanguageEntries,
   getLayoutEntries,
   getMenuBarIconEntries,
-  getSidebarEntries,
+  getVisibleSidebarEntries,
   getStatusBarEntries,
   getSystemTrayEntries,
   getThemeEntries,
@@ -136,6 +137,7 @@ export function AppearancePane({
 
   // Search-entry buckets per section so a query can force-open the matching one.
   const interfaceSearchEntries = [
+    ...getDesktopAppearanceEntries(),
     { title: interfaceTitle },
     ...getThemeEntries(),
     ...getZoomEntries(),
@@ -155,7 +157,7 @@ export function AppearancePane({
       description: windowSidebarSummary
     },
     ...getStatusBarEntries(),
-    ...getSidebarEntries(),
+    ...getVisibleSidebarEntries(),
     ...getLayoutEntries(),
     getLeftSidebarAppearanceEntry(),
     getWorkspaceCardLayoutEntry()

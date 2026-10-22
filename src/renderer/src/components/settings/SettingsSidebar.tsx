@@ -1,4 +1,5 @@
 import type { CSSProperties, RefObject } from 'react'
+import { ONBOARDING_ENABLED } from '../../../../shared/fork-feature-policy'
 import { useMemo } from 'react'
 import { ArrowLeft, Search, Server } from 'lucide-react'
 import type { RepoIcon } from '../../../../shared/repo-icon'
@@ -138,7 +139,7 @@ export function SettingsSidebar({
   onSearchChange,
   onSelectSection
 }: SettingsSidebarProps): React.JSX.Element {
-  const setupGuideProgress = useSettingsSetupGuideProgress(true)
+  const setupGuideProgress = useSettingsSetupGuideProgress(ONBOARDING_ENABLED)
   const systemPrefersDark = useSystemPrefersDark()
   const leftSidebarStyle = useMemo(
     () => resolveLeftSidebarStyleVariables(settings, systemPrefersDark),
@@ -148,7 +149,9 @@ export function SettingsSidebar({
   // Why: "Hide from sidebar" only hides the top-left app sidebar prompt;
   // Settings should remain a stable place to reopen the checklist.
   const showSetupGuideTopRow =
-    setupGuideProgress.ready && setupGuideProgress.doneCount < setupGuideProgress.total
+    ONBOARDING_ENABLED &&
+    setupGuideProgress.ready &&
+    setupGuideProgress.doneCount < setupGuideProgress.total
   const searchShortcutCombos = useShortcutKeyComboDetails('settings.search')
   const navItemClassName = (isActive: boolean): string =>
     cn(

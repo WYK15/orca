@@ -169,18 +169,7 @@ await cp(
 await cp(join(root, 'resources/ripgrep'), join(resources, 'ripgrep'), { recursive: true })
 await copyFile(join(rgPackage, 'LICENSE'), join(resources, 'ripgrep/LICENSE-wrapper'))
 
-try {
-  await access(join(root, 'out/relay/linux-x64/relay.js'))
-} catch {
-  const relay = spawnSync(process.execPath, [join(root, 'config/scripts/build-relay.mjs')], {
-    cwd: root,
-    stdio: 'inherit'
-  })
-  if (relay.status !== 0) {
-    process.exit(relay.status ?? 1)
-  }
-}
-await cp(join(root, 'out/relay'), join(resources, 'relay'), { recursive: true })
+await rm(join(resources, 'relay'), { recursive: true, force: true })
 await copyFile(join(root, 'LICENSE'), join(resources, 'Orca-LICENSE'))
 if (process.platform === 'linux') {
   const { verifyLinuxGlibcFloor } = require('./config/scripts/verify-linux-glibc-floor.cjs')

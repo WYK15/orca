@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand'
+import { REMOTE_HOSTS_ENABLED } from '../../../../shared/fork-feature-policy'
 import type { AppState } from '../types'
 import type { RemoteServerUpdaterSnapshot } from '../../../../shared/remote-server-update'
 import { isUserManagedRuntimeEnvironment } from '../../../../shared/runtime-environments'
@@ -75,6 +76,9 @@ export const createRemoteServerUpdatesSlice: StateCreator<
     }),
 
   refreshRemoteServerUpdates: async (options) => {
+    if (!REMOTE_HOSTS_ENABLED) {
+      return
+    }
     if (get().remoteServerUpdatesChecking || get().remoteServerUpdatesRunning) {
       return
     }

@@ -1,4 +1,10 @@
-import { EMBEDDED_BROWSER_ENABLED, SPEECH_ENABLED } from '../../shared/fork-feature-policy'
+import {
+  EMBEDDED_BROWSER_ENABLED,
+  ISSUE_TRACKERS_ENABLED,
+  ORCHESTRATION_ENABLED,
+  REMOTE_HOSTS_ENABLED,
+  SPEECH_ENABLED
+} from '../../shared/fork-feature-policy'
 /* eslint-disable max-lines -- Why: OrcaRuntimeService still owns the mutable live graph, PTY handles, waiters, mobile floor/layout state, and managed-worktree reconciliation. Stateless browser and file command adapters live beside it; the remaining split points need state-owner extraction before enforcing max-lines. */
 /* eslint-disable unicorn/no-useless-spread -- Why: waiter sets and handle keys are cloned intentionally before mutation so resolution and rejection can safely remove entries while iterating. */
 /* eslint-disable no-control-regex -- Why: terminal normalization must strip ANSI and OSC control sequences from PTY output before returning bounded text to agents. */
@@ -460,6 +466,7 @@ import {
   ORCHESTRATION_CONTRACT_RUNTIME_CAPABILITY,
   ORCHESTRATION_CONTRACT_VERSION,
   REMOTE_RUNTIME_SHARED_CONTROL_CAPABILITY,
+  REMOTE_SERVER_UPDATE_CAPABILITY,
   RUNTIME_CAPABILITIES,
   RUNTIME_PROTOCOL_VERSION,
   TERMINAL_PAIRED_PARKING_RUNTIME_CAPABILITY,
@@ -3756,6 +3763,9 @@ export class OrcaRuntimeService {
   // which may not be finalized until after app.ready. Also allows unit tests
   // to inject an in-memory DB without touching the filesystem.
   getOrchestrationDb(): OrchestrationDb {
+    if (!ORCHESTRATION_ENABLED) {
+      throw new Error('Orca orchestration is disabled in this build.')
+    }
     if (!this._orchestrationDb) {
       const { app } = require('electron')
       const dbPath = join(app.getPath('userData'), 'orchestration.db')
@@ -4728,6 +4738,13 @@ export class OrcaRuntimeService {
     const capabilities: RuntimeCapability[] = RUNTIME_CAPABILITIES.filter(
       (capability) =>
         (EMBEDDED_BROWSER_ENABLED || !capability.startsWith('browser.')) &&
+        (ISSUE_TRACKERS_ENABLED || !capability.startsWith('linear.')) &&
+        (ORCHESTRATION_ENABLED || !capability.startsWith('orchestration.')) &&
+        (REMOTE_HOSTS_ENABLED ||
+          (capability !== 'runtime.environments.v1' &&
+            capability !== REMOTE_RUNTIME_SHARED_CONTROL_CAPABILITY &&
+            capability !== TERMINAL_PAIRED_PARKING_RUNTIME_CAPABILITY &&
+            capability !== REMOTE_SERVER_UPDATE_CAPABILITY)) &&
         (capability !== 'browser.screencast.v1' || canBrowse) &&
         // Why: the nested-runtime E2E needs a real legacy transport without maintaining an old binary fixture.
         (process.env.ORCA_E2E_DISABLE_RUNTIME_SHARED_CONTROL !== '1' ||

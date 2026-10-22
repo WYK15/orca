@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { isEditableTarget } from '@/lib/editable-target'
 import { useAppStore } from '@/store'
+import { WORKSPACE_BOARD_ENABLED } from '../../../../shared/fork-feature-policy'
 
 const WORKSPACE_BOARD_SHEET_SELECTOR = '[data-workspace-board-sheet]'
 
@@ -53,6 +54,9 @@ export function useWorkspaceBoardPanel(): WorkspaceBoardPanelState {
   workspaceBoardDragPreviewOpenRef.current = workspaceBoardDragPreviewOpen
 
   const openWorkspaceBoard = useCallback(() => {
+    if (!WORKSPACE_BOARD_ENABLED) {
+      return
+    }
     if (workspaceBoardOpenRef.current) {
       if (workspaceBoardDragPreviewOpenRef.current) {
         workspaceBoardDragPreviewOpenRef.current = false
@@ -97,6 +101,9 @@ export function useWorkspaceBoardPanel(): WorkspaceBoardPanelState {
   }, [closeWorkspaceBoard, openWorkspaceBoard])
 
   const previewWorkspaceBoardFromDrag = useCallback(() => {
+    if (!WORKSPACE_BOARD_ENABLED) {
+      return
+    }
     if (workspaceBoardOpenRef.current || workspaceBoardDragPreviewOpenRef.current) {
       return
     }
@@ -105,6 +112,9 @@ export function useWorkspaceBoardPanel(): WorkspaceBoardPanelState {
   }, [])
 
   const solidifyWorkspaceBoardFromDrag = useCallback(() => {
+    if (!WORKSPACE_BOARD_ENABLED) {
+      return
+    }
     if (workspaceBoardOpenRef.current) {
       if (workspaceBoardDragPreviewOpenRef.current) {
         workspaceBoardDragPreviewOpenRef.current = false

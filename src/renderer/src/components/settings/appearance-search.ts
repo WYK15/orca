@@ -1,6 +1,7 @@
 import type { SettingsSearchEntry } from './settings-search'
+import { getDesktopAppearanceEntries } from './desktop-appearance-search'
 import { getTerminalAppearanceSearchEntries } from './terminal-search'
-import { getLeftSidebarAppearanceEntry, getSidebarEntries } from './appearance-sidebar-search'
+import { getVisibleSidebarEntries } from './appearance-sidebar-search'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
@@ -171,7 +172,11 @@ export const getStatusBarEntries = createLocalizedCatalog((): SettingsSearchEntr
   }))
 ])
 
-export { getLeftSidebarAppearanceEntry, getSidebarEntries }
+export {
+  getLeftSidebarAppearanceEntry,
+  getSidebarEntries,
+  getVisibleSidebarEntries
+} from './appearance-sidebar-search'
 
 export const getAppIconEntries = createLocalizedCatalog((): SettingsSearchEntry[] => [
   {
@@ -230,6 +235,7 @@ function buildAppearancePaneSearchEntries(
   options: AppearancePaneSearchOptions
 ): SettingsSearchEntry[] {
   return [
+    ...getDesktopAppearanceEntries(),
     ...getAppearanceSectionEntries(),
     ...getThemeEntries(),
     ...(SHOW_UI_LANGUAGE_SETTING ? getLanguageEntries() : []),
@@ -239,7 +245,7 @@ function buildAppearancePaneSearchEntries(
     ...getLayoutEntries(),
     ...getTitlebarEntries(),
     ...getStatusBarEntries(),
-    ...getSidebarEntries(),
+    ...getVisibleSidebarEntries(),
     ...getAppIconEntries(),
     ...getSystemTrayEntries(options),
     ...getMenuBarIconEntries(options)

@@ -14881,5 +14881,50 @@
       "settingsInstruction": "Change the model, dictation mode, or shortcut anytime in",
       "settingsLink": "Settings → Voice"
     }
+  },
+  "fork": {
+    "appearance": {
+      "current": "Current: {{value}}px · Default: {{defaultSize}}px",
+      "compact": "Compact",
+      "standard": "Standard",
+      "spacious": "Spacious",
+      "reset": "Reset appearance sizes",
+      "saveFailed": "Could not save appearance settings.",
+      "iconSize": "Icon size",
+      "iconDescription": "Scale main and secondary interface icons together.",
+      "textSize": "Interface text size",
+      "textDescription": "Text in project lists and the file explorer.",
+      "density": "List density",
+      "densityDescription": "Spacing in project and file lists."
+    },
+    "archive": {
+      "unpin": "Unpin project",
+      "pin": "Pin project",
+      "archiveProject": "Archive project",
+      "pinned": "Pinned project",
+      "title": "Archive",
+      "manage": "Organize projects",
+      "description": "Keep active projects focused. Archived files, configuration and running terminals are preserved.",
+      "search": "Search projects",
+      "searchPlaceholder": "Search project names or paths…",
+      "active": "Active projects",
+      "deselect": "Deselect all",
+      "selectAll": "Select results",
+      "restoreSelected": "Restore selected ({{count}})",
+      "archiveSelected": "Archive selected ({{count}})",
+      "selectProject": "Select {{name}}",
+      "restore": "Restore",
+      "noResults": "No matching projects.",
+      "empty": "No archived projects yet.",
+      "noActive": "All projects are archived.",
+      "clearSearch": "Clear search",
+      "saveFailed": "Could not save project organization.",
+      "archived": "Archived {{count}} projects.",
+      "restored": "Restored {{count}} projects.",
+      "undo": "Undo",
+      "workspaceUnavailable": "No available workspace. Restore the project or check its host connection.",
+      "openFailed": "Could not open the project.",
+      "archivedLabel": "Archived"
+    }
   }
 }

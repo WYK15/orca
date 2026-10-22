@@ -1,4 +1,5 @@
 import { ServerCog } from 'lucide-react'
+import { REMOTE_HOSTS_ENABLED } from '../../../../shared/fork-feature-policy'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store'
 import type { ProviderAccountScope, ProviderRateLimitScope } from './provider-account-scope'
@@ -14,9 +15,12 @@ export function ProviderHostScopeControl({
   labelPrefix,
   scope,
   className
-}: ProviderHostScopeControlProps): React.JSX.Element {
+}: ProviderHostScopeControlProps): React.JSX.Element | null {
   const openSettingsPage = useAppStore((state) => state.openSettingsPage)
   const openSettingsTarget = useAppStore((state) => state.openSettingsTarget)
+  if (!REMOTE_HOSTS_ENABLED) {
+    return null
+  }
 
   const openHostsSettings = (): void => {
     openSettingsPage()

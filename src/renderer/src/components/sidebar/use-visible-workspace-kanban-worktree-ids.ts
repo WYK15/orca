@@ -4,6 +4,7 @@ import type { Repo, Worktree } from '../../../../shared/types'
 import { computeVisibleWorktreeIds } from './visible-worktrees'
 import { getWorktreeIdsWithLiveAgent } from '@/lib/worktree-activity-state'
 import { getSettingsFocusedExecutionHostId } from '../../../../shared/execution-host'
+import { useSidebarProjectCatalog } from './use-sidebar-project-catalog'
 
 type UseVisibleWorkspaceKanbanWorktreeIdsParams = {
   allWorktrees: readonly Worktree[]
@@ -16,6 +17,12 @@ export function useVisibleWorkspaceKanbanWorktreeIds({
   allWorktrees,
   repoMap
 }: UseVisibleWorkspaceKanbanWorktreeIdsParams): ReadonlySet<string> {
+  const projectCatalog = useSidebarProjectCatalog()
+  const archivedRepoIds = useMemo(
+    () =>
+      new Set(projectCatalog.flatMap((entry) => (entry.archivedAt === null ? [] : entry.repoIds))),
+    [projectCatalog]
+  )
   const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
   const showSleepingWorkspaces = useAppStore((s) => s.showSleepingWorkspaces)
   const hideDefaultBranchWorkspace = useAppStore((s) => s.hideDefaultBranchWorkspace)
@@ -51,6 +58,7 @@ export function useVisibleWorkspaceKanbanWorktreeIds({
     const sortedIds = allWorktrees.map((worktree) => worktree.id)
     return new Set(
       computeVisibleWorktreeIds(worktreesByRepo, sortedIds, {
+        archivedRepoIds,
         filterRepoIds,
         showSleepingWorkspaces,
         tabsByWorktree,
@@ -72,6 +80,7 @@ export function useVisibleWorkspaceKanbanWorktreeIds({
       })
     )
   }, [
+    archivedRepoIds,
     allWorktrees,
     browserTabsByWorktree,
     filterRepoIds,

@@ -82,6 +82,16 @@ jobs:
           pnpm exec vitest run --config config/vitest.config.ts
           src/desktop-host/stdio-rpc.test.ts
           src/shared/desktop-wire-codec.test.ts
+          src/shared/desktop-appearance.test.ts
+          src/shared/sidebar-project-archive.test.ts
+          src/shared/fork-feature-policy.test.ts
+          src/shared/personal-desktop-settings.test.ts
+          src/renderer/src/components/settings/personal-desktop-settings.test.ts
+          src/renderer/src/components/settings/desktop-appearance-updates.test.ts
+          src/renderer/src/components/sidebar/sidebar-project-archive-actions.test.ts
+          src/renderer/src/components/sidebar/personal-workspace-board.test.tsx
+          src/renderer/src/components/sidebar/visible-worktrees.test.ts
+          src/renderer/src/components/sidebar/worktree-list-groups.test.ts
           src/renderer/src/tauri/host-transport.test.ts
           src/renderer/src/tauri/window-close-barrier.test.ts
           src/renderer/src/tauri/browser-policy.test.ts

@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react'
+import { REMOTE_HOSTS_ENABLED } from '../../../../shared/fork-feature-policy'
 import { Popover, PopoverContent } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
@@ -62,7 +63,7 @@ export default function RunTargetCombobox({
   // Track in-flight connects per host so one stalling connect never blocks the others.
   const [connectingHostIds, setConnectingHostIds] = useState<ReadonlySet<string>>(() => new Set())
 
-  const hasAddHost = Boolean(onAddSshHost || onAddRemoteServer)
+  const hasAddHost = REMOTE_HOSTS_ENABLED && Boolean(onAddSshHost || onAddRemoteServer)
   const deriveRowKeys = useCallback(
     (query: string): string[] =>
       buildRunTargetRows({ hostOptions, recipes, query, hasAddHost }).rows.map((row) => row.key),

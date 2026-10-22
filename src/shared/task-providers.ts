@@ -1,8 +1,13 @@
+import { ISSUE_TRACKERS_ENABLED } from './fork-feature-policy'
+
 export type TaskProvider = 'github' | 'gitlab' | 'linear' | 'jira'
 
-export const TASK_PROVIDERS: readonly TaskProvider[] = ['github', 'gitlab', 'linear', 'jira']
+const ALL_TASK_PROVIDERS: readonly TaskProvider[] = ['github', 'gitlab', 'linear', 'jira']
+export const TASK_PROVIDERS: readonly TaskProvider[] = ISSUE_TRACKERS_ENABLED
+  ? ALL_TASK_PROVIDERS
+  : ['github', 'gitlab']
 
-const TASK_PROVIDER_SET = new Set<TaskProvider>(TASK_PROVIDERS)
+const TASK_PROVIDER_SET = new Set<TaskProvider>(ALL_TASK_PROVIDERS)
 
 export function isTaskProvider(value: unknown): value is TaskProvider {
   return TASK_PROVIDER_SET.has(value as TaskProvider)
@@ -13,9 +18,10 @@ export function normalizeTaskProviderSettings(value: {
   defaultTaskSource: unknown
 }): { visibleTaskProviders: TaskProvider[]; defaultTaskSource: TaskProvider } {
   const visibleTaskProviders = normalizeVisibleTaskProviders(value.visibleTaskProviders)
-  const defaultTaskSource = isTaskProvider(value.defaultTaskSource)
-    ? value.defaultTaskSource
-    : resolveVisibleTaskProvider('github', visibleTaskProviders)
+  const defaultTaskSource =
+    isTaskProvider(value.defaultTaskSource) && TASK_PROVIDERS.includes(value.defaultTaskSource)
+      ? value.defaultTaskSource
+      : resolveVisibleTaskProvider('github', visibleTaskProviders)
 
   if (visibleTaskProviders.includes(defaultTaskSource)) {
     return { visibleTaskProviders, defaultTaskSource }
@@ -39,7 +45,10 @@ export function normalizeVisibleTaskProviders(value: unknown): TaskProvider[] {
 
   const normalized: TaskProvider[] = []
   for (const provider of value) {
-    if (!TASK_PROVIDER_SET.has(provider as TaskProvider)) {
+    if (
+      !TASK_PROVIDER_SET.has(provider as TaskProvider) ||
+      !TASK_PROVIDERS.includes(provider as TaskProvider)
+    ) {
       continue
     }
     if (!normalized.includes(provider as TaskProvider)) {
@@ -94,6 +103,9 @@ function isTaskProviderAvailable(
   provider: TaskProvider,
   availability: TaskProviderAvailability
 ): boolean {
+  if (!ISSUE_TRACKERS_ENABLED && (provider === 'linear' || provider === 'jira')) {
+    return false
+  }
   if (provider === 'github') {
     return true
   }

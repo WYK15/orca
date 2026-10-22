@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { ISSUE_TRACKERS_ENABLED } from '../../../../shared/fork-feature-policy'
 import { getLocalPreflightContext, localPreflightContextKey } from '@/lib/local-preflight-context'
 import { getProviderRuntimeContextKey } from '@/lib/provider-runtime-context'
 import { useAppStore } from '@/store'
@@ -23,10 +24,10 @@ export function useIntegrationProviderStatusRefresh(): void {
   const jiraStatusCurrent = jiraStatusContextKey === providerRuntimeContextKey
 
   useEffect(() => {
-    if (!linearStatusCurrent || !linearStatusChecked) {
+    if (ISSUE_TRACKERS_ENABLED && (!linearStatusCurrent || !linearStatusChecked)) {
       void checkLinearConnection()
     }
-    if (!jiraStatusCurrent || !jiraStatusChecked) {
+    if (ISSUE_TRACKERS_ENABLED && (!jiraStatusCurrent || !jiraStatusChecked)) {
       void checkJiraConnection()
     }
     if (!preflightStatusCurrent || !preflightStatusChecked) {

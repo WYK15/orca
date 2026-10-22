@@ -1,4 +1,5 @@
 import type React from 'react'
+import { DesktopAppearanceSetting } from './DesktopAppearanceSetting'
 
 import type { GlobalSettings } from '../../../../shared/types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
@@ -78,6 +79,7 @@ export function AppearanceInterfaceSection({
 
   return (
     <div className="divide-y divide-border/40">
+      <DesktopAppearanceSetting settings={settings} />
       <SearchableSetting
         title={themeLabel}
         description={themeEntry?.description}
