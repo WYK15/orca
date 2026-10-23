@@ -25,6 +25,7 @@ Remove an entry after an upstream sync contains its equivalent commits.
   host setups; it preserves files, workspace state, and running terminals.
   Appearance settings persist independent icon size, sidebar/explorer text size,
   and list spacing. These preferences also survive profile import ID remapping.
+  Workspace context menus omit status assignment, read/unread toggles, and sleep.
 
 - The `refactor/tauri-desktop` branch adds a Mac ARM64 Tauri shell and
   standalone Node backend beside the Electron desktop. It uses isolated

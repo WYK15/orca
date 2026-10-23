@@ -63,6 +63,10 @@ import { WorkspaceSleepMenuItems } from './WorkspaceSleepMenuItems'
 import { isEventTargetInsideCurrentTarget } from './worktree-card-dom-events'
 import { translate } from '@/i18n/i18n'
 import {
+  PERSONAL_DESKTOP_ENABLED,
+  WORKSPACE_BOARD_ENABLED
+} from '../../../../shared/fork-feature-policy'
+import {
   folderWorkspaceKey,
   parseWorkspaceKey,
   worktreeWorkspaceKey
@@ -809,37 +813,39 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
               {translate('auto.components.sidebar.WorktreeContextMenu.439fa94d53', 'Update')}
             </DropdownMenuItem>
           )}
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger disabled={deletingContext}>
-              <Kanban className="size-3.5" />
-              {isMultiContext
-                ? translate(
-                    'auto.components.sidebar.WorktreeContextMenu.56cde9e8e6',
-                    'Move Statuses To'
-                  )
-                : translate(
-                    'auto.components.sidebar.WorktreeContextMenu.84cdbb7e30',
-                    'Move to Status'
-                  )}
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-44">
-              <DropdownMenuRadioGroup value={contextWorkspaceStatus}>
-                {workspaceStatuses.map((status) => {
-                  const meta = getWorkspaceStatusVisualMeta(status)
-                  return (
-                    <DropdownMenuRadioItem
-                      key={status.id}
-                      value={status.id}
-                      onSelect={() => handleAssignWorkspaceStatus(status.id)}
-                    >
-                      <meta.icon className={cn('size-3.5', meta.tone)} />
-                      {status.label}
-                    </DropdownMenuRadioItem>
-                  )
-                })}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
+          {WORKSPACE_BOARD_ENABLED && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger disabled={deletingContext}>
+                <Kanban className="size-3.5" />
+                {isMultiContext
+                  ? translate(
+                      'auto.components.sidebar.WorktreeContextMenu.56cde9e8e6',
+                      'Move Statuses To'
+                    )
+                  : translate(
+                      'auto.components.sidebar.WorktreeContextMenu.84cdbb7e30',
+                      'Move to Status'
+                    )}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-44">
+                <DropdownMenuRadioGroup value={contextWorkspaceStatus}>
+                  {workspaceStatuses.map((status) => {
+                    const meta = getWorkspaceStatusVisualMeta(status)
+                    return (
+                      <DropdownMenuRadioItem
+                        key={status.id}
+                        value={status.id}
+                        onSelect={() => handleAssignWorkspaceStatus(status.id)}
+                      >
+                        <meta.icon className={cn('size-3.5', meta.tone)} />
+                        {status.label}
+                      </DropdownMenuRadioItem>
+                    )
+                  })}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
           <DropdownMenuSeparator />
           {!isMultiContext && (
             <>
@@ -859,19 +865,24 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
                   ? translate('auto.components.sidebar.WorktreeContextMenu.697d0f6e1b', 'Unpin')
                   : translate('auto.components.sidebar.WorktreeContextMenu.3baa7d6507', 'Pin')}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={handleToggleRead} disabled={isDeleting}>
-                {worktree.isUnread ? (
-                  <BellOff className="size-3.5" />
-                ) : (
-                  <Bell className="size-3.5" />
-                )}
-                {worktree.isUnread
-                  ? translate('auto.components.sidebar.WorktreeContextMenu.8dacff1fe0', 'Mark Read')
-                  : translate(
-                      'auto.components.sidebar.WorktreeContextMenu.f50603c6b2',
-                      'Mark Unread'
-                    )}
-              </DropdownMenuItem>
+              {!PERSONAL_DESKTOP_ENABLED && (
+                <DropdownMenuItem onSelect={handleToggleRead} disabled={isDeleting}>
+                  {worktree.isUnread ? (
+                    <BellOff className="size-3.5" />
+                  ) : (
+                    <Bell className="size-3.5" />
+                  )}
+                  {worktree.isUnread
+                    ? translate(
+                        'auto.components.sidebar.WorktreeContextMenu.8dacff1fe0',
+                        'Mark Read'
+                      )
+                    : translate(
+                        'auto.components.sidebar.WorktreeContextMenu.f50603c6b2',
+                        'Mark Unread'
+                      )}
+                </DropdownMenuItem>
+              )}
               {repo ? (
                 <>
                   <DropdownMenuSeparator />
@@ -967,15 +978,17 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
               <DropdownMenuSeparator />
             </>
           ) : null}
-          <WorkspaceSleepMenuItems
-            isMultiContext={isMultiContext}
-            sleepLabel={sleepLabel}
-            sleepDisabled={deletingContext || sleepableWorktrees.length === 0}
-            descendantCount={lineageDescendantCount}
-            subtreeSleepDisabled={deletingSubtree || subtreeSleepableWorktrees.length === 0}
-            onSleep={handleCloseTerminals}
-            onSleepSubtree={handleSleepSubtree}
-          />
+          {!PERSONAL_DESKTOP_ENABLED && (
+            <WorkspaceSleepMenuItems
+              isMultiContext={isMultiContext}
+              sleepLabel={sleepLabel}
+              sleepDisabled={deletingContext || sleepableWorktrees.length === 0}
+              descendantCount={lineageDescendantCount}
+              subtreeSleepDisabled={deletingSubtree || subtreeSleepableWorktrees.length === 0}
+              onSleep={handleCloseTerminals}
+              onSleepSubtree={handleSleepSubtree}
+            />
+          )}
           {/* Why: primary checkout rows can't be git-worktree-removed, so keep a
              disabled Delete Worktree for parity with non-primary cards and pair
              it with the enabled Remove Project action below. */}
