@@ -3,6 +3,7 @@ import {
   activateAndRevealWorktree
 } from '@/lib/worktree-activation'
 import { parseWorkspaceKey } from '../../../shared/workspace-scope'
+import { EXPERIMENTAL_FEATURES_ENABLED } from '../../../shared/fork-feature-policy'
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import type { ExecutionHostId } from '../../../shared/execution-host'
@@ -23,7 +24,11 @@ export async function activateWorktreeFromSidebar(
     return
   }
 
-  if (typeof window !== 'undefined' && window.api?.ephemeralVm?.resumeWorkspace) {
+  if (
+    EXPERIMENTAL_FEATURES_ENABLED &&
+    typeof window !== 'undefined' &&
+    window.api?.ephemeralVm?.resumeWorkspace
+  ) {
     try {
       const runtime = await window.api.ephemeralVm.resumeWorkspace({ workspaceId: worktreeId })
       if (runtime?.runtimeEnvironmentId) {

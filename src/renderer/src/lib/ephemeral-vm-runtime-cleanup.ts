@@ -1,4 +1,5 @@
 import { isRuntimeOwnedSshTargetId } from '../../../shared/execution-host'
+import { EXPERIMENTAL_FEATURES_ENABLED } from '../../../shared/fork-feature-policy'
 
 /**
  * Tear down the ephemeral-VM runtimes backing a set of deleted workspaces (and,
@@ -19,6 +20,9 @@ export async function cleanupEphemeralVmRuntimesForDeleted(args: {
   // backing runtime should also be torn down, even if no workspace id matched.
   runtimeOwnedSshTargetIds?: readonly string[]
 }): Promise<string[]> {
+  if (!EXPERIMENTAL_FEATURES_ENABLED) {
+    return []
+  }
   const destroyedSshTargetIds: string[] = []
   try {
     const workspaceIdSet = new Set(args.workspaceIds ?? [])

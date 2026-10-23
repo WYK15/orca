@@ -3,6 +3,7 @@ import { useAppStore } from '@/store'
 import { clearWorktreeSleepIntent, markWorktreeSleepIntent } from '@/lib/worktree-sleep-intent'
 import { VIRTUALIZED_SCROLL_ANCHOR_RECORD_EVENT } from '@/hooks/useVirtualizedScrollAnchor'
 import { translate } from '@/i18n/i18n'
+import { EXPERIMENTAL_FEATURES_ENABLED } from '../../../../shared/fork-feature-policy'
 
 /**
  * Shared "sleep worktree" flow (close all panels to free memory / CPU)
@@ -179,7 +180,11 @@ export async function runSleepWorktrees(worktreeIds: readonly string[]): Promise
         // serializer buffers into buffersByLeafId for SSH wake to reseed
         // scrollback. See DESIGN_DOC_TERMINAL_HISTORY_FIX_V2.md §3.3.c.
         await shutdownWorktreeTerminals(worktreeId, { keepIdentifiers: true })
-        if (typeof window !== 'undefined' && window.api?.ephemeralVm?.suspendWorkspace) {
+        if (
+          EXPERIMENTAL_FEATURES_ENABLED &&
+          typeof window !== 'undefined' &&
+          window.api?.ephemeralVm?.suspendWorkspace
+        ) {
           await window.api.ephemeralVm.suspendWorkspace({ workspaceId: worktreeId })
         }
       } catch (err) {
