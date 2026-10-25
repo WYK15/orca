@@ -7,6 +7,7 @@ export const NATIVE_FILE_DROP_MAX_PATH_BYTES = 256 * 1024
 
 export const NATIVE_FILE_DROP_TARGET = {
   editor: 'editor',
+  markdown: 'markdown',
   terminal: 'terminal',
   composer: 'composer',
   fileExplorer: 'file-explorer',
@@ -15,6 +16,7 @@ export const NATIVE_FILE_DROP_TARGET = {
 
 export type NativeDropResolution =
   | { target: typeof NATIVE_FILE_DROP_TARGET.editor }
+  | { target: typeof NATIVE_FILE_DROP_TARGET.markdown; editorId: string }
   | { target: typeof NATIVE_FILE_DROP_TARGET.terminal; tabId?: string; paneLeafId?: string }
   | { target: typeof NATIVE_FILE_DROP_TARGET.composer }
   | { target: typeof NATIVE_FILE_DROP_TARGET.fileExplorer; destinationDir: string }
@@ -23,6 +25,7 @@ export type NativeDropResolution =
 
 export type NativeFileDropPayload =
   | { paths: string[]; target: typeof NATIVE_FILE_DROP_TARGET.editor }
+  | { paths: string[]; target: typeof NATIVE_FILE_DROP_TARGET.markdown; editorId: string }
   | {
       paths: string[]
       target: typeof NATIVE_FILE_DROP_TARGET.terminal
@@ -48,6 +51,7 @@ export type NativeFileDropRejectedPayload = {
 export type NativeFileDropPathEntry = {
   nativeFileDropTarget?: string
   nativeFileDropDir?: string
+  nativeFileDropEditorId?: string
   terminalTabId?: string
   terminalPaneLeafId?: string
 }
@@ -106,6 +110,11 @@ export function resolveNativeFileDropPath(
   for (const entry of path) {
     terminalPaneLeafId ??= entry.terminalPaneLeafId
     const target = entry.nativeFileDropTarget
+    if (target === NATIVE_FILE_DROP_TARGET.markdown) {
+      return entry.nativeFileDropEditorId
+        ? { target, editorId: entry.nativeFileDropEditorId }
+        : { target: 'rejected' }
+    }
     if (target === NATIVE_FILE_DROP_TARGET.terminal) {
       return { target, tabId: entry.terminalTabId, paneLeafId: terminalPaneLeafId }
     }
@@ -205,7 +214,12 @@ export function createNativeFileDropPayload(
     }
   }
 
-  const target = resolution?.target ?? NATIVE_FILE_DROP_TARGET.editor
+  if (resolution?.target === NATIVE_FILE_DROP_TARGET.markdown) {
+    if (!paths.every((path) => /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i.test(path))) {
+      return { paths: [...paths], target: NATIVE_FILE_DROP_TARGET.editor }
+    }
+    return { paths: [...paths], target: resolution.target, editorId: resolution.editorId }
+  }
   if (resolution?.target === NATIVE_FILE_DROP_TARGET.terminal) {
     return {
       paths: [...paths],
@@ -215,7 +229,7 @@ export function createNativeFileDropPayload(
     }
   }
 
-  return { paths: [...paths], target }
+  return { paths: [...paths], target: resolution?.target ?? NATIVE_FILE_DROP_TARGET.editor }
 }
 
 export function isNativeFileDropPayload(value: unknown): value is NativeFileDropPayload {
@@ -241,6 +255,10 @@ export function isNativeFileDropPayload(value: unknown): value is NativeFileDrop
   }
   if (validateNativeFileDropPaths(payload.paths).status !== 'accepted') {
     return false
+  }
+
+  if (target === NATIVE_FILE_DROP_TARGET.markdown) {
+    return typeof payload.editorId === 'string' && payload.editorId.length > 0
   }
 
   if (target === NATIVE_FILE_DROP_TARGET.terminal) {

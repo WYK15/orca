@@ -90,6 +90,7 @@ export function useModalReturnFocus(visible: boolean): {
     focusFirstMatchingSurface([
       '.monaco-editor textarea',
       '.rich-markdown-editor[contenteditable="true"]',
+      '.live-markdown-editor .cm-content[contenteditable="true"]',
       '.markdown-preview'
     ])
   }, [focusCapturedElement, focusFirstMatchingSurface])

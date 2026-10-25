@@ -377,6 +377,7 @@ function resolveNativeFileDrop(event: DragEvent): NativeDropResolution | null {
     if (entry instanceof HTMLElement) {
       pathEntries.push({
         nativeFileDropTarget: entry.dataset.nativeFileDropTarget,
+        nativeFileDropEditorId: entry.dataset.nativeFileDropEditorId,
         nativeFileDropDir: entry.dataset.nativeFileDropDir,
         terminalTabId: entry.dataset.terminalTabId,
         terminalPaneLeafId: entry.dataset.terminalPaneLeafId ?? entry.dataset.leafId

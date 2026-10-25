@@ -76,7 +76,14 @@ Remove an entry after an upstream sync contains its equivalent commits.
 
 ## Markdown source preservation
 
-Rich editing rejects saves when it cannot preserve the original Markdown source
+The personal Tauri build uses a source-first CodeMirror 6 editor for Markdown.
+Live, source and reading views share document state and undo history. Visual
+edits patch source ranges, including table cells; untouched source and mixed
+line endings remain intact. Image imports use the file owner's existing
+local/SSH/runtime authorization. The Electron editor and source recovery path
+remain available. See [the editor design and validation notes](docs/readme/markdown-live-editor.md).
+
+The legacy rich editor rejects saves when it cannot preserve the original Markdown source
 formatting. It opens the edited draft in source mode and pauses all saves until
 the user accepts the formatting changes or restores the previous source.
 The draft, recovery source, and save pause survive workspace session restore.

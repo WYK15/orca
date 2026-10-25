@@ -32,6 +32,8 @@ import { ExternalFileChangeBanner } from './ExternalFileChangeBanner'
 import { MarkdownSourceEditorSurface } from './MarkdownSourceEditorSurface'
 import { MarkdownSaveRecoveryBanner } from './MarkdownSaveRecoveryBanner'
 import { stageMarkdownSaveRecovery } from './markdown-save-recovery'
+import { LIVE_MARKDOWN_ENABLED } from '../../../../shared/fork-feature-policy'
+import { LiveMarkdownBoundary } from './live-markdown/LiveMarkdownBoundary'
 
 const MonacoEditor = lazy(() => import('./MonacoEditor'))
 const DiffViewer = lazy(() => import('./DiffViewer'))
@@ -39,6 +41,7 @@ const CombinedDiffViewer = lazy(() => import('./CombinedDiffViewer'))
 const RichMarkdownEditor = lazy(() => import('./RichMarkdownEditor'), {
   reloadKey: 'rich-markdown-editor'
 })
+const OrcawMarkdownEditor = lazy(() => import('./live-markdown/OrcawMarkdownEditor'))
 const MarkdownPreview = lazy(() => import('./MarkdownPreview'))
 const ImageViewer = lazy(() => import('./ImageViewer'))
 const ImageDiffViewer = lazy(() => import('./ImageDiffViewer'))
@@ -351,12 +354,6 @@ export function EditorContent({
 
   const renderMarkdownContent = (fc: FileContent): React.JSX.Element => {
     const currentContent = editBuffers[activeFile.id] ?? fc.content
-    const richModeUnsupportedMessage = getMarkdownRichModeUnsupportedMessage(currentContent)
-    const renderMode = getMarkdownRenderMode({
-      exceedsRichModeSizeLimit: exceedsMarkdownRichModeSizeLimit(currentContent),
-      hasRichModeUnsupportedContent: richModeUnsupportedMessage !== null,
-      viewMode: mdViewMode
-    })
 
     const renderMarkdownSource = (headerSlot?: React.ReactNode): React.JSX.Element => (
       <div className="flex h-full min-h-0 flex-col">
@@ -390,6 +387,46 @@ export function EditorContent({
       // Why: rich/preview modes hide the conflict-marker source text the user must edit directly.
       return renderMarkdownSource()
     }
+
+    if (LIVE_MARKDOWN_ENABLED) {
+      return (
+        <LiveMarkdownBoundary key={viewStateScopeId} fallback={renderMarkdownSource()}>
+          <OrcawMarkdownEditor
+            fileId={activeFile.id}
+            content={currentContent}
+            filePath={activeFile.filePath}
+            worktreeId={activeFile.worktreeId}
+            externalSshTargetId={activeFile.externalSshTargetId}
+            runtimeEnvironmentId={activeFile.runtimeEnvironmentId}
+            viewMode={mdViewMode}
+            readOnly={activeFile.readOnly === true}
+            scrollCacheKey={`${editorViewStateKey}:live`}
+            onContentChange={activeFile.readOnly ? noopEditorContentChange : handleContentChange}
+            onDirtyStateHint={activeFile.readOnly ? () => {} : handleDirtyStateHint}
+            onSave={activeFile.readOnly ? noopEditorSave : md.mdSave}
+            showTableOfContents={showMarkdownTableOfContents}
+            onCloseTableOfContents={onCloseMarkdownTableOfContents}
+            revealLine={
+              matchesPendingEditorReveal(pendingEditorReveal, activeFile)
+                ? pendingEditorReveal.line
+                : undefined
+            }
+            revealColumn={
+              matchesPendingEditorReveal(pendingEditorReveal, activeFile)
+                ? pendingEditorReveal.column
+                : undefined
+            }
+          />
+        </LiveMarkdownBoundary>
+      )
+    }
+
+    const richModeUnsupportedMessage = getMarkdownRichModeUnsupportedMessage(currentContent)
+    const renderMode = getMarkdownRenderMode({
+      exceedsRichModeSizeLimit: exceedsMarkdownRichModeSizeLimit(currentContent),
+      hasRichModeUnsupportedContent: richModeUnsupportedMessage !== null,
+      viewMode: mdViewMode
+    })
 
     // Why: banner explains why the "rich" view is showing Monaco source (size forced a source-mode fallback).
     if (renderMode === 'source' && mdViewMode === 'rich') {
@@ -746,6 +783,28 @@ export function EditorContent({
     }
     const previewSourceFileId = activeFile.markdownPreviewSourceFileId ?? activeFile.filePath
     const previewContent = editBuffers[previewSourceFileId] ?? fc.content
+    if (LIVE_MARKDOWN_ENABLED) {
+      return (
+        <OrcawMarkdownEditor
+          key={viewStateScopeId}
+          fileId={activeFile.id}
+          content={previewContent}
+          filePath={activeFile.filePath}
+          worktreeId={activeFile.worktreeId}
+          externalSshTargetId={activeFile.externalSshTargetId}
+          runtimeEnvironmentId={activeFile.runtimeEnvironmentId}
+          viewMode="preview"
+          readOnly
+          scrollCacheKey={markdownPreviewViewStateKey}
+          onContentChange={noopEditorContentChange}
+          onDirtyStateHint={() => {}}
+          onSave={noopEditorSave}
+          showTableOfContents={showMarkdownTableOfContents}
+          onCloseTableOfContents={onCloseMarkdownTableOfContents}
+          initialAnchor={activeFile.markdownPreviewAnchor ?? undefined}
+        />
+      )
+    }
     return (
       <div className="min-h-0 flex-1">
         <MarkdownPreview

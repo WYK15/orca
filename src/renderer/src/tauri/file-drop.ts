@@ -36,6 +36,7 @@ export function resolveDesktopFileDrop(value: unknown, target: Document = docume
     if (element instanceof HTMLElement) {
       entries.push({
         nativeFileDropTarget: element.dataset.nativeFileDropTarget,
+        nativeFileDropEditorId: element.dataset.nativeFileDropEditorId,
         nativeFileDropDir: element.dataset.nativeFileDropDir,
         terminalTabId: element.dataset.terminalTabId,
         terminalPaneLeafId: element.dataset.terminalPaneLeafId ?? element.dataset.leafId
