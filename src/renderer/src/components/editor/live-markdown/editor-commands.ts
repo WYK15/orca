@@ -1,13 +1,17 @@
-import { EditorSelection, type EditorState, type StateCommand } from '@codemirror/state'
-import { syntaxTree } from '@codemirror/language'
+import { EditorSelection, type StateCommand } from '@codemirror/state'
 import type { Command, KeyBinding } from '@codemirror/view'
 import { insertNewlineContinueMarkupCommand } from '@codemirror/lang-markdown'
 import { indentMore, indentLess, insertNewlineAndIndent } from '@codemirror/commands'
-import { revealTableSource, revealedTableField } from './editor-context'
+import { revealTableSource, revealedTableField, markdownEditorMode } from './editor-context'
 import { parseMarkdownTable } from './table-source'
 import { selectTableCell } from './table-cell-selection'
 import { clearMarkdownInlineFormat } from './markdown-clear-format'
-import { toggleMarkdownInline, type MarkdownInlineFormat } from './markdown-inline-format'
+import {
+  toggleMarkdownInline,
+  markdownCodeBlockAt,
+  type MarkdownInlineFormat
+} from './markdown-inline-format'
+import { markdownDocumentBreak } from './markdown-document-commands'
 import { runTableCellCommand, hasTableCellInput } from './table-cell-command-target'
 import {
   completeMarkdownTable,
@@ -29,11 +33,7 @@ export const removeListMarker: StateCommand = ({ state, dispatch }) => {
   if (!prefix || selection.head !== line.from + prefix[0].length) {
     return false
   }
-  let node = syntaxTree(state).resolveInner(selection.head, -1)
-  while (node.parent && node.name !== 'FencedCode' && node.name !== 'CodeBlock') {
-    node = node.parent
-  }
-  if (node.name === 'FencedCode' || node.name === 'CodeBlock') {
+  if (markdownCodeBlockAt(state)) {
     return false
   }
   dispatch(
@@ -112,20 +112,9 @@ export function insertMarkdownBlock(content: string, cursorOffset = content.leng
   }
 }
 
-function codeBlockAt(state: EditorState) {
-  let node = syntaxTree(state).resolveInner(state.selection.main.head, -1)
-  while (node.parent) {
-    if (node.name === 'FencedCode' || node.name === 'CodeBlock') {
-      return node
-    }
-    node = node.parent
-  }
-  return null
-}
-
 export const exitCodeBlock: Command = (view) => {
-  const node = codeBlockAt(view.state)
-  if (!node) {
+  const node = markdownCodeBlockAt(view.state)
+  if (!node || view.state.readOnly) {
     return false
   }
   const line = view.state.doc.lineAt(node.to)
@@ -152,7 +141,7 @@ export const completeCodeFence: StateCommand = ({ state, dispatch }) => {
   if (!fence || state.selection.main.head !== line.to) {
     return false
   }
-  const block = codeBlockAt(state)
+  const block = markdownCodeBlockAt(state)
   if (
     block &&
     (block.from < line.from ||
@@ -183,7 +172,7 @@ const softBreak: StateCommand = ({ state, dispatch }) => {
   const line = state.doc.lineAt(selection.from)
   const prefix = line.text.match(/^(\s*)(?:[-+*]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/)
   const indent = prefix ? ' '.repeat(prefix[0].length) : ''
-  const code = codeBlockAt(state)
+  const code = markdownCodeBlockAt(state)
   const breakText = code ? '\n' : '  \n'
   dispatch(
     state.update({
@@ -196,7 +185,11 @@ const softBreak: StateCommand = ({ state, dispatch }) => {
 }
 
 export const paragraphBreak: StateCommand = ({ state, dispatch }) => {
-  if (state.readOnly || codeBlockAt(state)) {
+  if (
+    state.readOnly ||
+    markdownCodeBlockAt(state) ||
+    state.facet(markdownEditorMode) === 'source'
+  ) {
     return false
   }
   const selection = state.selection.main
@@ -217,6 +210,7 @@ export const paragraphBreak: StateCommand = ({ state, dispatch }) => {
 
 export const liveMarkdownKeymap: KeyBinding[] = [
   { key: 'Backspace', run: removeListMarker },
+  { key: 'Enter', run: markdownDocumentBreak },
   { key: 'Enter', run: completeCodeFence },
   { key: 'Enter', run: completeMarkdownTable },
   { key: 'Enter', run: insertNewlineContinueMarkupCommand({ nonTightLists: false }) },

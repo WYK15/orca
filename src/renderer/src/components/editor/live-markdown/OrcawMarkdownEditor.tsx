@@ -24,6 +24,7 @@ import { MarkdownTableOfContentsPanel } from '../MarkdownTableOfContentsPanel'
 import { buildMarkdownTableOfContents, type MarkdownTocItem } from '../markdown-table-of-contents'
 import { onImageCacheInvalidated } from '../useLocalImageSrc'
 import type { MarkdownViewMode } from '@/store/slices/editor'
+import { navigateMarkdownAnchor } from './markdown-document-navigation'
 
 type Props = MarkdownFileOwner & {
   fileId: string
@@ -159,21 +160,10 @@ export default function OrcawMarkdownEditor(props: Props): React.JSX.Element {
     if (!instance) {
       return
     }
-    let line = props.revealLine
+    const line = props.revealLine
     if (!line && props.initialAnchor) {
-      const find = (items: MarkdownTocItem[]): MarkdownTocItem | undefined => {
-        for (const item of items) {
-          if (item.id === props.initialAnchor?.replace(/^#/, '')) {
-            return item
-          }
-          const child = find(item.children)
-          if (child) {
-            return child
-          }
-        }
-        return undefined
-      }
-      line = find(buildMarkdownTableOfContents(current.current.content))?.line
+      navigateMarkdownAnchor(instance, `#${props.initialAnchor.replace(/^#/, '')}`)
+      return
     }
     if (!line) {
       return

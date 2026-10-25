@@ -1,6 +1,7 @@
 import { EditorState, type StateCommand, type Transaction } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { markdownDocumentSyntax } from './markdown-document-syntax'
 
 type TableCellInput = {
   element: HTMLTextAreaElement
@@ -26,7 +27,7 @@ export function runTableCellCommand(view: EditorView, command: StateCommand): bo
   const state = EditorState.create({
     doc: element.value,
     selection: { anchor: element.selectionStart, head: element.selectionEnd },
-    extensions: [markdown({ base: markdownLanguage })]
+    extensions: [markdown({ base: markdownLanguage, extensions: markdownDocumentSyntax })]
   })
   return command({ state, dispatch: target.apply })
 }

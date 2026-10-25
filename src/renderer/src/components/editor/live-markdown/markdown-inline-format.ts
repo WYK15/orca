@@ -12,7 +12,7 @@ export function markdownCodeBlockAt(
 ): SyntaxNode | null {
   let node: SyntaxNode | null = syntaxTree(state).resolveInner(position, -1)
   while (node) {
-    if (node.name === 'FencedCode' || node.name === 'CodeBlock') {
+    if (['FencedCode', 'CodeBlock', 'FrontMatter', 'DisplayMath'].includes(node.name)) {
       return node
     }
     node = node.parent

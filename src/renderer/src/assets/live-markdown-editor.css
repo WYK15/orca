@@ -125,11 +125,93 @@
 .live-md-html img {
   max-width: 100%;
 }
+.live-md-html-inline img {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.live-md-document-toc,
+.live-md-metadata {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.live-md-document-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.live-md-document-toc ol {
+  list-style: none;
+  margin-block: 8px 0;
+  padding: 0;
+}
+.live-md-document-toc a,
+.live-md-note-reference a,
+.live-md-fragment a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.live-md-document-toc a:hover,
+.live-md-note-reference a:hover {
+  color: var(--muted-foreground);
+}
+.live-md-metadata p {
+  margin-block: 4px 0;
+}
+.live-md-note-reference {
+  display: inline-block;
+  vertical-align: super;
+  line-height: 1;
+  font-size: 12px;
+}
+.live-md-footnotes {
+  display: flow-root;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.live-md-footnotes ol {
+  list-style: decimal;
+  padding-inline-start: 24px;
+}
+.live-md-footnotes li {
+  margin-block: 8px;
+}
+.live-md-footnote-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.live-md-fragment p {
+  margin-block: 4px;
+}
+.live-md-fragment code {
+  font-family: var(--font-mono);
+  background: var(--muted);
+}
+.live-md-fragment img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+.live-md-fragment .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+}
 .live-md-html summary {
   cursor: pointer;
 }
 .live-md-math {
   cursor: text;
+}
+div.live-md-math {
+  display: flow-root;
 }
 .live-md-diagram {
   padding-block: 16px;
@@ -184,8 +266,7 @@
 .live-md-table {
   position: relative;
   overflow-x: auto;
-  margin-block: 16px;
-  padding-top: 28px;
+  padding-block: 28px 16px;
 }
 .live-md-table table {
   border-collapse: collapse;

@@ -8,7 +8,16 @@ import { selectTableCell } from './table-cell-selection'
 function protectedBlockLine(state: EditorState, position: number): boolean {
   let node = syntaxTree(state).resolveInner(position, 1)
   while (node.parent) {
-    if (['FencedCode', 'CodeBlock', 'Table'].includes(node.name)) {
+    if (
+      [
+        'FencedCode',
+        'CodeBlock',
+        'Table',
+        'FrontMatter',
+        'DisplayMath',
+        'FootnoteDefinition'
+      ].includes(node.name)
+    ) {
       return true
     }
     node = node.parent

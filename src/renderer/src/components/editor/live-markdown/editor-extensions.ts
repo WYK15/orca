@@ -14,6 +14,8 @@ import { tableCellSelection } from './table-cell-selection'
 import { markdownSlashCompletion } from './slash-completion'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { copyMarkdownSource } from './markdown-copy-source'
+import { markdownDocumentSyntax } from './markdown-document-syntax'
+import { markdownDocumentModel } from './markdown-document-model'
 
 export function markdownEditorExtensions(): Extension {
   return [
@@ -26,7 +28,13 @@ export function markdownEditorExtensions(): Extension {
       { closeBrackets: { brackets: ['(', '[', '{', '"', "'"], before: ')]}:;> ' } }
     ]),
     EditorView.lineWrapping,
-    markdown({ base: markdownLanguage, codeLanguages: languages, addKeymap: false }),
+    markdown({
+      base: markdownLanguage,
+      extensions: markdownDocumentSyntax,
+      codeLanguages: languages,
+      addKeymap: false
+    }),
+    markdownDocumentModel,
     revealedTableField,
     tableCellSelection,
     markdownSlashCompletion,

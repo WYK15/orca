@@ -1,6 +1,5 @@
 import { WidgetType, type EditorView } from '@codemirror/view'
-import DOMPurify from 'dompurify'
-import { markdownEditorContext } from './editor-context'
+import { mountMarkdownHtmlPreview } from './markdown-html-preview'
 
 export class MarkdownEntityWidget extends WidgetType {
   constructor(readonly source: string) {
@@ -18,11 +17,13 @@ export class MarkdownEntityWidget extends WidgetType {
   }
 }
 
+const htmlDisposers = new WeakMap<HTMLElement, () => void>()
 export class MarkdownHtmlWidget extends WidgetType {
   constructor(
     readonly source: string,
     readonly from: number,
-    readonly mediaVersion = ''
+    readonly mediaVersion = '',
+    readonly inline = false
   ) {
     super()
   }
@@ -30,52 +31,30 @@ export class MarkdownHtmlWidget extends WidgetType {
     return (
       this.source === other.source &&
       this.from === other.from &&
-      this.mediaVersion === other.mediaVersion
+      this.mediaVersion === other.mediaVersion &&
+      this.inline === other.inline
     )
   }
   toDOM(view: EditorView): HTMLElement {
-    const dom = document.createElement('div')
-    dom.className = 'live-md-html'
-    dom.append(
-      DOMPurify.sanitize(this.source, {
-        RETURN_DOM_FRAGMENT: true,
-        FORBID_TAGS: ['style', 'script', 'iframe', 'object', 'embed', 'form', 'input', 'button'],
-        FORBID_ATTR: ['style', 'id', 'class', 'contenteditable', 'tabindex']
-      })
-    )
-    for (const image of dom.querySelectorAll('img')) {
-      const path = image.getAttribute('src')
-      image.removeAttribute('src')
-      if (path) {
-        void view.state
-          .facet(markdownEditorContext)
-          .loadImage(path)
-          .then((src) => {
-            if (src) {
-              image.src = src
-              if (view.dom.isConnected) {
-                view.requestMeasure()
-              }
-            }
-          })
-          .catch(() => {})
-      }
-    }
+    const dom = document.createElement(this.inline ? 'span' : 'div')
+    dom.className = this.inline ? 'live-md-html-inline' : 'live-md-html'
+    htmlDisposers.set(dom, mountMarkdownHtmlPreview(dom, this.source, view, this.inline))
     dom.addEventListener('click', (event) => {
       const target = event.target instanceof Element ? event.target : null
-      const link = target?.closest('a')
-      if (link) {
-        event.preventDefault()
-        view.state.facet(markdownEditorContext).openLink(link.getAttribute('href') ?? '')
+      if (view.state.readOnly || target?.closest('a,summary')) {
         return
       }
-      if (target?.closest('summary') || view.state.readOnly) {
-        return
-      }
-      view.dispatch({ selection: { anchor: this.from }, scrollIntoView: true })
+      view.dispatch({
+        selection: { anchor: this.from + (this.inline ? 1 : 0) },
+        scrollIntoView: true
+      })
       view.focus()
     })
     return dom
+  }
+  destroy(dom: HTMLElement): void {
+    htmlDisposers.get(dom)?.()
+    htmlDisposers.delete(dom)
   }
   ignoreEvent(): boolean {
     return true
@@ -86,13 +65,17 @@ export class MarkdownMathWidget extends WidgetType {
   constructor(
     readonly formula: string,
     readonly display: boolean,
-    readonly from: number
+    readonly from: number,
+    readonly contentFrom = from + (display ? 3 : 1)
   ) {
     super()
   }
   eq(other: MarkdownMathWidget): boolean {
     return (
-      this.formula === other.formula && this.display === other.display && this.from === other.from
+      this.formula === other.formula &&
+      this.display === other.display &&
+      this.from === other.from &&
+      this.contentFrom === other.contentFrom
     )
   }
   toDOM(view: EditorView): HTMLElement {
@@ -117,7 +100,7 @@ export class MarkdownMathWidget extends WidgetType {
         return
       }
       view.dispatch({
-        selection: { anchor: this.from + (this.display ? 3 : 1) },
+        selection: { anchor: this.contentFrom },
         scrollIntoView: true
       })
       view.focus()

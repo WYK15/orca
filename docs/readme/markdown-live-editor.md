@@ -87,6 +87,7 @@ pnpm exec vite --config tests/tools/markdown-live-editor/vite.config.ts
 node tests/tools/markdown-live-editor/verify.mjs
 node tests/tools/markdown-live-editor/verify-table-interactions.mjs
 node tests/tools/markdown-live-editor/verify-writing-interactions.mjs
+node tests/tools/markdown-live-editor/verify-document-features.mjs
 ```
 
 Set `ORCA_MARKDOWN_CHECK_BROWSER=webkit` to run the same browser checks in WebKit.
@@ -110,11 +111,30 @@ The writing interaction check runs the following workflows in Chrome and WebKit:
 | Links | Inline, reference and bare URLs resolve through the existing file owner; reference definitions stay hidden in reading mode |
 | Typing | Bracket pairing, closing-character skipping and paired deletion work without changing fence completion |
 
+## Document feature acceptance
+
+The document interaction check covers these workflows in Chrome and WebKit:
+
+| Feature | Checked behavior |
+| --- | --- |
+| Metadata | Closed YAML at the document start is distinct from headings; collapse/reveal, scalar/sequence/error states, literal Enter and exact undo; reading mode hides it |
+| Body TOC | Case-insensitive `[TOC]`, six heading levels, duplicate anchors, live updates and internal link navigation |
+| Math | Inline and multiline display formulas, literal code and currency, local source editing, Enter completion and shared history; formulas also render in table cells |
+| Footnotes | First-reference numbering, repeated and undefined references, indented continuation, hover previews, local definition editing, footer/backlink navigation and reading mode |
+| HTML | Common inline tags, allowed authored styles, owner-authorized images and details; click to edit local source; scripts/events stay inactive and unsupported tags remain source |
+| Geometry | Block-widget spacing stays inside measured bounds so links and text after TOCs, tables and formulas map to source positions |
+
+These additions keep the original Markdown as the only saved representation.
+Rendering, note numbering and generated TOCs do not rewrite the document.
+YAML and formulas use literal line breaks while their source is active; Cmd/Ctrl+Enter
+exits the block. Source mode retains normal code-editor Enter behavior.
+
 Remaining gaps from the Typora comparison:
 
 - Richer table selection, row/column drag ordering and a table-size picker.
 - Complete link/image editing panels, image sizing and asset-folder preferences.
-- Complete inline math/footnotes, YAML front matter, inline HTML and extended syntax.
+- Nested footnote definitions/references inside tables and other containers; broader extended-syntax compatibility.
+- Full HTML/CSS fidelity and configurable math syntax; unsupported constructs remain local source.
 - Nested quote presentation, multi-item list operations and precise caret restoration in every history case.
 - Focus/typewriter modes, writing-layout preferences, word count/spellcheck and export integration.
 - Native macOS input-method acceptance and large-document performance measurements.

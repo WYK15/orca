@@ -24,6 +24,7 @@ import {
   pasteClipboardMarkdown
 } from './clipboard-markdown'
 import { markdownLinkAt } from './markdown-links'
+import { navigateMarkdownAnchor } from './markdown-document-navigation'
 import '../../../assets/live-markdown-editor.css'
 
 const refreshPresentation = StateEffect.define<null>()
@@ -52,6 +53,11 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
   const [view, setView] = useState<EditorView | null>(null)
   const presentation = useRef(new Compartment())
   const media = useRef(new Compartment())
+  const openLink = (href: string): void => {
+    if (!viewRef.current || !navigateMarkdownAnchor(viewRef.current, href)) {
+      current.current.context.openLink(href)
+    }
+  }
   useLayoutEffect(() => {
     current.current = props
   })
@@ -72,7 +78,7 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
       markdownEditorContext.of({
         version: current.current.context.version,
         loadImage: (path) => current.current.context.loadImage(path),
-        openLink: (href) => current.current.context.openLink(href)
+        openLink
       })
     ),
     EditorView.contentAttributes.of({ 'aria-label': 'Markdown 文档', spellcheck: 'false' }),
@@ -127,7 +133,7 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
         const link = markdownLinkAt(editor.state, position)
         if (link) {
           event.preventDefault()
-          current.current.context.openLink(link.href)
+          openLink(link.href)
           return true
         }
         return false
@@ -204,7 +210,7 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
         markdownEditorContext.of({
           version: props.context.version,
           loadImage: (path) => current.current.context.loadImage(path),
-          openLink: (href) => current.current.context.openLink(href)
+          openLink
         })
       )
     })

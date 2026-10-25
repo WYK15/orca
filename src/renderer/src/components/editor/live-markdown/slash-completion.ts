@@ -16,6 +16,7 @@ const blocks = [
   { label: '代码块', detail: '```', apply: '```\n\n```', cursor: 4 },
   { label: '表格', detail: '2 × 2', apply: '| 列 1 | 列 2 |\n| --- | --- |\n|  |  |' },
   { label: '数学公式', detail: '$$', apply: '$$\n\n$$', cursor: 3 },
+  { label: '目录', detail: '[TOC]', apply: '[TOC]\n\n' },
   {
     label: 'Mermaid 图表',
     detail: 'mermaid',
@@ -39,7 +40,7 @@ function completeMarkdownBlock(context: CompletionContext): CompletionResult | n
   }
   let node = syntaxTree(context.state).resolveInner(match.from, -1)
   while (node.parent) {
-    if (node.name === 'FencedCode' || node.name === 'CodeBlock') {
+    if (['FencedCode', 'CodeBlock', 'FrontMatter', 'DisplayMath'].includes(node.name)) {
       return null
     }
     node = node.parent

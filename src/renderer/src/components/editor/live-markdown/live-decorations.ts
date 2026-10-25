@@ -10,7 +10,11 @@ import {
 } from './inline-widgets'
 import { parseMarkdownTable } from './table-source'
 import { MarkdownTableWidget } from './table-widget'
-import { MarkdownEntityWidget, MarkdownHtmlWidget, MarkdownMathWidget } from './rendered-widgets'
+import { MarkdownEntityWidget } from './rendered-widgets'
+import {
+  decorateMarkdownDocumentNode,
+  appendMarkdownFootnotes
+} from './markdown-document-decorations'
 import { MarkdownDiagramWidget } from './diagram-widget'
 import { tableCellSelection } from './table-cell-selection'
 import { markdownSourceLinks } from './markdown-links'
@@ -45,6 +49,9 @@ function buildDecorations(state: EditorState): DecorationSet {
     enter(node) {
       const { from, to, name } = node
       const source = text.slice(from, to)
+      if (decorateMarkdownDocumentNode(state, node.node, ranges, line)) {
+        return false
+      }
       if (name === 'LinkReference' && mode === 'preview') {
         hide(from, to)
         return false
@@ -189,19 +196,6 @@ function buildDecorations(state: EditorState): DecorationSet {
         }
         return false
       }
-      if (
-        name === 'HTMLBlock' &&
-        !active(state, from, to) &&
-        !/<(?:script|style|iframe|[A-Z][\w.]*)\b/.test(source)
-      ) {
-        ranges.push(
-          Decoration.replace({
-            block: true,
-            widget: new MarkdownHtmlWidget(source, from, state.facet(markdownEditorContext).version)
-          }).range(from, to)
-        )
-        return false
-      }
       if ((name === 'Entity' || name === 'CharacterReference') && !active(state, from, to)) {
         ranges.push(
           Decoration.replace({ widget: new MarkdownEntityWidget(source) }).range(from, to)
@@ -209,23 +203,6 @@ function buildDecorations(state: EditorState): DecorationSet {
       }
       if (name === 'Escape' && !active(state, from, to)) {
         hide(from, Math.min(from + 1, to))
-      }
-      if (
-        name === 'Paragraph' &&
-        /^\$\$\s*\n[\s\S]*\n\$\$\s*$/.test(source) &&
-        !active(state, from, to)
-      ) {
-        ranges.push(
-          Decoration.replace({
-            block: true,
-            widget: new MarkdownMathWidget(
-              source.replace(/^\$\$\s*\n/, '').replace(/\n\$\$\s*$/, ''),
-              true,
-              from
-            )
-          }).range(from, to)
-        )
-        return false
       }
       if (name === 'Image') {
         const match = source.match(/^!\[([^\]]*)\]\(\s*(?:<([^>]+)>|([^\s)]+))(?:\s+[^)]*)?\s*\)$/)
@@ -273,6 +250,7 @@ function buildDecorations(state: EditorState): DecorationSet {
   for (const [from, classes] of lineClasses) {
     ranges.push(Decoration.line({ class: [...classes].join(' ') }).range(from))
   }
+  appendMarkdownFootnotes(state, ranges)
   return Decoration.set(ranges, true)
 }
 
