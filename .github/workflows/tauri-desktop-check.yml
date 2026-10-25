@@ -91,6 +91,10 @@ jobs:
           src/renderer/src/components/sidebar/sidebar-project-archive-actions.test.ts
           src/renderer/src/components/sidebar/personal-workspace-board.test.tsx
           src/renderer/src/components/sidebar/personal-workspace-lifecycle.test.ts
+          src/renderer/src/components/editor/live-markdown
+          src/shared/native-file-drop.test.ts
+          src/shared/native-markdown-drop.test.ts
+          src/renderer/src/tauri/file-drop.test.ts
           src/renderer/src/lib/sidebar-worktree-activation.test.ts
           src/renderer/src/components/sidebar/sleep-worktree-flow.test.ts
           src/renderer/src/components/sidebar/sleep-worktree-activation-race.test.ts
