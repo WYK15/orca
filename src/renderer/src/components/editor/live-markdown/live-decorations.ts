@@ -51,15 +51,14 @@ function buildDecorations(state: EditorState): DecorationSet {
     enter(node) {
       const { from, to, name } = node
       const source = text.slice(from, to)
+      if (mode === 'live' && /^ATXHeading\d$/.test(name) && !/^#{1,6}[\t ]/.test(source)) {
+        return false
+      }
       if (name === 'Table' && state.field(revealedTableField, false) !== from) {
         const caret = state.selection.main
         const cell = state.field(tableCellSelection, false)
         const editingSource =
-          mode !== 'preview' &&
-          caret.empty &&
-          caret.head > from &&
-          caret.head < to &&
-          (!cell || caret.head < cell.from || caret.head > cell.to)
+          mode !== 'preview' && caret.empty && caret.head > from && caret.head < to && !cell
         const table = parseMarkdownTable(text, from, to)
         const selectingAcross =
           mode !== 'preview' &&
@@ -71,7 +70,9 @@ function buildDecorations(state: EditorState): DecorationSet {
                 table,
                 source,
                 !state.readOnly,
-                state.facet(markdownEditorContext).version
+                state.facet(markdownEditorContext).version,
+                cell && cell.from >= from && cell.to <= to ? cell : null,
+                caret.head
               ),
               block: true
             }).range(from, to)

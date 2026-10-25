@@ -3,6 +3,7 @@ import { WidgetType, type EditorView } from '@codemirror/view'
 import { LiveMarkdownTable } from './LiveMarkdownTable'
 import type { MarkdownTable } from './table-source'
 import { revealTableSource } from './editor-context'
+import type { TableCellRange } from './table-cell-selection'
 
 const roots = new WeakMap<HTMLElement, Root>()
 
@@ -11,7 +12,9 @@ export class MarkdownTableWidget extends WidgetType {
     readonly table: MarkdownTable,
     readonly raw: string,
     readonly canEdit: boolean,
-    readonly mediaVersion = ''
+    readonly mediaVersion = '',
+    readonly selectedCell: TableCellRange | null = null,
+    readonly selectionHead = 0
   ) {
     super()
   }
@@ -20,7 +23,10 @@ export class MarkdownTableWidget extends WidgetType {
       this.raw === other.raw &&
       this.table.from === other.table.from &&
       this.canEdit === other.canEdit &&
-      this.mediaVersion === other.mediaVersion
+      this.mediaVersion === other.mediaVersion &&
+      this.selectedCell?.from === other.selectedCell?.from &&
+      this.selectedCell?.to === other.selectedCell?.to &&
+      this.selectionHead === other.selectionHead
     )
   }
   toDOM(view: EditorView): HTMLElement {

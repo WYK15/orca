@@ -58,6 +58,17 @@ Verified in Chrome and Playwright WebKit:
   a row and retains focus. Source/live switches and remounts retain undo/redo.
 - List Enter, hard breaks, marker-only Backspace, inline-code escape, fence
   completion, code-block exit and slash commands on continuation lines work.
+- All six ATX heading levels wait for whitespace before live rendering. Bare
+  hashes remain visible while typing; reading mode retains Markdown semantics.
+- Table context menus target the right-clicked cell, with row/column insertion,
+  deletion, clearing and alignment. Column operations preserve neighboring cell
+  spacing; header insertion/deletion retains a valid Markdown table.
+- Structural edits retain a rendered input and are individually undoable. Restored
+  source carets enter the corresponding cell. Short body rows materialize only
+  the missing cells being edited; extra cell text is retained.
+- Table cells support save/search, Tab/Shift+Tab, boundary arrow navigation,
+  Shift+Enter line breaks, Cmd/Ctrl+Enter insertion below and
+  Cmd/Ctrl+Shift+Backspace row deletion. Escape returns to the document.
 - Chrome composition commits Chinese without duplication; WebKit insertion and
   table focus work. Native macOS input methods still need hands-on acceptance.
 - Reading previews remain read-only; local-image presentation and HTML details,
@@ -74,6 +85,7 @@ repository root:
 ```sh
 pnpm exec vite --config tests/tools/markdown-live-editor/vite.config.ts
 node tests/tools/markdown-live-editor/verify.mjs
+node tests/tools/markdown-live-editor/verify-table-interactions.mjs
 ```
 
 Set `ORCA_MARKDOWN_CHECK_BROWSER=webkit` to run the same browser checks in WebKit.

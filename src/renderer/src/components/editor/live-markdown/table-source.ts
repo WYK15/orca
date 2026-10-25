@@ -1,5 +1,17 @@
-export type MarkdownTableCell = { from: number; to: number; text: string }
-export type MarkdownTableRow = { from: number; to: number; cells: MarkdownTableCell[] }
+export type MarkdownTableCell = {
+  from: number
+  to: number
+  rawFrom: number
+  rawTo: number
+  text: string
+  missing?: boolean
+}
+export type MarkdownTableRow = {
+  from: number
+  to: number
+  cells: MarkdownTableCell[]
+  trailingPipe: boolean
+}
 export type MarkdownTable = {
   from: number
   to: number
@@ -27,7 +39,8 @@ export function parseTableRow(text: string, from: number): MarkdownTableRow {
   if (delimiters[0] !== first) {
     delimiters.unshift(-1)
   }
-  if (delimiters.at(-1) !== text.trimEnd().length - 1) {
+  const trailingPipe = delimiters.at(-1) === text.trimEnd().length - 1
+  if (!trailingPipe) {
     delimiters.push(text.length)
   }
   const cells = delimiters.slice(0, -1).map((start, index) => {
@@ -37,9 +50,15 @@ export function parseTableRow(text: string, from: number): MarkdownTableRow {
     const trailing = raw.length - raw.trimEnd().length
     const cellFrom = from + start + 1 + leading
     const cellTo = Math.max(cellFrom, from + end - trailing)
-    return { from: cellFrom, to: cellTo, text: text.slice(cellFrom - from, cellTo - from) }
+    return {
+      from: cellFrom,
+      to: cellTo,
+      rawFrom: from + start + 1,
+      rawTo: from + end,
+      text: text.slice(cellFrom - from, cellTo - from)
+    }
   })
-  return { from, to: from + text.length, cells }
+  return { from, to: from + text.length, cells, trailingPipe }
 }
 
 export function parseMarkdownTable(text: string, from: number, to: number): MarkdownTable | null {
@@ -54,7 +73,7 @@ export function parseMarkdownTable(text: string, from: number, to: number): Mark
     return row
   })
   const delimiter = rows[1]
-  if (!delimiter.cells.length || delimiter.cells.some((cell) => !/^:?-{3,}:?$/.test(cell.text))) {
+  if (!delimiter.cells.length || delimiter.cells.some((cell) => !/^:?-+:?$/.test(cell.text))) {
     return null
   }
   const align = delimiter.cells.map((cell) =>
@@ -66,7 +85,14 @@ export function parseMarkdownTable(text: string, from: number, to: number): Mark
         ? 'right'
         : null
   ) as MarkdownTable['align']
-  return { from, to, rows: [rows[0], ...rows.slice(2)], delimiter, align }
+  const contentRows = [rows[0], ...rows.slice(2)]
+  for (const row of contentRows) {
+    const at = row.cells.at(-1)?.rawTo ?? row.to
+    while (row.cells.length < delimiter.cells.length) {
+      row.cells.push({ from: at, to: at, rawFrom: at, rawTo: at, text: '', missing: true })
+    }
+  }
+  return { from, to, rows: contentRows, delimiter, align }
 }
 
 export function editTableCell(
@@ -79,7 +105,18 @@ export function editTableCell(
   if (!cell) {
     return null
   }
-  const insert = value.replace(/(?<!\\)\|/g, '\\|').replace(/\r?\n/g, '<br>')
+  const insert = value
+    .replace(/(\\*)\|/g, (_, escapes: string) => `${escapes}${escapes.length % 2 ? '' : '\\'}|`)
+    .replace(/\r?\n/g, '<br>')
+  if (cell.missing) {
+    const line = table.rows[row]
+    const count = line.cells.slice(0, column + 1).filter((item) => item.missing).length
+    return {
+      from: cell.from,
+      to: cell.to,
+      insert: `${'|  '.repeat(count - 1)}| ${insert} ${line.trailingPipe ? '' : '|'}`
+    }
+  }
   return { from: cell.from, to: cell.to, insert }
 }
 
@@ -90,6 +127,9 @@ export type TableStructureAction =
   | 'column-before'
   | 'column-after'
   | 'delete-column'
+  | 'clear-row'
+  | 'clear-column'
+  | 'delete-table'
   | 'align-left'
   | 'align-center'
   | 'align-right'
@@ -106,6 +146,18 @@ export function editTableStructure(
   if (!selected) {
     return []
   }
+  if (action === 'delete-table' || (action === 'delete-column' && width <= 1)) {
+    return [{ from: table.from, to: table.to, insert: '' }]
+  }
+  if (action === 'clear-row' || action === 'clear-column') {
+    const cells =
+      action === 'clear-row'
+        ? selected.cells
+        : table.rows.flatMap((line) => (line.cells[column] ? [line.cells[column]] : []))
+    return cells
+      .filter((cell) => !cell.missing)
+      .map((cell) => ({ from: cell.from, to: cell.to, insert: '' }))
+  }
   if (action.startsWith('align-')) {
     const cell = table.delimiter.cells[column]
     if (!cell) {
@@ -116,6 +168,16 @@ export function editTableStructure(
   }
   if (action === 'row-before' || action === 'row-after') {
     const blank = `| ${Array.from({ length: width }, () => ' ').join(' | ')} |`
+    if (row === 0 && action === 'row-before') {
+      return [
+        { from: selected.from, to: selected.to, insert: blank },
+        {
+          from: table.delimiter.to,
+          to: table.delimiter.to,
+          insert: `\n${text.slice(selected.from, selected.to)}`
+        }
+      ]
+    }
     const at =
       row === 0 ? table.delimiter.to : action === 'row-before' ? selected.from : selected.to
     return [
@@ -124,27 +186,49 @@ export function editTableStructure(
   }
   if (action === 'delete-row') {
     if (row === 0) {
-      return []
+      const next = table.rows[1]
+      if (!next) {
+        return [{ from: table.from, to: table.to, insert: '' }]
+      }
+      let header = text.slice(next.from, next.to)
+      if (next.cells[width - 1].missing) {
+        const edit = editTableCell(table, 1, width - 1, '')!
+        header = `${header.slice(0, edit.from - next.from)}${edit.insert}${header.slice(edit.to - next.from)}`
+      } else {
+        for (const extra of next.cells.slice(width).toReversed()) {
+          const at = extra.rawFrom - next.from - 1
+          header = `${header.slice(0, at)}\\${header.slice(at)}`
+        }
+      }
+      return [
+        { from: selected.from, to: selected.to, insert: header },
+        ...editTableStructure(text, table, 1, column, 'delete-row')
+      ]
     }
     const hasNewline = text[selected.to] === '\n'
     const from = hasNewline ? selected.from : selected.from - 1
     const to = hasNewline ? selected.to + 1 : selected.to
     return [{ from, to, insert: '' }]
   }
-  if (action === 'delete-column' && width <= 1) {
-    return [{ from: table.from, to: table.to, insert: '' }]
-  }
-  return [table.rows[0], table.delimiter, ...table.rows.slice(1)].map((line) => {
-    const cells = line.cells.map((cell) => cell.text)
-    if (action === 'delete-column') {
-      cells.splice(column, 1)
-    } else {
-      cells.splice(
-        column + (action === 'column-after' ? 1 : 0),
-        0,
-        line === table.delimiter ? '---' : ''
-      )
+  return [table.rows[0], table.delimiter, ...table.rows.slice(1)].flatMap((line) => {
+    const cell = line.cells[column]
+    if (!cell || cell.missing) {
+      return []
     }
-    return { from: line.from, to: line.to, insert: `| ${cells.join(' | ')} |` }
+    if (action === 'delete-column') {
+      const next = line.cells[column + 1]
+      const previous = line.cells[column - 1]
+      return [
+        next && !next.missing
+          ? { from: cell.rawFrom, to: next.rawFrom, insert: '' }
+          : { from: previous ? previous.rawTo : cell.rawFrom, to: cell.rawTo, insert: '' }
+      ]
+    }
+    const value = line === table.delimiter ? ' --- ' : '  '
+    const before = action === 'column-before'
+    const at = before ? cell.rawFrom : cell.rawTo
+    const opening = before && column === 0 && text[cell.rawFrom - 1] !== '|' ? '|' : ''
+    const closing = !before && column === width - 1 && text[cell.rawTo] !== '|' ? '|' : ''
+    return [{ from: at, to: at, insert: before ? `${opening}${value}|` : `|${value}${closing}` }]
   })
 }

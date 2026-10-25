@@ -29,6 +29,15 @@ it('escapes inserted pipes and encodes a soft line break inside one cell', () =>
   )
 })
 
+it('keeps pipes escaped after an even number of backslashes while editing a cell', () => {
+  const text = '| A | B |\n| --- | --- |\n| c | d |'
+  const table = parseMarkdownTable(text, 0, text.length)!
+  const result = apply(text, [editTableCell(table, 1, 1, String.raw`path\\|value`)!])
+  const next = parseMarkdownTable(result, 0, result.length)!
+  expect(next.rows[1].cells).toHaveLength(2)
+  expect(next.rows[1].cells[1].text).toBe(String.raw`path\\\|value`)
+})
+
 it('adds and deletes rows while preserving the neighboring document', () => {
   const text = 'Before\n\n| A | B |\n| --- | --- |\n| c | d |\n\nAfter'
   const table = parseMarkdownTable(text, 8, text.indexOf('\n\nAfter'))!
@@ -45,4 +54,76 @@ it('aligns only the selected delimiter and never rewrites body cells', () => {
   expect(apply(text, editTableStructure(text, table, 1, 1, 'align-center'))).toBe(
     '| A | B |\n| ------ | :---: |\n| <b>x</b> | -> |'
   )
+})
+
+it.each(['column-before', 'column-after'] as const)(
+  'inserts with %s without reformatting neighboring cells',
+  (action) => {
+    const text = '|  A    | B      |\n| :---- | -----: |\n| <b>x</b>  | -> &gt;  |'
+    const table = parseMarkdownTable(text, 0, text.length)!
+    const result = apply(text, editTableStructure(text, table, 1, 0, action))
+    const next = parseMarkdownTable(result, 0, result.length)!
+    const inserted = action === 'column-before' ? 0 : 1
+    expect(next.delimiter.cells).toHaveLength(3)
+    expect(next.rows[1].cells[inserted].text).toBe('')
+    expect(
+      next.rows[1].cells
+        .filter((_, index) => index !== inserted)
+        .map((cell) => result.slice(cell.rawFrom, cell.rawTo))
+    ).toEqual([' <b>x</b>  ', ' -> &gt;  '])
+    expect(apply(result, editTableStructure(result, next, 1, inserted, 'delete-column'))).toBe(text)
+  }
+)
+
+it.each(['column-before', 'column-after'] as const)(
+  'inserts a blank edge column in a table without outer pipes using %s',
+  (action) => {
+    const text = 'A | B\n--- | ---\nx | y'
+    const table = parseMarkdownTable(text, 0, text.length)!
+    const column = action === 'column-before' ? 0 : 1
+    const result = apply(text, editTableStructure(text, table, 1, column, action))
+    const next = parseMarkdownTable(result, 0, result.length)!
+    expect(next.rows[0].cells).toHaveLength(3)
+    expect(next.rows[1].cells.map((cell) => cell.text)).toEqual(
+      action === 'column-before' ? ['', 'x', 'y'] : ['x', 'y', '']
+    )
+  }
+)
+
+it('deletes a header by promoting the first body row and preserves alignment', () => {
+  const text = '| A | B |\n| :---- | -----: |\n|  x  |  y  |\n| z | q |'
+  const table = parseMarkdownTable(text, 0, text.length)!
+  expect(apply(text, editTableStructure(text, table, 0, 0, 'delete-row'))).toBe(
+    '|  x  |  y  |\n| :---- | -----: |\n| z | q |'
+  )
+})
+
+it('inserts above the header by keeping the old header as the first body row', () => {
+  const text = '| A | B |\n| :---- | -----: |\n| x | y |'
+  const table = parseMarkdownTable(text, 0, text.length)!
+  expect(apply(text, editTableStructure(text, table, 0, 1, 'row-before'))).toBe(
+    '|   |   |\n| :---- | -----: |\n| A | B |\n| x | y |'
+  )
+})
+
+it.each(['| x |', '| x | y | extra |'])(
+  'preserves a ragged row when it becomes the new header: %s',
+  (row) => {
+    const text = `| A | B |\n| :---- | -----: |\n${row}`
+    const table = parseMarkdownTable(text, 0, text.length)!
+    const result = apply(text, editTableStructure(text, table, 0, 0, 'delete-row'))
+    const next = parseMarkdownTable(result, 0, result.length)!
+    expect(next.rows[0].cells).toHaveLength(2)
+    expect(result).toContain('x')
+    if (row.includes('extra')) {
+      expect(result).toContain('y \\| extra')
+    }
+  }
+)
+
+it('keeps short and extra-width body rows intact during column operations', () => {
+  const text = '| A | B |\n| --- | --- |\n| x |\n| x | y | extra |'
+  const table = parseMarkdownTable(text, 0, text.length)!
+  const result = apply(text, editTableStructure(text, table, 1, 1, 'delete-column'))
+  expect(result).toBe('| A |\n| --- |\n| x |\n| x | extra |')
 })
