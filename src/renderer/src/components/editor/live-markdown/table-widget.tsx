@@ -14,7 +14,8 @@ export class MarkdownTableWidget extends WidgetType {
     readonly canEdit: boolean,
     readonly mediaVersion = '',
     readonly selectedCell: TableCellRange | null = null,
-    readonly selectionHead = 0
+    readonly selectionHead = 0,
+    readonly selectionAnchor = 0
   ) {
     super()
   }
@@ -26,7 +27,8 @@ export class MarkdownTableWidget extends WidgetType {
       this.mediaVersion === other.mediaVersion &&
       this.selectedCell?.from === other.selectedCell?.from &&
       this.selectedCell?.to === other.selectedCell?.to &&
-      this.selectionHead === other.selectionHead
+      this.selectionHead === other.selectionHead &&
+      this.selectionAnchor === other.selectionAnchor
     )
   }
   toDOM(view: EditorView): HTMLElement {

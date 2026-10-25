@@ -6,6 +6,15 @@ import { indentMore, indentLess, insertNewlineAndIndent } from '@codemirror/comm
 import { revealTableSource, revealedTableField } from './editor-context'
 import { parseMarkdownTable } from './table-source'
 import { selectTableCell } from './table-cell-selection'
+import { clearMarkdownInlineFormat } from './markdown-clear-format'
+import { toggleMarkdownInline, type MarkdownInlineFormat } from './markdown-inline-format'
+import { runTableCellCommand, hasTableCellInput } from './table-cell-command-target'
+import {
+  completeMarkdownTable,
+  setMarkdownHeading,
+  toggleMarkdownBlock,
+  indentMarkdownList
+} from './markdown-block-commands'
 
 export const removeListMarker: StateCommand = ({ state, dispatch }) => {
   if (state.readOnly) {
@@ -37,33 +46,50 @@ export const removeListMarker: StateCommand = ({ state, dispatch }) => {
   return true
 }
 
-export function wrapMarkdownSelection(before: string, after = before): StateCommand {
-  return ({ state, dispatch }) => {
-    if (state.readOnly) {
-      return false
-    }
-    dispatch(
-      state.update(
-        state.changeByRange((range) => ({
-          changes: {
-            from: range.from,
-            to: range.to,
-            insert: before + state.sliceDoc(range.from, range.to) + after
-          },
-          range: range.empty
-            ? EditorSelection.cursor(range.from + before.length)
-            : EditorSelection.range(range.from + before.length, range.to + before.length)
-        })),
-        { userEvent: 'input' }
-      )
-    )
-    return true
-  }
+export function wrapMarkdownSelection(before: string, after = before): Command {
+  const command: StateCommand =
+    ['**', '*', '~~', '`'].includes(before) && before === after
+      ? toggleMarkdownInline(before as MarkdownInlineFormat)
+      : ({ state, dispatch }) => {
+          if (state.readOnly) {
+            return false
+          }
+          dispatch(
+            state.update(
+              state.changeByRange((range) => ({
+                changes: {
+                  from: range.from,
+                  to: range.to,
+                  insert: before + state.sliceDoc(range.from, range.to) + after
+                },
+                range: range.empty
+                  ? EditorSelection.cursor(range.from + before.length)
+                  : EditorSelection.range(range.from + before.length, range.to + before.length)
+              })),
+              { userEvent: 'input' }
+            )
+          )
+          return true
+        }
+  return (view) => (hasTableCellInput(view) ? runTableCellCommand(view, command) : command(view))
 }
+
+export function changeMarkdownHeading(level: number): Command {
+  return (view) => hasTableCellInput(view) || setMarkdownHeading(level)(view)
+}
+
+export function changeMarkdownBlock(prefix: '- ' | '> ' | '1. ' | '- [ ] '): Command {
+  return (view) => hasTableCellInput(view) || toggleMarkdownBlock(prefix)(view)
+}
+
+export const clearMarkdownFormat: Command = (view) =>
+  hasTableCellInput(view)
+    ? runTableCellCommand(view, clearMarkdownInlineFormat)
+    : clearMarkdownInlineFormat(view)
 
 export function insertMarkdownBlock(content: string, cursorOffset = content.length): Command {
   return (view) => {
-    if (view.state.readOnly) {
+    if (view.state.readOnly || hasTableCellInput(view)) {
       return false
     }
     const { from, to } = view.state.selection.main
@@ -192,6 +218,7 @@ export const paragraphBreak: StateCommand = ({ state, dispatch }) => {
 export const liveMarkdownKeymap: KeyBinding[] = [
   { key: 'Backspace', run: removeListMarker },
   { key: 'Enter', run: completeCodeFence },
+  { key: 'Enter', run: completeMarkdownTable },
   { key: 'Enter', run: insertNewlineContinueMarkupCommand({ nonTightLists: false }) },
   { key: 'Enter', run: paragraphBreak },
   { key: 'Enter', run: insertNewlineAndIndent },
@@ -207,9 +234,19 @@ export const liveMarkdownKeymap: KeyBinding[] = [
       return true
     }
   },
-  { key: 'Tab', run: indentMore, shift: indentLess },
+  {
+    key: 'Tab',
+    run: (view) => indentMarkdownList(false)(view) || indentMore(view),
+    shift: (view) => indentMarkdownList(true)(view) || indentLess(view)
+  },
   { key: 'Mod-b', run: wrapMarkdownSelection('**') },
   { key: 'Mod-i', run: wrapMarkdownSelection('*') },
   { key: 'Mod-`', run: wrapMarkdownSelection('`') },
-  { key: 'Mod-k', run: wrapMarkdownSelection('[', '](https://)') }
+  { key: 'Mod-Shift-`', run: wrapMarkdownSelection('`') },
+  ...[0, 1, 2, 3, 4, 5, 6].map((level) => ({
+    key: `Mod-${level}`,
+    run: changeMarkdownHeading(level)
+  })),
+  { key: 'Mod-k', run: wrapMarkdownSelection('[', '](https://)') },
+  { key: 'Mod-\\', run: clearMarkdownFormat }
 ]

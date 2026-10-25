@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { expect, it } from 'vitest'
 import { markdownFromClipboardHtml } from './clipboard-markdown'
+import { markdownClipboardContent } from './markdown-clipboard-content'
+import { tableClipboardGrid } from './table-clipboard-grid'
 
 it('pastes formatted headings and lists as Markdown without executing HTML', () => {
   const html =
@@ -28,4 +30,22 @@ it('preserves literal punctuation in pasted HTML text instead of turning it into
   expect(markdownFromClipboardHtml('<p>a*b*c -&gt; &lt;literal&gt;</p>')).toBe(
     'a\\*b\\*c -> \\<literal>'
   )
+})
+
+it('copies rendered text and HTML while leaving Markdown available as an explicit copy option', () => {
+  const content = markdownClipboardContent(
+    '## Heading\n\nA **bold** word and [link](https://example.com)'
+  )
+  expect(content.plain).toBe('Heading\nA bold word and link')
+  expect(content.html).toContain('<strong>bold</strong>')
+})
+
+it('parses quoted spreadsheet cells with embedded newlines and tabs', () => {
+  const data = {
+    getData: (type: string) => (type === 'text/plain' ? 'a\t"b\nc"\r\nd\t"e\t""f"""\r\n' : '')
+  }
+  expect(tableClipboardGrid(data as DataTransfer)).toEqual([
+    ['a', 'b\nc'],
+    ['d', 'e\t"f"']
+  ])
 })

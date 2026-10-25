@@ -17,7 +17,13 @@ import {
 import { registerPendingEditorFlush } from '../editor-pending-flush'
 import { scrollTopCache, setWithLRU } from '@/lib/scroll-cache'
 import { cacheMarkdownEditorSession, readMarkdownEditorSession } from './editor-session-cache'
-import { copyClipboardMarkdown, pasteClipboardMarkdown } from './clipboard-markdown'
+import {
+  copyClipboardMarkdown,
+  cutClipboardMarkdown,
+  requestPlainMarkdownPaste,
+  pasteClipboardMarkdown
+} from './clipboard-markdown'
+import { markdownLinkAt } from './markdown-links'
 import '../../../assets/live-markdown-editor.css'
 
 const refreshPresentation = StateEffect.define<null>()
@@ -94,11 +100,19 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
       }
     }),
     EditorView.domEventHandlers({
+      keydown: (event, editor) => {
+        const modifier = navigator.userAgent.includes('Mac') ? event.metaKey : event.ctrlKey
+        if (modifier && event.shiftKey && event.key.toLowerCase() === 'v') {
+          requestPlainMarkdownPaste(editor)
+        }
+        return false
+      },
       paste: (event, editor) =>
         !editor.state.readOnly &&
         ((current.current.onPaste?.(event, editor) ?? false) ||
           pasteClipboardMarkdown(event, editor)),
       copy: copyClipboardMarkdown,
+      cut: cutClipboardMarkdown,
       drop: (event, editor) =>
         !editor.state.readOnly && (current.current.onDrop?.(event, editor) ?? false),
       click: (event, editor) => {
@@ -110,16 +124,11 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
         if (position === null) {
           return false
         }
-        const line = editor.state.doc.lineAt(position)
-        for (const match of line.text.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
-          if (
-            position >= line.from + match.index &&
-            position <= line.from + match.index + match[0].length
-          ) {
-            event.preventDefault()
-            current.current.context.openLink(match[1])
-            return true
-          }
+        const link = markdownLinkAt(editor.state, position)
+        if (link) {
+          event.preventDefault()
+          current.current.context.openLink(link.href)
+          return true
         }
         return false
       }

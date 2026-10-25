@@ -13,15 +13,8 @@ import { MarkdownTableWidget } from './table-widget'
 import { MarkdownEntityWidget, MarkdownHtmlWidget, MarkdownMathWidget } from './rendered-widgets'
 import { MarkdownDiagramWidget } from './diagram-widget'
 import { tableCellSelection } from './table-cell-selection'
-
-function active(state: EditorState, from: number, to: number): boolean {
-  if (state.facet(markdownEditorMode) === 'preview') {
-    return false
-  }
-  return state.selection.ranges.some((range) =>
-    range.empty ? range.head >= from && range.head <= to : range.from < to && range.to > from
-  )
-}
+import { markdownSourceLinks } from './markdown-links'
+import { markdownRangeIsActive as active } from './markdown-caret-presentation'
 
 function buildDecorations(state: EditorState): DecorationSet {
   const mode = state.facet(markdownEditorMode)
@@ -30,6 +23,7 @@ function buildDecorations(state: EditorState): DecorationSet {
   }
   const ranges: Range<Decoration>[] = []
   const text = state.doc.toString()
+  const links = new Map(markdownSourceLinks(state).map((link) => [link.from, link]))
   const lineClasses = new Map<number, Set<string>>()
   const line = (position: number, className: string): void => {
     const from = state.doc.lineAt(position).from
@@ -51,7 +45,11 @@ function buildDecorations(state: EditorState): DecorationSet {
     enter(node) {
       const { from, to, name } = node
       const source = text.slice(from, to)
-      if (mode === 'live' && /^ATXHeading\d$/.test(name) && !/^#{1,6}[\t ]/.test(source)) {
+      if (name === 'LinkReference' && mode === 'preview') {
+        hide(from, to)
+        return false
+      }
+      if (mode === 'live' && /^ATXHeading\d$/.test(name) && !/^#{1,6}[\t ]+\S/.test(source)) {
         return false
       }
       if (name === 'Table' && state.field(revealedTableField, false) !== from) {
@@ -60,10 +58,7 @@ function buildDecorations(state: EditorState): DecorationSet {
         const editingSource =
           mode !== 'preview' && caret.empty && caret.head > from && caret.head < to && !cell
         const table = parseMarkdownTable(text, from, to)
-        const selectingAcross =
-          mode !== 'preview' &&
-          state.selection.ranges.some((range) => !range.empty && range.from < to && range.to > from)
-        if (table && !selectingAcross && !editingSource) {
+        if (table && !editingSource) {
           ranges.push(
             Decoration.replace({
               widget: new MarkdownTableWidget(
@@ -72,7 +67,8 @@ function buildDecorations(state: EditorState): DecorationSet {
                 !state.readOnly,
                 state.facet(markdownEditorContext).version,
                 cell && cell.from >= from && cell.to <= to ? cell : null,
-                caret.head
+                caret.head,
+                caret.anchor
               ),
               block: true
             }).range(from, to)
@@ -87,8 +83,10 @@ function buildDecorations(state: EditorState): DecorationSet {
         const wholeLine = state.doc.lineAt(from)
         if (
           mode === 'preview' ||
-          !state.selection.ranges.some(
-            (range) => !range.empty && range.from < to && range.to > from
+          !state.selection.ranges.some((range) =>
+            range.empty
+              ? range.head >= from && range.head <= to + 1
+              : range.from < to && range.to > from
           )
         ) {
           hide(from, Math.min(to + 1, wholeLine.to))
@@ -111,7 +109,7 @@ function buildDecorations(state: EditorState): DecorationSet {
                 ? 'live-md-strike'
                 : 'live-md-inline-code'
         )
-        if (!active(state, from, to)) {
+        if (!active(state, from, to, false)) {
           const length =
             name === 'InlineCode'
               ? (source.match(/^`+/)?.[0].length ?? 1)
@@ -247,13 +245,13 @@ function buildDecorations(state: EditorState): DecorationSet {
           return false
         }
       }
-      if (name === 'Link') {
-        const label = source.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-        if (label) {
+      if (name === 'Link' || name === 'Autolink' || name === 'URL') {
+        const link = links.get(from)
+        if (link) {
           mark(from, to, 'live-md-link')
           if (!active(state, from, to)) {
-            hide(from, from + 1)
-            hide(from + 1 + label[1].length, to)
+            hide(from, link.labelFrom)
+            hide(link.labelTo, to)
           }
         }
       }

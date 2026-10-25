@@ -58,8 +58,8 @@ Verified in Chrome and Playwright WebKit:
   a row and retains focus. Source/live switches and remounts retain undo/redo.
 - List Enter, hard breaks, marker-only Backspace, inline-code escape, fence
   completion, code-block exit and slash commands on continuation lines work.
-- All six ATX heading levels wait for whitespace before live rendering. Bare
-  hashes remain visible while typing; reading mode retains Markdown semantics.
+- All six ATX heading levels wait for title content before live rendering. Bare
+  hashes and trailing whitespace remain visible; the caret can reveal the prefix.
 - Table context menus target the right-clicked cell, with row/column insertion,
   deletion, clearing and alignment. Column operations preserve neighboring cell
   spacing; header insertion/deletion retains a valid Markdown table.
@@ -86,12 +86,38 @@ repository root:
 pnpm exec vite --config tests/tools/markdown-live-editor/vite.config.ts
 node tests/tools/markdown-live-editor/verify.mjs
 node tests/tools/markdown-live-editor/verify-table-interactions.mjs
+node tests/tools/markdown-live-editor/verify-writing-interactions.mjs
 ```
 
 Set `ORCA_MARKDOWN_CHECK_BROWSER=webkit` to run the same browser checks in WebKit.
 Install that development browser with `pnpm exec playwright install webkit`.
 
-Remaining Typora parity work includes complete inline math/footnotes, broader
-HTML styling, table mouse selection and caret refinements, focus/typewriter
-modes and export integration. This implementation is a testable replacement,
-not a claim that every Typora interaction is already identical.
+## Core writing acceptance
+
+The writing interaction check runs the following workflows in Chrome and WebKit:
+
+| Workflow | Checked behavior |
+| --- | --- |
+| Headings | Wait for content, reveal the prefix, convert the current paragraph, switch levels and restore plain text |
+| Inline formatting | Toggle bold/italic/code, preserve nested styles, clear formatting and keep the selected text |
+| History | Undo formatting independently of preceding typing, including in table cells |
+| Lists | Indent/outdent an item together with its nested children |
+| Table creation | Enter after a typed pipe-delimited header creates the table and focuses a body cell |
+| Table input | Toolbar and keyboard commands use the actual cell selection; copy/cut retain shared history |
+| Table paste | TSV and HTML grids fill a rectangular range, expand the table and undo as one operation |
+| Cross-block selection | Tables stay rendered while selected; copying/cutting and undo use the same source selection |
+| Clipboard | Ordinary copy supplies rendered text and HTML; explicit Markdown copy/source mode retain syntax; plain paste skips HTML conversion |
+| Links | Inline, reference and bare URLs resolve through the existing file owner; reference definitions stay hidden in reading mode |
+| Typing | Bracket pairing, closing-character skipping and paired deletion work without changing fence completion |
+
+Remaining gaps from the Typora comparison:
+
+- Richer table selection, row/column drag ordering and a table-size picker.
+- Complete link/image editing panels, image sizing and asset-folder preferences.
+- Complete inline math/footnotes, YAML front matter, inline HTML and extended syntax.
+- Nested quote presentation, multi-item list operations and precise caret restoration in every history case.
+- Focus/typewriter modes, writing-layout preferences, word count/spellcheck and export integration.
+- Native macOS input-method acceptance and large-document performance measurements.
+
+This remains a phased replacement. Passing the checks above does not assert that
+every Typora interaction is already identical.

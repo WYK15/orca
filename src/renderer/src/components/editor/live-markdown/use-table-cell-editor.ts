@@ -1,8 +1,17 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ClipboardEvent } from 'react'
 import { runScopeHandlers, type EditorView } from '@codemirror/view'
-import { undo, redo } from '@codemirror/commands'
+import { undo, redo, isolateHistory } from '@codemirror/commands'
 import { editTableCell, type MarkdownTable, type TableStructureAction } from './table-source'
 import { selectTableCell, tableCellSelection } from './table-cell-selection'
+import { registerTableCellInput } from './table-cell-command-target'
+import { tableClipboardGrid } from './table-clipboard-grid'
+import { pasteTableGridTransaction } from './table-paste-transactions'
+import {
+  markdownFromClipboardHtml,
+  requestPlainMarkdownPaste,
+  consumePlainMarkdownPaste
+} from './clipboard-markdown'
+import { markdownClipboardContent } from './markdown-clipboard-content'
 import {
   findTableCell,
   selectCellTransaction,
@@ -24,12 +33,13 @@ export function useTableCellEditor(table: MarkdownTable, view: EditorView, readO
   const [draft, setDraft] = useState(sourceValue)
   const selectionHead = view.state.selection.main.head
   const caret = useRef<'start' | 'end' | null>(null)
+  const commandSelection = useRef<{ from: number; to: number } | null>(null)
   useLayoutEffect(() => setDraft(sourceValue), [sourceValue])
   useLayoutEffect(() => {
     if (!input.current || activeRow === undefined || menuOpen || draft !== sourceValue || !owned) {
       return
     }
-    if (input.current === document.activeElement && !caret.current) {
+    if (input.current === document.activeElement && !caret.current && !commandSelection.current) {
       return
     }
     input.current.focus({ preventScroll: true })
@@ -44,8 +54,12 @@ export function useTableCellEditor(table: MarkdownTable, view: EditorView, readO
                 Math.max(owned.from, Math.min(selectionHead, owned.to))
               )
             ).length
-    input.current.setSelectionRange(at, at)
+    input.current.setSelectionRange(
+      commandSelection.current?.from ?? at,
+      commandSelection.current?.to ?? at
+    )
     caret.current = null
+    commandSelection.current = null
   }, [activeRow, activeColumn, menuOpen, draft, sourceValue, selectionHead, owned, view])
   useLayoutEffect(() => {
     if (input.current) {
@@ -75,7 +89,7 @@ export function useTableCellEditor(table: MarkdownTable, view: EditorView, readO
       view.focus()
     }
   }
-  const change = (value: string): void => {
+  const change = (value: string, isolated = false): void => {
     if (!active || readOnly) {
       return
     }
@@ -83,9 +97,28 @@ export function useTableCellEditor(table: MarkdownTable, view: EditorView, readO
     const selected = view.state.field(tableCellSelection)
     const edit = editTableCell(table, active.row, active.column, value)
     if (selected && edit && view.state.sliceDoc(selected.from, selected.to) !== edit.insert) {
-      view.dispatch({ changes: { ...edit, ...selected }, userEvent: 'input.type' })
+      view.dispatch({
+        changes: { ...edit, ...selected },
+        userEvent: isolated ? 'input' : 'input.type',
+        annotations: isolated ? isolateHistory.of('full') : undefined
+      })
     }
   }
+  useLayoutEffect(() => {
+    if (!active || !input.current || readOnly) {
+      return
+    }
+    return registerTableCellInput(view, {
+      element: input.current,
+      apply: (transaction) => {
+        commandSelection.current = {
+          from: transaction.newSelection.main.from,
+          to: transaction.newSelection.main.to
+        }
+        change(transaction.newDoc.toString(), true)
+      }
+    })
+  })
   const exit = (before = false): void => {
     const at = before ? table.from : table.to
     const line = view.state.doc.lineAt(at)
@@ -128,13 +161,17 @@ export function useTableCellEditor(table: MarkdownTable, view: EditorView, readO
     }
     const modifier = navigator.userAgent.includes('Mac') ? event.metaKey : event.ctrlKey
     const key = event.key.toLowerCase()
+    if (modifier && event.shiftKey && key === 'v') {
+      requestPlainMarkdownPaste(view)
+      return
+    }
     if (modifier && key === 'z') {
       event.preventDefault()
       ;(event.shiftKey ? redo : undo)(view)
       if (!view.state.field(tableCellSelection)) {
         view.focus()
       }
-    } else if (modifier && (key === 's' || key === 'f' || key === '/')) {
+    } else if (modifier && ['s', 'f', '/', 'b', 'i', 'k', 'c', '`', '~', '\\'].includes(key)) {
       if (runScopeHandlers(view, event.nativeEvent, 'editor')) {
         event.preventDefault()
       }
@@ -197,5 +234,64 @@ export function useTableCellEditor(table: MarkdownTable, view: EditorView, readO
       }
     })
   }
-  return { active, input, draft, focus, change, structure, onKeyDown, setMenuOpen, restoreFocus }
+  const replaceInputSelection = (element: HTMLTextAreaElement, insert: string): void => {
+    const at = element.selectionStart
+    commandSelection.current = { from: at + insert.length, to: at + insert.length }
+    change(element.value.slice(0, at) + insert + element.value.slice(element.selectionEnd), true)
+  }
+  const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>): void => {
+    const plainOnly = consumePlainMarkdownPaste(view)
+    if (!active || readOnly) {
+      return
+    }
+    const grid = plainOnly ? null : tableClipboardGrid(event.clipboardData)
+    if (grid) {
+      event.preventDefault()
+      view.dispatch(pasteTableGridTransaction(view.state, table, active, grid))
+      return
+    }
+    const html = event.clipboardData.getData('text/html')
+    const text =
+      !plainOnly && html
+        ? markdownFromClipboardHtml(html)
+        : event.clipboardData.getData('text/plain')
+    if (text) {
+      event.preventDefault()
+      replaceInputSelection(event.currentTarget, text)
+    }
+  }
+  const onCopy = (event: ClipboardEvent<HTMLTextAreaElement>): void => {
+    const element = event.currentTarget
+    if (element.selectionStart === element.selectionEnd) {
+      return
+    }
+    const content = markdownClipboardContent(
+      element.value.slice(element.selectionStart, element.selectionEnd)
+    )
+    event.clipboardData.setData('text/plain', content.plain)
+    event.clipboardData.setData('text/html', content.html)
+    event.preventDefault()
+  }
+  const onCut = (event: ClipboardEvent<HTMLTextAreaElement>): void => {
+    const element = event.currentTarget
+    if (readOnly || element.selectionStart === element.selectionEnd) {
+      return
+    }
+    onCopy(event)
+    replaceInputSelection(element, '')
+  }
+  return {
+    active,
+    input,
+    draft,
+    focus,
+    change,
+    structure,
+    onKeyDown,
+    onPaste,
+    onCopy,
+    onCut,
+    setMenuOpen,
+    restoreFocus
+  }
 }

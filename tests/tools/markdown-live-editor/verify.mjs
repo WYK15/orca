@@ -35,7 +35,11 @@ try {
   await page.keyboard.press(`${modifier}+s`)
   await page.locator('[data-saved]').filter({ hasText: '已保存' }).waitFor()
   assert.equal(
-    (await page.request.get(`${url}/fixture`).then((response) => response.json())).source,
+    (
+      await page.request
+        .get(`${url}/fixture`, { maxRetries: 2 })
+        .then((response) => response.json())
+    ).source,
     original
   )
   console.log('PASS: opening and saving preserves exact original bytes')
@@ -213,7 +217,11 @@ try {
   await page.keyboard.press(`${modifier}+s`)
   await settled()
   assert.equal(
-    (await page.request.get(`${url}/fixture`).then((response) => response.json())).source,
+    (
+      await page.request
+        .get(`${url}/fixture`, { maxRetries: 2 })
+        .then((response) => response.json())
+    ).source,
     await raw()
   )
   await page.screenshot({ path: '/tmp/orcaw-markdown-live-dark.png' })

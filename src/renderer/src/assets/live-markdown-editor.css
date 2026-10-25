@@ -204,6 +204,9 @@
   background: var(--muted);
   font-weight: 600;
 }
+.live-md-table [data-source-selected='true'] {
+  background: var(--accent);
+}
 .live-md-table td:focus,
 .live-md-table th:focus,
 .live-md-table td:focus-within,
@@ -239,6 +242,7 @@
   min-height: 1.7em;
   overflow: hidden;
   font: inherit;
+  text-align: inherit;
   line-height: inherit;
 }
 .live-md-host .cm-panels {

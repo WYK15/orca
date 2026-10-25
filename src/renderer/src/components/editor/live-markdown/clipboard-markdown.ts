@@ -1,8 +1,18 @@
-import DOMPurify from 'dompurify'
-import { marked } from 'marked'
 import type { EditorView } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { markdownEditorMode } from './editor-context'
+import { markdownClipboardContent } from './markdown-clipboard-content'
+import { markdownLinkDefinitions } from './markdown-links'
+
+const plainPasteUntil = new WeakMap<EditorView, number>()
+export function requestPlainMarkdownPaste(view: EditorView): void {
+  plainPasteUntil.set(view, Date.now() + 1000)
+}
+export function consumePlainMarkdownPaste(view: EditorView): boolean {
+  const expires = plainPasteUntil.get(view) ?? 0
+  plainPasteUntil.delete(view)
+  return Date.now() <= expires
+}
 
 function convertNode(node: Node): string {
   if (node.nodeType === 3) {
@@ -104,6 +114,9 @@ export function markdownFromClipboardHtml(html: string): string {
 }
 
 export function pasteClipboardMarkdown(event: ClipboardEvent, view: EditorView): boolean {
+  if (consumePlainMarkdownPaste(view)) {
+    return false
+  }
   if (view.state.readOnly || view.state.facet(markdownEditorMode) !== 'live') {
     return false
   }
@@ -133,8 +146,21 @@ export function copyClipboardMarkdown(event: ClipboardEvent, view: EditorView): 
     return false
   }
   const text = view.state.sliceDoc(selection.from, selection.to)
-  event.clipboardData.setData('text/plain', text)
-  event.clipboardData.setData('text/html', DOMPurify.sanitize(marked.parse(text, { async: false })))
+  if (view.state.facet(markdownEditorMode) === 'source') {
+    event.clipboardData.setData('text/plain', text)
+  } else {
+    const content = markdownClipboardContent(text, markdownLinkDefinitions(view.state))
+    event.clipboardData.setData('text/plain', content.plain)
+    event.clipboardData.setData('text/html', content.html)
+  }
   event.preventDefault()
+  return true
+}
+
+export function cutClipboardMarkdown(event: ClipboardEvent, view: EditorView): boolean {
+  if (view.state.readOnly || !copyClipboardMarkdown(event, view)) {
+    return false
+  }
+  view.dispatch(view.state.replaceSelection(''), { userEvent: 'delete.cut' })
   return true
 }

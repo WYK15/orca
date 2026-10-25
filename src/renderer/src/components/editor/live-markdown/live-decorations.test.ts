@@ -28,20 +28,30 @@ function presentation(state: EditorState) {
   return { classes: classes.join(' '), hidden }
 }
 
-it.each([1, 2, 3, 4, 5, 6])('keeps %i typed hashes visible until a space is entered', (level) => {
-  let state = headingState('')
-  for (let index = 0; index < level; index++) {
-    state = state.update({ changes: { from: state.doc.length, insert: '#' } }).state
+it.each([1, 2, 3, 4, 5, 6])(
+  'keeps %i typed hashes visible until heading text is entered',
+  (level) => {
+    let state = headingState('')
+    for (let index = 0; index < level; index++) {
+      state = state.update({ changes: { from: state.doc.length, insert: '#' } }).state
+      expect(presentation(state).classes).not.toContain('live-md-heading')
+      expect(presentation(state).hidden).toBe(0)
+    }
+    state = state.update({ changes: { from: state.doc.length, insert: ' ' } }).state
+    expect(presentation(state).classes).not.toContain('live-md-heading')
+    expect(presentation(state).hidden).toBe(0)
+    state = state.update({
+      changes: { from: state.doc.length, insert: 'h2' },
+      selection: { anchor: state.doc.length + 2 }
+    }).state
+    expect(presentation(state).classes).toContain(`live-md-h${level}`)
+    expect(presentation(state).hidden).toBe(1)
+    state = state.update({ changes: { from: state.doc.length - 2, to: state.doc.length } }).state
+    state = state.update({ changes: { from: state.doc.length - 1, to: state.doc.length } }).state
     expect(presentation(state).classes).not.toContain('live-md-heading')
     expect(presentation(state).hidden).toBe(0)
   }
-  state = state.update({ changes: { from: state.doc.length, insert: ' ' } }).state
-  expect(presentation(state).classes).toContain(`live-md-h${level}`)
-  expect(presentation(state).hidden).toBe(1)
-  state = state.update({ changes: { from: state.doc.length - 1, to: state.doc.length } }).state
-  expect(presentation(state).classes).not.toContain('live-md-heading')
-  expect(presentation(state).hidden).toBe(0)
-})
+)
 
 it('keeps hash-prefixed words ordinary and renders existing spaced headings', () => {
   expect(presentation(headingState('##word')).classes).not.toContain('live-md-heading')

@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
 import { markdownEditorContext } from './editor-context'
+import { markdownLinkDefinitions } from './markdown-links'
 
 function CellImage({ source, alt, view }: { source: string; alt: string; view: EditorView }) {
   const [url, setUrl] = useState<string>()
@@ -68,7 +69,7 @@ export function TableCellMarkdown({ content, view }: { content: string; view: Ed
         )
       }}
     >
-      {content || '\u00a0'}
+      {`${content || '\u00a0'}\n\n${markdownLinkDefinitions(view.state)}`}
     </Markdown>
   )
 }

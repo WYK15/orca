@@ -12,7 +12,11 @@ export const tableCellSelection: StateField<TableCellRange | null> =
   StateField.define<TableCellRange | null>({
     create: tableCellAtCaret,
     update(value, transaction) {
-      if (transaction.state.readOnly || transaction.state.facet(markdownEditorMode) !== 'live') {
+      if (
+        transaction.state.readOnly ||
+        transaction.state.facet(markdownEditorMode) !== 'live' ||
+        !transaction.state.selection.main.empty
+      ) {
         return null
       }
       const next = value

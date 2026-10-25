@@ -23,7 +23,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem
 } from '@/components/ui/dropdown-menu'
-import { insertMarkdownBlock, wrapMarkdownSelection } from './editor-commands'
+import {
+  insertMarkdownBlock,
+  wrapMarkdownSelection,
+  changeMarkdownHeading,
+  changeMarkdownBlock
+} from './editor-commands'
+import { focusMarkdownInput, hasTableCellInput } from './table-cell-command-target'
 
 export function LiveMarkdownToolbar({
   view,
@@ -34,7 +40,9 @@ export function LiveMarkdownToolbar({
 }) {
   const run = (command: (view: EditorView) => boolean): void => {
     if (view) {
-      view.focus()
+      if (!hasTableCellInput(view)) {
+        view.focus()
+      }
       command(view)
     }
   }
@@ -44,8 +52,8 @@ export function LiveMarkdownToolbar({
     { name: '加粗', Icon: Bold, run: () => run(wrapMarkdownSelection('**')) },
     { name: '斜体', Icon: Italic, run: () => run(wrapMarkdownSelection('*')) },
     { name: '行内代码', Icon: Code, run: () => run(wrapMarkdownSelection('`')) },
-    { name: '无序列表', Icon: List, run: () => run(insertMarkdownBlock('- ')) },
-    { name: '引用', Icon: Quote, run: () => run(insertMarkdownBlock('> ')) },
+    { name: '无序列表', Icon: List, run: () => run(changeMarkdownBlock('- ')) },
+    { name: '引用', Icon: Quote, run: () => run(changeMarkdownBlock('> ')) },
     { name: '代码块', Icon: CodeXml, run: () => run(insertMarkdownBlock('```\n\n```', 4)) },
     {
       name: '表格',
@@ -63,13 +71,17 @@ export function LiveMarkdownToolbar({
             <Heading className="size-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          {[1, 2, 3, 4, 5, 6].map((level) => (
-            <DropdownMenuItem
-              key={level}
-              onSelect={() => run(insertMarkdownBlock(`${'#'.repeat(level)} `))}
-            >
-              标题 {level}
+        <DropdownMenuContent
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            if (view) {
+              focusMarkdownInput(view)
+            }
+          }}
+        >
+          {[0, 1, 2, 3, 4, 5, 6].map((level) => (
+            <DropdownMenuItem key={level} onSelect={() => run(changeMarkdownHeading(level))}>
+              {level ? `标题 ${level}` : '正文'}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>

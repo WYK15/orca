@@ -83,6 +83,13 @@ export function LiveMarkdownTable({
               style={{ textAlign: table.align[column] ?? undefined }}
               tabIndex={readOnly ? undefined : 0}
               data-table-cell={`${row}:${column}`}
+              data-source-selected={
+                !view.state.selection.main.empty &&
+                view.state.selection.main.from < cell.rawTo &&
+                view.state.selection.main.to > cell.rawFrom
+                  ? 'true'
+                  : undefined
+              }
               onClick={() => !editing && editor.focus(row, column)}
               onKeyDown={(event) => {
                 if (!editing && event.key === 'Enter') {
@@ -101,6 +108,9 @@ export function LiveMarkdownTable({
                   aria-label={`第 ${row + 1} 行第 ${column + 1} 列`}
                   onChange={(event) => editor.change(event.target.value)}
                   onKeyDown={editor.onKeyDown}
+                  onPaste={editor.onPaste}
+                  onCopy={editor.onCopy}
+                  onCut={editor.onCut}
                 />
               ) : (
                 <TableCellMarkdown content={cell.text} view={view} />

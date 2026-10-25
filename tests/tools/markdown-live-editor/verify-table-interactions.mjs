@@ -8,6 +8,7 @@ const browser = await (isWebkit
   : chromium.launch({ channel: 'chrome', headless: true }))
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
 page.setDefaultTimeout(7000)
+page.setDefaultNavigationTimeout(30000)
 const errors = []
 let initialFixture
 page.on('pageerror', (error) => errors.push(error.message))
@@ -55,11 +56,12 @@ try {
       assert.equal(await page.locator('.cm-content').textContent(), '#'.repeat(index + 1))
     }
     await page.keyboard.type(' ')
-    assert.equal(await page.locator(`.live-md-h${level}`).count(), 1)
+    assert.equal(await page.locator(`.live-md-h${level}`).count(), 0)
     await page.keyboard.insertText('标题')
+    assert.equal(await page.locator(`.live-md-h${level}`).count(), 1)
     assert.equal(await raw(), `${'#'.repeat(level)} 标题`)
   }
-  console.log('PASS: all six heading levels wait for a typed space without swallowing hashes')
+  console.log('PASS: all six heading levels wait for heading content without swallowing hashes')
 
   await page.setViewportSize({ width: 1280, height: 360 })
   await setDocument(source)

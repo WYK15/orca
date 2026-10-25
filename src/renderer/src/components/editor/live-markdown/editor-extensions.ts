@@ -12,6 +12,8 @@ import { liveMarkdownDecorations } from './live-decorations'
 import { imageInsertionAnchors } from './image-insertion-anchors'
 import { tableCellSelection } from './table-cell-selection'
 import { markdownSlashCompletion } from './slash-completion'
+import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
+import { copyMarkdownSource } from './markdown-copy-source'
 
 export function markdownEditorExtensions(): Extension {
   return [
@@ -19,6 +21,10 @@ export function markdownEditorExtensions(): Extension {
     drawSelection(),
     highlightSpecialChars(),
     bracketMatching(),
+    closeBrackets(),
+    EditorState.languageData.of(() => [
+      { closeBrackets: { brackets: ['(', '[', '{', '"', "'"], before: ')]}:;> ' } }
+    ]),
     EditorView.lineWrapping,
     markdown({ base: markdownLanguage, codeLanguages: languages, addKeymap: false }),
     revealedTableField,
@@ -27,7 +33,13 @@ export function markdownEditorExtensions(): Extension {
     liveMarkdownDecorations,
     imageInsertionAnchors,
     Prec.high(keymap.of(liveMarkdownKeymap)),
-    keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
+    keymap.of([
+      { key: 'Mod-Shift-c', run: copyMarkdownSource },
+      ...closeBracketsKeymap,
+      ...defaultKeymap,
+      ...historyKeymap,
+      ...searchKeymap
+    ]),
     search({ top: true }),
     highlightSelectionMatches(),
     syntaxHighlighting(
