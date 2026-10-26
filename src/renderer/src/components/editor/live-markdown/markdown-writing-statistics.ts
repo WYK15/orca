@@ -1,5 +1,5 @@
 import type { EditorState } from '@codemirror/state'
-import { syntaxTree } from '@codemirror/language'
+import { readMarkdownDocumentTree } from './markdown-document-model'
 
 export type MarkdownWritingStatistics = { words: number; characters: number }
 export function markdownWritingStatistics(
@@ -8,7 +8,7 @@ export function markdownWritingStatistics(
   to = state.doc.length
 ): MarkdownWritingStatistics {
   const skipped: { from: number; to: number }[] = []
-  syntaxTree(state).iterate({
+  readMarkdownDocumentTree(state).iterate({
     from,
     to,
     enter(node) {

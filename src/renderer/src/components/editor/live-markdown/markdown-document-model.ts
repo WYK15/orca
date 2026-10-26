@@ -1,6 +1,6 @@
-import { StateField, type EditorState } from '@codemirror/state'
-import { syntaxTree } from '@codemirror/language'
+import { StateField, type EditorState, type Transaction } from '@codemirror/state'
 import type { Tree } from '@lezer/common'
+import { parseMarkdownDocumentIndex } from './markdown-document-index'
 import { MarkdownHeadingSlugger } from '../markdown-heading-slug'
 import { stripInlineMarkdownForToc } from '../markdown-table-of-contents'
 
@@ -27,7 +27,7 @@ export const footnoteLabelKey = (label: string): string => label.trim().toLowerC
 
 export function buildMarkdownDocument(
   state: EditorState,
-  tree: Tree = syntaxTree(state)
+  tree: Tree = parseMarkdownDocumentIndex(state)
 ): MarkdownDocumentModel {
   const headings: MarkdownDocumentHeading[] = []
   const definitions = new Map<string, MarkdownFootnoteDefinition>()
@@ -114,16 +114,34 @@ export function buildMarkdownDocument(
   return { headings, definitions, notes, references: resolved }
 }
 
+const indexedTrees = new WeakMap<MarkdownDocumentModel, Tree>()
+function indexMarkdownDocument(
+  state: EditorState,
+  previous?: MarkdownDocumentModel,
+  transaction?: Transaction
+): MarkdownDocumentModel {
+  const tree = parseMarkdownDocumentIndex(
+    state,
+    previous && indexedTrees.get(previous),
+    transaction?.changes
+  )
+  const model = buildMarkdownDocument(state, tree)
+  indexedTrees.set(model, tree)
+  return model
+}
 export const markdownDocumentModel = StateField.define<MarkdownDocumentModel>({
-  create: buildMarkdownDocument,
+  create: indexMarkdownDocument,
   update(value, transaction) {
-    return transaction.docChanged ||
-      transaction.reconfigured ||
-      syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
-      ? buildMarkdownDocument(transaction.state)
+    return transaction.docChanged
+      ? indexMarkdownDocument(transaction.state, value, transaction)
       : value
   }
 })
 
 export const readMarkdownDocument = (state: EditorState): MarkdownDocumentModel =>
   state.field(markdownDocumentModel, false) ?? buildMarkdownDocument(state)
+
+export function readMarkdownDocumentTree(state: EditorState): Tree {
+  const model = state.field(markdownDocumentModel, false)
+  return (model && indexedTrees.get(model)) ?? parseMarkdownDocumentIndex(state)
+}
