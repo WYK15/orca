@@ -20,11 +20,11 @@ function target(text: string, anchor = text.length) {
   }
 }
 
-it('removes a bullet while retaining the empty line instead of joining the preceding item', () => {
+it('turns an empty bullet into a continuation paragraph of the preceding item', () => {
   const editor = target('- first\n- ')
   expect(removeListMarker(editor)).toBe(true)
-  expect(editor.state.doc.toString()).toBe('- first\n')
-  expect(editor.state.selection.main.head).toBe(8)
+  expect(editor.state.doc.toString()).toBe('- first\n\n  ')
+  expect(editor.state.selection.main.head).toBe(11)
 })
 
 it('removes the marker but preserves the current item text', () => {

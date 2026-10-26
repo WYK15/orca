@@ -182,7 +182,7 @@ Run the browser workflows against a fresh temporary fixture server:
 node tests/tools/markdown-live-editor/run-browser-acceptance.mjs
 ```
 
-The runner executes all ten workflows sequentially in Chrome and WebKit. Each
+The runner executes all eleven workflows sequentially in Chrome and WebKit. Each
 workflow has a deadline; logs and `results.json` are written to the printed
 artifact directory. The temporary server and owned test processes are cleaned up.
 Individual check names can be supplied as arguments for targeted regression work.
@@ -251,3 +251,24 @@ The run found and fixed five behavior groups:
 The final checks retain raw Markdown as the saved representation. Actual macOS
 input-method candidate UI and the system print dialog remain outside automated
 coverage; their content/IPC contracts are tested.
+
+## Typora list behavior check
+
+Tested the installed Typora 1.14.10 with a temporary document on 2026-10-26.
+Inserting an empty ordered item after `alpha`, then pressing Backspace, keeps
+that location as a continuation paragraph of `alpha` and renumbers later items.
+Typora saves the list with blank lines between items. Further native keyboard
+checks were interrupted when macOS locked; unordered-list parity was not observed.
+
+Orcaw now retains continuation indentation when Backspace removes an empty list
+marker with a preceding sibling. Deleting a sequentially numbered item updates
+only the surviving siblings of that list, in the same undo transaction. It does
+not rewrite blank lines throughout the list. Repeated or discontinuous source
+numbers remain intact and render with standard Markdown ordinals. Source-mode
+deletion stays literal.
+
+Regression coverage includes ordered, unordered, nested, quoted and task-list
+continuations, multi-digit markers, selection deletion, exact mixed-line-ending
+undo/redo, separate lists, custom starts, explicit marker replacements and literal
+source-mode editing. The follow-up passed 1738 unit/integration tests in 208 files
+and all eleven browser workflows in both Chrome and WebKit (22 process runs).

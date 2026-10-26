@@ -16,6 +16,7 @@ import { tableCellSelection } from './table-cell-selection'
 import { tableGridSelection } from './table-grid-selection'
 import { markdownSourceLinks, markdownSourceImages } from './markdown-links'
 import { markdownRangeIsActive as active } from './markdown-caret-presentation'
+import { markdownListNumbers } from './markdown-list-numbering'
 
 function buildDecorations(state: EditorState): DecorationSet {
   const mode = state.facet(markdownEditorMode)
@@ -26,6 +27,7 @@ function buildDecorations(state: EditorState): DecorationSet {
   const text = state.doc.toString()
   const links = new Map(markdownSourceLinks(state).map((link) => [link.from, link]))
   const images = new Map(markdownSourceImages(state).map((image) => [image.from, image]))
+  const listNumbers = markdownListNumbers(state)
   const lineClasses = new Map<number, Set<string>>()
   const line = (position: number, className: string): void => {
     const from = state.doc.lineAt(position).from
@@ -135,7 +137,11 @@ function buildDecorations(state: EditorState): DecorationSet {
       if (name === 'ListMark') {
         line(from, 'live-md-list-line')
         if (!active(state, from, to + 1)) {
-          ranges.push(Decoration.replace({ widget: new ListMarkerWidget(source) }).range(from, to))
+          ranges.push(
+            Decoration.replace({
+              widget: new ListMarkerWidget(listNumbers.get(from) ?? source)
+            }).range(from, to)
+          )
         }
       }
       if (name === 'TaskMarker') {

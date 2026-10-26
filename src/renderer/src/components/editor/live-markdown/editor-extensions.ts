@@ -17,6 +17,7 @@ import { copyMarkdownSource } from './markdown-copy-source'
 import { markdownDocumentSyntax } from './markdown-document-syntax'
 import { markdownDocumentModel } from './markdown-document-model'
 import { tableGridSelection } from './table-grid-selection'
+import { markdownListDeletionNumbering } from './markdown-list-numbering'
 
 export function markdownEditorExtensions(): Extension {
   return [
@@ -36,6 +37,7 @@ export function markdownEditorExtensions(): Extension {
       addKeymap: false
     }),
     markdownDocumentModel,
+    markdownListDeletionNumbering,
     revealedTableField,
     tableGridSelection,
     tableCellSelection,

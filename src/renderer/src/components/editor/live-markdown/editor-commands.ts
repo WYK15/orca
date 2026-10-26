@@ -13,6 +13,7 @@ import {
 } from './markdown-inline-format'
 import { markdownDocumentBreak } from './markdown-document-commands'
 import { runTableCellCommand, hasTableCellInput } from './table-cell-command-target'
+import { continuePreviousListItem } from './markdown-list-commands'
 import {
   completeMarkdownTable,
   setMarkdownHeading,
@@ -27,6 +28,9 @@ export const removeListMarker: StateCommand = ({ state, dispatch }) => {
   const selection = state.selection.main
   if (!selection.empty) {
     return false
+  }
+  if (continuePreviousListItem({ state, dispatch })) {
+    return true
   }
   const line = state.doc.lineAt(selection.head)
   const prefix = line.text.match(/^(\s*)(?:[-+*]|\d+[.)]|#{1,6})\s+(?:\[[ xX]\]\s+)?/)
