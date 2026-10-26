@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { resolveImageAbsolutePath } from './markdown-preview-links'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
-import { readRuntimeFilePreview } from '@/runtime/runtime-file-client'
+import { readMarkdownImagePreview, type MarkdownImageReadContext } from './markdown-image-preview'
 
 // Why: the renderer is served from http://localhost in dev mode, so file://
 // URLs in <img> tags are blocked by cross-origin restrictions. Loading images
@@ -15,7 +14,7 @@ const inFlightBlobUrlLoads = new Map<string, Promise<string | null>>()
 export function getLocalImageCacheKey(
   absolutePath: string,
   connectionId?: string | null,
-  runtimeContext?: Omit<RuntimeFileOperationArgs, 'connectionId'> & { connectionId?: string | null }
+  runtimeContext?: MarkdownImageReadContext
 ): string {
   const runtimeEnvironmentId =
     runtimeContext?.settings?.activeRuntimeEnvironmentId?.trim() ?? 'client'
@@ -24,7 +23,8 @@ export function getLocalImageCacheKey(
     runtimeContext?.connectionId ?? connectionId ?? 'local',
     runtimeContext?.expectedExternalSshTargetId ?? '',
     runtimeContext?.worktreeId ?? 'unknown-worktree',
-    absolutePath
+    absolutePath,
+    runtimeContext?.sourceMarkdownPath ?? ''
   ].join('\0')
 }
 
@@ -166,7 +166,7 @@ export function useLocalImageSrc(
   rawSrc: string | undefined,
   filePath: string,
   connectionId?: string | null,
-  runtimeContext?: Omit<RuntimeFileOperationArgs, 'connectionId'> & { connectionId?: string | null }
+  runtimeContext?: MarkdownImageReadContext
 ): string | undefined {
   const [generation, setGeneration] = useState(cacheGeneration)
 
@@ -246,7 +246,7 @@ export async function loadLocalImageSrc(
   rawSrc: string,
   filePath: string,
   connectionId?: string | null,
-  runtimeContext?: Omit<RuntimeFileOperationArgs, 'connectionId'> & { connectionId?: string | null }
+  runtimeContext?: MarkdownImageReadContext
 ): Promise<string | null> {
   if (
     rawSrc.startsWith('http://') ||
@@ -274,7 +274,7 @@ export async function loadLocalImageSrc(
 export function loadLocalImageAbsolutePath(
   absolutePath: string,
   connectionId?: string | null,
-  runtimeContext?: Omit<RuntimeFileOperationArgs, 'connectionId'> & { connectionId?: string | null }
+  runtimeContext?: MarkdownImageReadContext
 ): Promise<string | null> {
   const cacheKey = getLocalImageCacheKey(absolutePath, connectionId, runtimeContext)
   const cached = blobUrlCache.get(cacheKey)
@@ -288,7 +288,7 @@ export function loadLocalImageAbsolutePath(
   }
 
   const readGeneration = cacheGeneration
-  const loadPromise = readImagePreview(absolutePath, connectionId, runtimeContext)
+  const loadPromise = readMarkdownImagePreview(absolutePath, connectionId, runtimeContext)
     .then((result) => {
       if (!result.isBinary || !result.content || cacheGeneration !== readGeneration) {
         // Why: local image paths must stay behind IPC/runtime authorization;
@@ -331,28 +331,4 @@ export function resetLocalImageSrcStateForTests(): void {
 
 export function invalidateLocalImageSrcCacheForTests(): void {
   invalidateImageCache()
-}
-
-function readImagePreview(
-  absolutePath: string,
-  connectionId?: string | null,
-  runtimeContext?: Omit<RuntimeFileOperationArgs, 'connectionId'> & { connectionId?: string | null }
-) {
-  try {
-    if (!runtimeContext) {
-      return window.api.fs.readFile({
-        filePath: absolutePath,
-        connectionId: connectionId ?? undefined
-      })
-    }
-    return readRuntimeFilePreview(
-      {
-        ...runtimeContext,
-        connectionId: runtimeContext.connectionId ?? connectionId ?? undefined
-      },
-      absolutePath
-    )
-  } catch (error) {
-    return Promise.reject(error)
-  }
 }

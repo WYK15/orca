@@ -100,6 +100,7 @@ import {
 } from './filesystem-auth'
 import { listQuickOpenFiles } from './filesystem-list-files'
 import { registerFilesystemMutationHandlers } from './filesystem-mutations'
+import { registerMarkdownImageHandlers } from './markdown-image-read'
 import { searchWithGitGrep } from './filesystem-search-git'
 import {
   getLocalGitOptionsForRegisteredWorktree,
@@ -475,6 +476,7 @@ export function registerFilesystemHandlers(
   store: Store,
   commitMessageAgentEnv?: CommitMessageAgentEnvironmentResolvers
 ): void {
+  registerMarkdownImageHandlers(store)
   const activeTextSearches = new Map<string, ChildProcess>()
   const downloadSessions = new Map<string, DownloadSession>()
 

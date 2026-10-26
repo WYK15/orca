@@ -80,7 +80,10 @@ The personal Tauri build uses a source-first CodeMirror 6 editor for Markdown.
 Live, source and reading views share document state and undo history. Visual
 edits patch source ranges, including table cells; untouched source and mixed
 line endings remain intact. Image imports use the file owner's existing
-local/SSH/runtime authorization. The Electron editor and source recovery path
+local/SSH/runtime authorization. Local Markdown can also reference images outside
+the workspace through an image-only reader tied to an authorized Markdown file.
+This reader checks image content and size and grants no general filesystem access;
+remote documents keep their owning host route. The Electron editor and source recovery path
 remain available. Writing preferences persist separately in local WebView storage;
 self-contained HTML and native print/PDF export read complete source snapshots.
 See [the editor design and validation notes](docs/readme/markdown-live-editor.md).

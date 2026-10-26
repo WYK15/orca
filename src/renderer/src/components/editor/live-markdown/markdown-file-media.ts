@@ -50,6 +50,7 @@ export async function loadMarkdownFileImage(
   const { context } = contextForFile(file)
   return loadLocalImageSrc(path, file.filePath, context.connectionId, {
     ...context,
+    sourceMarkdownPath: file.filePath,
     expectedExternalSshTargetId: file.externalSshTargetId
   })
 }

@@ -2998,6 +2998,15 @@ const api = {
       connectionId?: string
     }): Promise<{ name: string; isDirectory: boolean; isSymlink: boolean }[]> =>
       ipcRenderer.invoke('fs:readDir', args),
+    readMarkdownImage: (args: {
+      documentPath: string
+      imagePath: string
+    }): Promise<{
+      content: string
+      isBinary: boolean
+      isImage: boolean
+      mimeType: string
+    }> => ipcRenderer.invoke('fs:readMarkdownImage', args),
     readFile: (args: {
       filePath: string
       connectionId?: string

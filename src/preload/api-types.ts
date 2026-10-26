@@ -2725,6 +2725,12 @@ export type PreloadApi = {
   nativeChat: NativeChatApi
   fs: {
     readDir: (args: { dirPath: string; connectionId?: string }) => Promise<DirEntry[]>
+    readMarkdownImage: (args: { documentPath: string; imagePath: string }) => Promise<{
+      content: string
+      isBinary: boolean
+      isImage: boolean
+      mimeType: string
+    }>
     readFile: (args: {
       filePath: string
       connectionId?: string

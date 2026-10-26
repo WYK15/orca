@@ -1,3 +1,4 @@
+import { registerTauriMarkdownImageReadTest } from './tauri-markdown-image-read-cases.mjs'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { spawn, execFile } from 'node:child_process'
 import { createInterface } from 'node:readline'
@@ -169,6 +170,8 @@ describe('standalone desktop backend', () => {
       'Invalid export'
     )
   })
+
+  registerTauriMarkdownImageReadTest(() => ({ call, project, directory }))
 
   it('reuses Git operations for registered repositories', async () => {
     await execute('git', ['init', project])
