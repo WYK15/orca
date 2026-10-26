@@ -112,3 +112,16 @@ it('keeps source mode and reading mode unchanged', () => {
   expect(continueListAfterBreak(target(source, undefined, 'source'))).toBe(false)
   expect(continueListAfterBreak(target(source, undefined, 'live', true))).toBe(false)
 })
+
+it.each([
+  ['1. alpha\n2. bravo', 4, 6, '1. a\n2. ha\n3. bravo'],
+  ['1. alpha  \n   detail\n2. bravo', 16, 18, '1. alpha  \n   de\n2. il\n3. bravo'],
+  ['1. alpha\n2. bravo\n3. charlie\n4. delta', 4, 22, '1. a\n2. harlie\n3. delta']
+])('replaces selected list text with a new item in %j', (source, anchor, head, expected) => {
+  const editor = target(source, anchor)
+  editor.dispatch(editor.state.update({ selection: { anchor, head } }))
+  expect(continueListAfterBreak(editor)).toBe(true)
+  expect(editor.raw).toBe(expected)
+  expect(undo(editor)).toBe(true)
+  expect(editor.raw).toBe(source)
+})

@@ -182,7 +182,7 @@ Run the browser workflows against a fresh temporary fixture server:
 node tests/tools/markdown-live-editor/run-browser-acceptance.mjs
 ```
 
-The runner executes all eleven workflows sequentially in Chrome and WebKit. Each
+The runner executes all twelve workflows sequentially in Chrome and WebKit. Each
 workflow has a deadline; logs and `results.json` are written to the printed
 artifact directory. The temporary server and owned test processes are cleaned up.
 Individual check names can be supplied as arguments for targeted regression work.
@@ -259,8 +259,10 @@ Inserting an empty ordered item after `alpha`, then pressing Backspace, keeps
 that location as a continuation paragraph of `alpha` and renumbers later items.
 Typora saves the list with blank lines between items. Native checks also confirmed
 that Shift+Enter followed by Enter starts the next ordered item, both with an
-empty continuation and after typing text. Unordered-list parity was not observed
-in the native application.
+empty continuation and after typing text. Later native checks covered unlisting
+the first/nonempty item, ordered indentation/outdent, mixed list styles, selected
+text followed by Enter, and quote/code soft breaks. These observations cover
+specific keyboard sequences rather than every Typora interaction.
 
 Orcaw now retains continuation indentation when Backspace removes an empty list
 marker with a preceding sibling. Deleting a sequentially numbered item updates
@@ -281,3 +283,36 @@ continuations retain their text. Repeated Shift+Enter retains the owning list's
 indentation, including nested, quoted and task lists. The follow-up passed 1761
 tests in 209 files, plus list, baseline writing, writing interactions and editing
 boundaries in both Chrome and WebKit (eight targeted process runs).
+
+## Extended keyboard acceptance, 2026-10-26
+
+The extended pass found and fixed four behavior groups:
+
+- Code and quote line breaks lost their owning indentation or quote markers.
+  Code text beginning with `-` or `>` also received unintended Markdown handling.
+  Soft breaks now retain the actual container. Ordinary Enter in quoted code
+  keeps that container and language indentation; typing resumes after the prefix.
+- Removing nonempty list markers lost continuation structure. Removing the first
+  marker could consume the remaining list as prose. Unlisting now retains child
+  indentation, separates the remaining list and preserves reversible numbering.
+- Indenting/outdenting ordered items retained invalid sibling numbers or started
+  nested lists at the previous outer number. Affected lists now renumber together;
+  quoted, multi-digit and mixed ordered/bullet cases retain their containers.
+- Enter over selected list text inserted ordinary paragraphs. It now splits into
+  the next item, retains the unselected text and renumbers surviving siblings.
+
+Validation on macOS arm64, Chrome 156.0.8078.47 and WebKit 26.4:
+
+- 212 files, 1804 unit/integration tests; four native Rust tests.
+- All twelve browser workflows in both engines: 24 successful process runs.
+- Renderer type check, changed-file lint, React audit and max-lines ratchet.
+- Three real-document copies: iOS/Windows integration manuals and MConclusion.md.
+  Mode changes, heading/table edits and undo retained exact bytes, including the
+  iOS manual's complete 1.3-section deletion. Original SHA-256 hashes were unchanged.
+- Mixed line endings, literal arrows/entities, multiline paste, source mode,
+  read-only editing protection, file switches, export and media lifecycle checks.
+- A 291567-character document retained all 2000 headings and reverted consecutive
+  edits exactly. Edit-to-frame P95 was 33.5 ms in Chrome and 52.0 ms in WebKit.
+
+The packaged macOS test App was rebuilt. Native input-method candidate UI and
+the system print dialog remain separate manual acceptance items.

@@ -76,15 +76,21 @@ export const continueListAfterBreak: StateCommand = ({ state, dispatch }) => {
   const selection = state.selection.main
   if (
     state.readOnly ||
-    !selection.empty ||
     state.selection.ranges.length !== 1 ||
     state.facet(markdownEditorMode) !== 'live'
   ) {
     return false
   }
-  const context = listBreakContext(state, selection.head)
-  const line = state.doc.lineAt(selection.head)
-  if (!context || line.from === context.first.from) {
+  const context = listBreakContext(state, selection.from)
+  const line = state.doc.lineAt(selection.from)
+  const endContext = selection.empty ? context : listBreakContext(state, selection.to)
+  if (
+    !context ||
+    (line.from === context.first.from && selection.empty) ||
+    selection.from < context.mark.to + context.space.length ||
+    !endContext ||
+    endContext.item.parent?.from !== context.item.parent?.from
+  ) {
     return false
   }
   const { item, before, marker, space, after } = context
@@ -101,9 +107,9 @@ export const continueListAfterBreak: StateCommand = ({ state, dispatch }) => {
     (firstEnd &&
       secondStart &&
       firstEnd.number + (blankContainer(firstEnd.text) ? 0 : 1) < secondStart.number)
-  let from = selection.head
+  let from = selection.from
   let insert = `${loose ? `\n${before.trimEnd()}` : ''}\n${nextPrefix}`
-  if (blankContainer(line.text) && selection.head === line.to) {
+  if (selection.empty && blankContainer(line.text) && selection.head === line.to) {
     const previous = state.doc.line(line.number - 1)
     from = previous.to
     while (from > previous.from && /[\t ]/.test(state.sliceDoc(from - 1, from))) {
@@ -115,9 +121,10 @@ export const continueListAfterBreak: StateCommand = ({ state, dispatch }) => {
       from--
     }
   }
-  const changes: ChangeSpec[] = [{ from, to: selection.head, insert }]
+  const changes: ChangeSpec[] = [{ from, to: selection.to, insert }]
   if (ordered) {
     let expected = number + 1
+    let removed = 0
     for (let next = item.nextSibling; next; next = next.nextSibling) {
       const mark = next.name === 'ListItem' ? next.getChild('ListMark') : null
       if (!mark) {
@@ -126,7 +133,12 @@ export const continueListAfterBreak: StateCommand = ({ state, dispatch }) => {
       if (Number.parseInt(state.sliceDoc(mark.from, mark.to), 10) !== expected) {
         break
       }
-      changes.push({ from: mark.from, to: mark.to - 1, insert: String(++expected) })
+      expected++
+      if (mark.from < selection.to) {
+        removed++
+      } else {
+        changes.push({ from: mark.from, to: mark.to - 1, insert: String(expected - removed) })
+      }
     }
   }
   dispatch(

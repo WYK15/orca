@@ -2,6 +2,7 @@ import { EditorSelection, type EditorState, type StateCommand } from '@codemirro
 import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { isolateHistory } from '@codemirror/commands'
+import { readMarkdownDocumentTree } from './markdown-document-model'
 
 export type MarkdownInlineFormat = '**' | '*' | '~~' | '`'
 const names = { '**': 'StrongEmphasis', '*': 'Emphasis', '~~': 'Strikethrough', '`': 'InlineCode' }
@@ -10,7 +11,7 @@ export function markdownCodeBlockAt(
   state: EditorState,
   position = state.selection.main.head
 ): SyntaxNode | null {
-  let node: SyntaxNode | null = syntaxTree(state).resolveInner(position, -1)
+  let node: SyntaxNode | null = readMarkdownDocumentTree(state).resolveInner(position, -1)
   while (node) {
     if (['FencedCode', 'CodeBlock', 'FrontMatter', 'DisplayMath'].includes(node.name)) {
       return node

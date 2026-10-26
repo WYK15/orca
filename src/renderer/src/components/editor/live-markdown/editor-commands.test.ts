@@ -30,7 +30,7 @@ it('turns an empty bullet into a continuation paragraph of the preceding item', 
 it('removes the marker but preserves the current item text', () => {
   const editor = target('- first\n- second', 10)
   expect(removeListMarker(editor)).toBe(true)
-  expect(editor.state.doc.toString()).toBe('- first\nsecond')
+  expect(editor.state.doc.toString()).toBe('- first\n\n  second')
 })
 
 it('removes heading formatting at the start of a heading without deleting its text', () => {

@@ -13,8 +13,10 @@ import {
 } from './markdown-inline-format'
 import { markdownDocumentBreak } from './markdown-document-commands'
 import { runTableCellCommand, hasTableCellInput } from './table-cell-command-target'
-import { continuePreviousListItem } from './markdown-list-commands'
-import { continueListAfterBreak, markdownListBreakPrefix } from './markdown-list-breaks'
+import { removeMarkdownListItemMarker } from './markdown-list-commands'
+import { insertQuotedCodeBreak } from './markdown-code-break'
+import { continueListAfterBreak } from './markdown-list-breaks'
+import { insertMarkdownSoftBreak } from './markdown-soft-break'
 import {
   completeMarkdownTable,
   setMarkdownHeading,
@@ -30,7 +32,7 @@ export const removeListMarker: StateCommand = ({ state, dispatch }) => {
   if (!selection.empty) {
     return false
   }
-  if (continuePreviousListItem({ state, dispatch })) {
+  if (removeMarkdownListItemMarker({ state, dispatch })) {
     return true
   }
   const line = state.doc.lineAt(selection.head)
@@ -169,27 +171,6 @@ export const completeCodeFence: StateCommand = ({ state, dispatch }) => {
   return true
 }
 
-const softBreak: StateCommand = ({ state, dispatch }) => {
-  if (state.readOnly) {
-    return false
-  }
-  const selection = state.selection.main
-  const line = state.doc.lineAt(selection.from)
-  const prefix = line.text.match(/^(\s*)(?:[-+*]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/)
-  const indent =
-    markdownListBreakPrefix(state, selection.from) ?? (prefix ? ' '.repeat(prefix[0].length) : '')
-  const code = markdownCodeBlockAt(state)
-  const breakText = code ? '\n' : '  \n'
-  dispatch(
-    state.update({
-      changes: { from: selection.from, to: selection.to, insert: breakText + indent },
-      selection: { anchor: selection.from + breakText.length + indent.length },
-      userEvent: 'input'
-    })
-  )
-  return true
-}
-
 export const paragraphBreak: StateCommand = ({ state, dispatch }) => {
   if (
     state.readOnly ||
@@ -219,11 +200,12 @@ export const liveMarkdownKeymap: KeyBinding[] = [
   { key: 'Enter', run: markdownDocumentBreak },
   { key: 'Enter', run: completeCodeFence },
   { key: 'Enter', run: completeMarkdownTable },
+  { key: 'Enter', run: insertQuotedCodeBreak },
   { key: 'Enter', run: continueListAfterBreak },
   { key: 'Enter', run: insertNewlineContinueMarkupCommand({ nonTightLists: false }) },
   { key: 'Enter', run: paragraphBreak },
   { key: 'Enter', run: insertNewlineAndIndent },
-  { key: 'Shift-Enter', run: softBreak },
+  { key: 'Shift-Enter', run: insertMarkdownSoftBreak },
   { key: 'Mod-Enter', run: exitCodeBlock },
   {
     key: 'Escape',

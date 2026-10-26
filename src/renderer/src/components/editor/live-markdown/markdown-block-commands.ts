@@ -110,53 +110,7 @@ export function toggleMarkdownBlock(prefix: '- ' | '> ' | '1. ' | '- [ ] '): Sta
   }
 }
 
-export function indentMarkdownList(outdent: boolean): StateCommand {
-  return ({ state, dispatch }) => {
-    if (state.readOnly || markdownCodeBlockAt(state) || !state.selection.main.empty) {
-      return false
-    }
-    let node = syntaxTree(state).resolveInner(state.selection.main.head, -1)
-    while (node.parent && node.name !== 'ListItem') {
-      node = node.parent
-    }
-    if (node.name !== 'ListItem') {
-      return false
-    }
-    const line = state.doc.lineAt(node.from)
-    const nestedParent = node.parent?.parent
-    const parentIndent =
-      nestedParent?.name === 'ListItem'
-        ? (state.doc.lineAt(nestedParent.from).text.match(/^\s*/)?.[0].length ?? 0)
-        : -1
-    const indent = line.text.match(/^\s*/)?.[0].length ?? 0
-    if (outdent ? parentIndent < 0 : node.prevSibling?.name !== 'ListItem') {
-      return true
-    }
-    const width = outdent
-      ? Math.max(1, indent - parentIndent)
-      : (line.text.match(/^\s*((?:[-+*]|\d+[.)])\s+)/)?.[1].length ?? 2)
-    const last = state.doc.lineAt(node.to).number
-    const changes = Array.from({ length: last - line.number + 1 }, (_, index) => {
-      const current = state.doc.line(line.number + index)
-      const spaces = current.text.match(/^\s*/)?.[0].length ?? 0
-      return {
-        from: current.from,
-        to: current.from + (outdent ? Math.min(width, spaces) : 0),
-        insert: outdent || !current.text ? '' : ' '.repeat(width)
-      }
-    })
-    const changeSet = state.changes(changes)
-    dispatch(
-      state.update({
-        changes: changeSet,
-        selection: state.selection.map(changeSet),
-        userEvent: 'input',
-        annotations: isolateHistory.of('full')
-      })
-    )
-    return true
-  }
-}
+export { indentMarkdownList } from './markdown-list-indentation'
 
 export const completeMarkdownTable: StateCommand = ({ state, dispatch }) => {
   const selection = state.selection.main

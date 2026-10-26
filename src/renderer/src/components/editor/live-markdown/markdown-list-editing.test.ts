@@ -86,6 +86,38 @@ it('removes the first empty marker without inventing a preceding item', () => {
   expect(editor.raw).toBe('')
 })
 
+it.each([
+  ['1. alpha\n2. bravo\n3. charlie', 'alpha\n\n1. bravo\n2. charlie'],
+  ['> 1. alpha\n> 2. bravo', '> alpha\n>\n> 1. bravo'],
+  ['1. ```text\n   alpha\n   ```\n2. bravo', '```text\nalpha\n```\n\n1. bravo'],
+  ['- [x] alpha\n  - child\n- bravo', 'alpha\n- child\n\n- bravo']
+])(
+  'unlists the first item and keeps the remaining list and child indentation in %j',
+  (source, expected) => {
+    const anchor = source.startsWith('- [x]') ? 6 : source.indexOf('1.') + 3
+    const editor = target(source, anchor)
+    expect(removeListMarker(editor)).toBe(true)
+    expect(editor.raw).toBe(expected)
+    expect(undo(editor)).toBe(true)
+    expect(editor.raw).toBe(source)
+  }
+)
+
+it.each([
+  ['1. alpha\n2. bravo\n3. charlie', '1. alpha\n\n   bravo\n2. charlie'],
+  ['> 1. alpha\n> 2. bravo\n> 3. charlie', '> 1. alpha\n>\n>    bravo\n> 2. charlie'],
+  ['- [x] alpha\n- [ ] bravo', '- [x] alpha\n\n  bravo']
+])(
+  'retains nonempty item text as a continuation when removing its marker in %j',
+  (source, expected) => {
+    const editor = target(source, source.indexOf('bravo'))
+    expect(removeListMarker(editor)).toBe(true)
+    expect(editor.raw).toBe(expected)
+    expect(undo(editor)).toBe(true)
+    expect(editor.raw).toBe(source)
+  }
+)
+
 it('renumbers after deleting a whole middle item and restores the exact source on undo', () => {
   const original = 'Before ->\r\n\r\n1. alpha\r\n2. bravo\r\n3. charlie\r\n\r\nAfter &gt;\n'
   const editor = target(original)
