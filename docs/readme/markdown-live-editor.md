@@ -90,6 +90,7 @@ node tests/tools/markdown-live-editor/verify-writing-interactions.mjs
 node tests/tools/markdown-live-editor/verify-document-features.mjs
 node tests/tools/markdown-live-editor/verify-table-grid.mjs
 node tests/tools/markdown-live-editor/verify-resources-and-export.mjs
+node tests/tools/markdown-live-editor/verify-image-layout.mjs
 ```
 
 Set `ORCA_MARKDOWN_CHECK_BROWSER=webkit` to run the same browser checks in WebKit.
@@ -144,6 +145,11 @@ The table-grid and resource/export checks exercise these workflows in both brows
 | Images         | Edit paths, alt text, title and pixel dimensions; explicit dimensions use a local HTML image; HTML images retain their edit menu; stale panels cannot overwrite newer content                           |
 | Writing        | Persist focus/typewriter modes, spelling, reading/full width and a relative image directory; show text/selection counts and caret position                                                              |
 | Export         | Standalone HTML and native printing/PDF use a complete independent source parse, including offscreen headings, math and notes; embed images and formula fonts, render diagrams and omit editor controls |
+
+Image layout checks cover short captions, large and small natural sizes, portrait
+ratios, inline placement, source reveal, reading mode and narrow editor widths.
+Both Chrome and WebKit must preserve the image aspect ratio without caption-driven
+shrinkage or rewriting Markdown.
 
 Image folders apply to subsequent imports, pastes and drops. `{filename}.assets`
 resolves beside the Markdown document on its owner's platform; existing image
