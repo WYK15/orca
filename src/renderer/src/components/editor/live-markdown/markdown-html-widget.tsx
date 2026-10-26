@@ -24,7 +24,7 @@ function HtmlFragment({ view, widget }: { view: EditorView; widget: MarkdownHtml
       dispose()
       node.replaceChildren()
     }
-  }, [widget.source, widget.mediaVersion, widget.inline, view])
+  }, [widget.source, widget.mediaVersion, widget.inline, widget.canEdit, view])
   const Tag = widget.inline ? 'span' : 'div'
   const content = (
     <Tag

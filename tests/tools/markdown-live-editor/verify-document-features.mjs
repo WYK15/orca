@@ -214,6 +214,12 @@ try {
   assert.equal(await image.getAttribute('onerror'), null)
   await page.locator('.live-md-html summary').click()
   assert.equal(await page.locator('.live-md-html details').getAttribute('open'), '')
+  for (const name of ['preview', 'live']) {
+    await mode(name)
+    await page.locator('.live-md-html summary').waitFor()
+    await page.locator('.live-md-html img').waitFor()
+    assert.equal(await raw(), html)
+  }
   await page.locator('.live-md-html-inline sub').click()
   await page.keyboard.type('b')
   assert.equal(await raw(), html.replace('<sub>', '<bsub>'))

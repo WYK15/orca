@@ -203,6 +203,13 @@ try {
       .then((src) => src?.startsWith('data:')),
     true
   )
+  await page.evaluate(() => {
+    window.editor.dispatch({
+      selection: { anchor: window.editor.state.doc.toString().indexOf('<details>') },
+      scrollIntoView: true
+    })
+  })
+  await page.locator('summary').waitFor()
   assert.equal(await page.locator('summary').count(), 1)
   console.log('PASS: read-only preview, rendered table, authorized image and HTML details')
 
