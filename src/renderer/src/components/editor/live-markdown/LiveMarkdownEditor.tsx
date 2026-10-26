@@ -79,13 +79,15 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
     writingSettings.current = preferences
   })
 
-  const modeExtensions = (): ReturnType<Compartment['of']> => [
-    markdownEditorMode.of(current.current.mode),
-    EditorState.readOnly.of(
-      current.current.readOnly === true || current.current.mode === 'preview'
-    ),
-    EditorView.editable.of(current.current.readOnly !== true && current.current.mode !== 'preview')
-  ]
+  const modeExtensions = (): ReturnType<Compartment['of']> => {
+    const readOnly = current.current.readOnly === true || current.current.mode === 'preview'
+    return [
+      markdownEditorMode.of(current.current.mode),
+      EditorState.readOnly.of(readOnly),
+      EditorView.editable.of(!readOnly),
+      EditorView.contentAttributes.of(readOnly ? { tabindex: '0' } : {})
+    ]
+  }
 
   const extensions = (raw: string): Extension => [
     markdownSourceExtensions(raw),
@@ -144,6 +146,10 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
     }),
     EditorView.domEventHandlers({
       keydown: (event, editor) => {
+        if (editor.state.readOnly && (event.key === 'Backspace' || event.key === 'Delete')) {
+          event.preventDefault()
+          return true
+        }
         const modifier = navigator.userAgent.includes('Mac') ? event.metaKey : event.ctrlKey
         if (modifier && event.shiftKey && event.key.toLowerCase() === 'v') {
           requestPlainMarkdownPaste(editor)
