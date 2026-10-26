@@ -169,7 +169,7 @@ Remaining gaps from the Typora comparison:
 - Nested footnote definitions/references inside tables and other containers; broader extended-syntax compatibility.
 - Full HTML/CSS fidelity and configurable math syntax; unsupported constructs remain local source.
 - Nested quote presentation, multi-item list operations and precise caret restoration in every history case.
-- Native macOS input-method and system print-dialog acceptance; large-document performance measurements.
+- Native macOS input-method and system print-dialog acceptance; broader memory/performance profiling beyond the bounded acceptance fixture.
 
 This remains a phased replacement. Passing the checks above does not assert that
 every Typora interaction is already identical.
@@ -209,3 +209,45 @@ Playwright WebKit checks browser-engine behavior. It does not exercise the macOS
 input-method candidate window or the actual system print dialog. Native unit tests
 cover clipboard bytes, native drop bounds and credential storage; those OS dialogs
 remain separate hands-on acceptance items.
+
+## 2026-10-26 acceptance results
+
+Validated the final renderer code on macOS arm64 with Node v26.8.2,
+Chrome 156.0.8078.47 and Playwright WebKit 26.4.
+The packaged macOS test application was rebuilt successfully.
+
+- 207 test files, 1716 unit/integration tests passed, including editor state,
+  saves/recovery, ownership, native file drops and the standalone backend.
+- Four Rust native-module tests passed. Node and renderer type checks, changed-file
+  lint, the React audit and the existing max-lines ratchet passed.
+- All ten browser workflows passed in both engines: 20 successful process runs.
+- iOS and Windows integration-manual copies and MConclusion.md retained exact
+  source through mode changes, heading edits, table edits and undo. Deleting the
+  iOS manual's complete 1.3 section was reversed exactly. Original-file hashes
+  remained unchanged in both browser runs.
+- The generated 291567-character document retained all 2000 TOC entries and
+  reverted 20 consecutive text changes to its original source.
+
+| Measured fixture                            |   Chrome |   WebKit |
+| ------------------------------------------- | -------: | -------: |
+| Load plus a fixed 100 ms stabilization wait | 254.2 ms | 311.7 ms |
+| Edit-to-next-frame P95, 20 samples          |  34.1 ms |  50.0 ms |
+
+These are development-fixture timings on this machine, not packaged-app startup
+measurements or a guarantee for every document size.
+
+The run found and fixed five behavior groups:
+
+1. Reference images, balanced parentheses in destinations and escaped captions
+   used an incomplete regular-expression renderer instead of parsed destinations.
+2. Applying unchanged resource fields produced an unnecessary edit/undo step.
+3. File-URL images displayed in the editor but were filtered before export could
+   embed their authorized bytes.
+4. Long-document TOCs, notes and reference indexing depended on the viewport parse
+   budget and omitted later headings. A full incremental index now supplies them.
+5. Reading mode could not receive keyboard focus in WebKit, allowing Backspace to
+   navigate away. Its content is focusable and deletion keys are consumed.
+
+The final checks retain raw Markdown as the saved representation. Actual macOS
+input-method candidate UI and the system print dialog remain outside automated
+coverage; their content/IPC contracts are tested.
