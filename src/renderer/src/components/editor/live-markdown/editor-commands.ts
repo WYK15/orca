@@ -14,6 +14,7 @@ import {
 import { markdownDocumentBreak } from './markdown-document-commands'
 import { runTableCellCommand, hasTableCellInput } from './table-cell-command-target'
 import { continuePreviousListItem } from './markdown-list-commands'
+import { continueListAfterBreak, markdownListBreakPrefix } from './markdown-list-breaks'
 import {
   completeMarkdownTable,
   setMarkdownHeading,
@@ -175,7 +176,8 @@ const softBreak: StateCommand = ({ state, dispatch }) => {
   const selection = state.selection.main
   const line = state.doc.lineAt(selection.from)
   const prefix = line.text.match(/^(\s*)(?:[-+*]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/)
-  const indent = prefix ? ' '.repeat(prefix[0].length) : ''
+  const indent =
+    markdownListBreakPrefix(state, selection.from) ?? (prefix ? ' '.repeat(prefix[0].length) : '')
   const code = markdownCodeBlockAt(state)
   const breakText = code ? '\n' : '  \n'
   dispatch(
@@ -217,6 +219,7 @@ export const liveMarkdownKeymap: KeyBinding[] = [
   { key: 'Enter', run: markdownDocumentBreak },
   { key: 'Enter', run: completeCodeFence },
   { key: 'Enter', run: completeMarkdownTable },
+  { key: 'Enter', run: continueListAfterBreak },
   { key: 'Enter', run: insertNewlineContinueMarkupCommand({ nonTightLists: false }) },
   { key: 'Enter', run: paragraphBreak },
   { key: 'Enter', run: insertNewlineAndIndent },

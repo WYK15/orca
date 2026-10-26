@@ -257,8 +257,10 @@ coverage; their content/IPC contracts are tested.
 Tested the installed Typora 1.14.10 with a temporary document on 2026-10-26.
 Inserting an empty ordered item after `alpha`, then pressing Backspace, keeps
 that location as a continuation paragraph of `alpha` and renumbers later items.
-Typora saves the list with blank lines between items. Further native keyboard
-checks were interrupted when macOS locked; unordered-list parity was not observed.
+Typora saves the list with blank lines between items. Native checks also confirmed
+that Shift+Enter followed by Enter starts the next ordered item, both with an
+empty continuation and after typing text. Unordered-list parity was not observed
+in the native application.
 
 Orcaw now retains continuation indentation when Backspace removes an empty list
 marker with a preceding sibling. Deleting a sequentially numbered item updates
@@ -272,3 +274,10 @@ continuations, multi-digit markers, selection deletion, exact mixed-line-ending
 undo/redo, separate lists, custom starts, explicit marker replacements and literal
 source-mode editing. The follow-up passed 1738 unit/integration tests in 208 files
 and all eleven browser workflows in both Chrome and WebKit (22 process runs).
+
+Enter on a continuation line now starts the next item instead of adding another
+continuation. An empty soft-break line is removed when starting that item; filled
+continuations retain their text. Repeated Shift+Enter retains the owning list's
+indentation, including nested, quoted and task lists. The follow-up passed 1761
+tests in 209 files, plus list, baseline writing, writing interactions and editing
+boundaries in both Chrome and WebKit (eight targeted process runs).

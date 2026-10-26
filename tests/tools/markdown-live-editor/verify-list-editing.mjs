@@ -34,6 +34,57 @@ try {
   const original = '1. alpha\n2. bravo\n3. charlie'
   const afterEnter = '1. alpha\n2. \n3. bravo\n4. charlie'
   const continuation = '1. alpha\n\n   \n2. bravo\n3. charlie'
+  for (const initial of ['1. alpha', original]) {
+    for (const detail of ['', 'detail']) {
+      await doc(initial)
+      await select(8)
+      await page.keyboard.press('Shift+Enter')
+      await page.keyboard.type(detail)
+      const beforeEnter = await raw()
+      await page.keyboard.press('Enter')
+      const first = detail ? `1. alpha  \n   ${detail}\n2. ` : '1. alpha\n2. '
+      const expected = first + (initial === original ? '\n3. bravo\n4. charlie' : '')
+      assert.equal(await raw(), expected)
+      await page.keyboard.press(`${modifier}+z`)
+      await pause()
+      assert.equal(await raw(), beforeEnter)
+      await page.keyboard.press(`${modifier}+Shift+z`)
+      await pause()
+      assert.equal(await raw(), expected)
+    }
+  }
+  console.log(
+    'PASS: Shift+Enter then Enter creates the next ordered item with empty or filled continuation, exact undo and redo'
+  )
+
+  for (const [initial, expected] of [
+    ['- alpha\n- bravo', '- alpha  \n  detail\n- \n- bravo'],
+    ['- [x] alpha\n- [ ] bravo', '- [x] alpha  \n  detail\n- [ ] \n- [ ] bravo'],
+    ['> 1. alpha\n> 2. bravo', '> 1. alpha  \n>    detail\n> 2. \n> 3. bravo'],
+    [
+      '1. parent\n   1. alpha\n   2. bravo\n2. next',
+      '1. parent\n   1. alpha  \n      detail\n   2. \n   3. bravo\n2. next'
+    ]
+  ]) {
+    await doc(initial)
+    await select(initial.indexOf('alpha') + 5)
+    await page.keyboard.press('Shift+Enter')
+    await page.keyboard.type('detail')
+    await page.keyboard.press('Enter')
+    assert.equal(await raw(), expected)
+  }
+  await doc('1. alpha\n2. bravo')
+  await select(8)
+  await page.keyboard.press('Shift+Enter')
+  await page.keyboard.type('one')
+  await page.keyboard.press('Shift+Enter')
+  await page.keyboard.type('two')
+  await page.keyboard.press('Enter')
+  assert.equal(await raw(), '1. alpha  \n   one  \n   two\n2. \n3. bravo')
+  console.log(
+    'PASS: repeated soft breaks and unordered, task, nested and quoted lists retain their list context'
+  )
+
   await doc(original)
   await select(8)
   await page.keyboard.press('Enter')
