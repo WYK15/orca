@@ -8,6 +8,7 @@ import {
   type TableStructureAction
 } from './table-source'
 import { selectTableCell, type TableCellRange } from './table-cell-selection'
+import { selectTableGrid } from './table-grid-selection'
 
 export type TableCellAddress = { row: number; column: number }
 
@@ -57,7 +58,7 @@ export function selectCellTransaction(
   }
   return {
     selection: { anchor: cell.from },
-    effects: selectTableCell.of({ from: cell.from, to: cell.to })
+    effects: [selectTableGrid.of(null), selectTableCell.of({ from: cell.from, to: cell.to })]
   }
 }
 
@@ -89,6 +90,10 @@ export function tableStructureTransaction(
     target.row++
   } else if (action === 'column-after') {
     target.column++
+  } else if (action === 'move-row-up' || action === 'move-row-down') {
+    target.row += action === 'move-row-up' ? -1 : 1
+  } else if (action === 'move-column-left' || action === 'move-column-right') {
+    target.column += action === 'move-column-left' ? -1 : 1
   }
   const focused = next
     ? transaction.state.update(

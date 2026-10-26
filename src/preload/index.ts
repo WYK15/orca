@@ -1269,6 +1269,10 @@ const api = {
   },
 
   export: {
+    htmlToFile: (args: { html: string; title: string }) =>
+      ipcRenderer.invoke('export:html-to-file', args),
+    printHtml: (args: { html: string; title: string }): Promise<void> =>
+      ipcRenderer.invoke('export:print-html', args),
     htmlToPdf: (args: {
       html: string
       title: string

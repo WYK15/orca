@@ -2,12 +2,8 @@ import { StateField, type EditorState, type Range } from '@codemirror/state'
 import { Decoration, EditorView, type DecorationSet } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import { markdownEditorMode, markdownEditorContext, revealedTableField } from './editor-context'
-import {
-  ListMarkerWidget,
-  TaskMarkerWidget,
-  MarkdownImageWidget,
-  CodeLanguageWidget
-} from './inline-widgets'
+import { ListMarkerWidget, TaskMarkerWidget, CodeLanguageWidget } from './inline-widgets'
+import { MarkdownImageWidget } from './markdown-image-widget'
 import { parseMarkdownTable } from './table-source'
 import { MarkdownTableWidget } from './table-widget'
 import { MarkdownEntityWidget } from './rendered-widgets'
@@ -17,6 +13,7 @@ import {
 } from './markdown-document-decorations'
 import { MarkdownDiagramWidget } from './diagram-widget'
 import { tableCellSelection } from './table-cell-selection'
+import { tableGridSelection } from './table-grid-selection'
 import { markdownSourceLinks } from './markdown-links'
 import { markdownRangeIsActive as active } from './markdown-caret-presentation'
 
@@ -62,8 +59,14 @@ function buildDecorations(state: EditorState): DecorationSet {
       if (name === 'Table' && state.field(revealedTableField, false) !== from) {
         const caret = state.selection.main
         const cell = state.field(tableCellSelection, false)
+        const grid = state.field(tableGridSelection, false)
         const editingSource =
-          mode !== 'preview' && caret.empty && caret.head > from && caret.head < to && !cell
+          mode !== 'preview' &&
+          caret.empty &&
+          caret.head > from &&
+          caret.head < to &&
+          !cell &&
+          grid?.tableFrom !== from
         const table = parseMarkdownTable(text, from, to)
         if (table && !editingSource) {
           ranges.push(
@@ -75,7 +78,8 @@ function buildDecorations(state: EditorState): DecorationSet {
                 state.facet(markdownEditorContext).version,
                 cell && cell.from >= from && cell.to <= to ? cell : null,
                 caret.head,
-                caret.anchor
+                caret.anchor,
+                grid?.tableFrom === from ? grid : null
               ),
               block: true
             }).range(from, to)

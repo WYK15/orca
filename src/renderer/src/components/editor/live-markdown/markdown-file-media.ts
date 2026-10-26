@@ -1,5 +1,4 @@
 import { useAppStore } from '@/store'
-import { basename, dirname } from '@/lib/path'
 import {
   getEditorFileOperationContext,
   assertEditorFileOperationCurrent,
@@ -8,6 +7,8 @@ import {
 import { importExternalPathsToRuntime } from '@/runtime/runtime-file-client'
 import { parseWorkspaceKey } from '../../../../../shared/workspace-scope'
 import { loadLocalImageSrc } from '../useLocalImageSrc'
+import { markdownAssetDirectory, markdownAssetReference } from './markdown-asset-directory'
+import { readMarkdownWritingPreferences } from './markdown-writing-preferences'
 
 export type MarkdownFileOwner = {
   filePath: string
@@ -58,14 +59,22 @@ export async function importMarkdownFileImages(
   paths: string[]
 ): Promise<string> {
   const { context, provenance } = contextForFile(file)
-  const { results } = await importExternalPathsToRuntime(context, paths, dirname(file.filePath))
+  const destination = markdownAssetDirectory(
+    file.filePath,
+    readMarkdownWritingPreferences().imageFolder
+  )
+  const { results } = await importExternalPathsToRuntime(context, paths, destination, {
+    ensureDestinationDir: true,
+    assertCurrent: () =>
+      assertEditorFileOperationCurrent(useAppStore.getState(), file.worktreeId, provenance)
+  })
   assertEditorFileOperationCurrent(useAppStore.getState(), file.worktreeId, provenance)
   const imported = results.filter((result) => result.status === 'imported')
   if (!imported.length) {
     throw new Error('图片导入失败')
   }
   return imported
-    .map((result) => `![](${encodeURIComponent(basename(result.destPath))})`)
+    .map((result) => `![](${markdownAssetReference(file.filePath, result.destPath)})`)
     .join('\n')
 }
 

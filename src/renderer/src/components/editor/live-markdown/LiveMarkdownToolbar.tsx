@@ -6,7 +6,7 @@ import {
   Italic,
   Code,
   CodeXml,
-  Table2,
+  Link,
   ImagePlus,
   Search,
   Undo2,
@@ -30,13 +30,16 @@ import {
   changeMarkdownBlock
 } from './editor-commands'
 import { focusMarkdownInput, hasTableCellInput } from './table-cell-command-target'
+import { LiveMarkdownTableInsertMenu } from './LiveMarkdownTableInsertMenu'
 
 export function LiveMarkdownToolbar({
   view,
-  pickImage
+  pickImage,
+  editLink
 }: {
   view: EditorView | null
   pickImage?: () => void
+  editLink: () => void
 }) {
   const run = (command: (view: EditorView) => boolean): void => {
     if (view) {
@@ -55,11 +58,7 @@ export function LiveMarkdownToolbar({
     { name: '无序列表', Icon: List, run: () => run(changeMarkdownBlock('- ')) },
     { name: '引用', Icon: Quote, run: () => run(changeMarkdownBlock('> ')) },
     { name: '代码块', Icon: CodeXml, run: () => run(insertMarkdownBlock('```\n\n```', 4)) },
-    {
-      name: '表格',
-      Icon: Table2,
-      run: () => run(insertMarkdownBlock('| 列 1 | 列 2 |\n| --- | --- |\n|  |  |'))
-    },
+    { name: '插入或编辑链接', Icon: Link, run: editLink },
     { name: '插入图片', Icon: ImagePlus, run: () => pickImage?.() },
     { name: '查找和替换', Icon: Search, run: () => run(openSearchPanel) }
   ]
@@ -103,6 +102,7 @@ export function LiveMarkdownToolbar({
           <TooltipContent>{name}</TooltipContent>
         </Tooltip>
       ))}
+      <LiveMarkdownTableInsertMenu view={view} />
     </div>
   )
 }

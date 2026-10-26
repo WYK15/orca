@@ -1,5 +1,4 @@
 import { WidgetType, type EditorView } from '@codemirror/view'
-import { markdownEditorContext } from './editor-context'
 
 export class CodeLanguageWidget extends WidgetType {
   constructor(
@@ -70,86 +69,6 @@ export class TaskMarkerWidget extends WidgetType {
       })
     })
     return box
-  }
-  ignoreEvent(): boolean {
-    return true
-  }
-}
-
-export class MarkdownImageWidget extends WidgetType {
-  constructor(
-    readonly src: string,
-    readonly alt: string,
-    readonly from: number,
-    readonly allowEditing: boolean,
-    readonly mediaVersion = ''
-  ) {
-    super()
-  }
-  eq(other: MarkdownImageWidget): boolean {
-    return (
-      this.src === other.src &&
-      this.alt === other.alt &&
-      this.from === other.from &&
-      this.allowEditing === other.allowEditing &&
-      this.mediaVersion === other.mediaVersion
-    )
-  }
-  toDOM(view: EditorView): HTMLElement {
-    const figure = document.createElement('span')
-    figure.className = 'live-md-image'
-    figure.setAttribute('contenteditable', 'false')
-    const image = document.createElement('img')
-    image.alt = this.alt
-    image.loading = 'lazy'
-    const caption = document.createElement('span')
-    caption.className = 'live-md-image-caption'
-    caption.textContent = this.alt || this.src
-    figure.append(image, caption)
-    let disposed = false
-    image.addEventListener('load', () => {
-      if (view.dom.isConnected) {
-        view.requestMeasure()
-      }
-    })
-    image.addEventListener('error', () => {
-      image.hidden = true
-      caption.textContent = `图片未找到：${this.src}`
-    })
-    figure.addEventListener('click', (event) => {
-      if (!this.allowEditing) {
-        return
-      }
-      event.preventDefault()
-      view.dispatch({ selection: { anchor: this.from + 2 }, scrollIntoView: true })
-      view.focus()
-    })
-    void view.state
-      .facet(markdownEditorContext)
-      .loadImage(this.src)
-      .then((src) => {
-        if (disposed) {
-          return
-        }
-        if (src) {
-          image.src = src
-        } else {
-          image.hidden = true
-          caption.textContent = `图片未找到：${this.src}`
-        }
-      })
-      .catch(() => {
-        if (!disposed) {
-          image.hidden = true
-        }
-      })
-    ;(figure as HTMLElement & { dispose?: () => void }).dispose = () => {
-      disposed = true
-    }
-    return figure
-  }
-  destroy(dom: HTMLElement): void {
-    ;(dom as HTMLElement & { dispose?: () => void }).dispose?.()
   }
   ignoreEvent(): boolean {
     return true

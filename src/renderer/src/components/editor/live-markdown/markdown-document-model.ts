@@ -1,5 +1,6 @@
 import { StateField, type EditorState } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
+import type { Tree } from '@lezer/common'
 import { MarkdownHeadingSlugger } from '../markdown-heading-slug'
 import { stripInlineMarkdownForToc } from '../markdown-table-of-contents'
 
@@ -24,12 +25,15 @@ export type MarkdownDocumentModel = {
 
 export const footnoteLabelKey = (label: string): string => label.trim().toLowerCase()
 
-function buildModel(state: EditorState): MarkdownDocumentModel {
+export function buildMarkdownDocument(
+  state: EditorState,
+  tree: Tree = syntaxTree(state)
+): MarkdownDocumentModel {
   const headings: MarkdownDocumentHeading[] = []
   const definitions = new Map<string, MarkdownFootnoteDefinition>()
   const references: { id: string; from: number; to: number }[] = []
   const slugger = new MarkdownHeadingSlugger()
-  syntaxTree(state).iterate({
+  tree.iterate({
     enter(node) {
       if (
         [
@@ -111,15 +115,15 @@ function buildModel(state: EditorState): MarkdownDocumentModel {
 }
 
 export const markdownDocumentModel = StateField.define<MarkdownDocumentModel>({
-  create: buildModel,
+  create: buildMarkdownDocument,
   update(value, transaction) {
     return transaction.docChanged ||
       transaction.reconfigured ||
       syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
-      ? buildModel(transaction.state)
+      ? buildMarkdownDocument(transaction.state)
       : value
   }
 })
 
 export const readMarkdownDocument = (state: EditorState): MarkdownDocumentModel =>
-  state.field(markdownDocumentModel, false) ?? buildModel(state)
+  state.field(markdownDocumentModel, false) ?? buildMarkdownDocument(state)

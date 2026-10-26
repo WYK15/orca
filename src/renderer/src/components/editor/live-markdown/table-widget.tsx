@@ -4,6 +4,7 @@ import { LiveMarkdownTable } from './LiveMarkdownTable'
 import type { MarkdownTable } from './table-source'
 import { revealTableSource } from './editor-context'
 import type { TableCellRange } from './table-cell-selection'
+import type { TableGridSelection } from './table-grid-selection'
 
 const roots = new WeakMap<HTMLElement, Root>()
 
@@ -15,7 +16,8 @@ export class MarkdownTableWidget extends WidgetType {
     readonly mediaVersion = '',
     readonly selectedCell: TableCellRange | null = null,
     readonly selectionHead = 0,
-    readonly selectionAnchor = 0
+    readonly selectionAnchor = 0,
+    readonly grid: TableGridSelection | null = null
   ) {
     super()
   }
@@ -28,7 +30,8 @@ export class MarkdownTableWidget extends WidgetType {
       this.selectedCell?.from === other.selectedCell?.from &&
       this.selectedCell?.to === other.selectedCell?.to &&
       this.selectionHead === other.selectionHead &&
-      this.selectionAnchor === other.selectionAnchor
+      this.selectionAnchor === other.selectionAnchor &&
+      JSON.stringify(this.grid) === JSON.stringify(other.grid)
     )
   }
   toDOM(view: EditorView): HTMLElement {

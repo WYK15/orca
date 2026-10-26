@@ -62,6 +62,18 @@ export async function getActiveMarkdownExportPayload({
 
   const subtree = findDocumentSubtree(root)
   if (!subtree) {
+    const element = root.querySelector('.live-markdown-editor .cm-editor')
+    if (element) {
+      const { EditorView } = await import('@codemirror/view')
+      const view = EditorView.findFromDOM(element as HTMLElement)
+      if (view) {
+        const { markdownExportDocument } = await import('./live-markdown/markdown-export-document')
+        return markdownExportDocument(
+          view,
+          basenameWithoutExt(activeFile.relativePath || activeFile.filePath)
+        )
+      }
+    }
     return null
   }
 

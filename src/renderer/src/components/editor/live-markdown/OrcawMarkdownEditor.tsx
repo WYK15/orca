@@ -25,6 +25,7 @@ import { buildMarkdownTableOfContents, type MarkdownTocItem } from '../markdown-
 import { onImageCacheInvalidated } from '../useLocalImageSrc'
 import type { MarkdownViewMode } from '@/store/slices/editor'
 import { navigateMarkdownAnchor } from './markdown-document-navigation'
+import { basename } from '@/lib/path'
 
 type Props = MarkdownFileOwner & {
   fileId: string
@@ -193,6 +194,7 @@ export default function OrcawMarkdownEditor(props: Props): React.JSX.Element {
       <div className="min-w-0 min-h-0 flex-1">
         <LiveMarkdownEditor
           fileId={props.fileId}
+          documentTitle={basename(props.filePath).replace(/\.[^.]+$/, '')}
           content={props.content}
           mode={props.viewMode === 'rich' ? 'live' : props.viewMode}
           readOnly={props.readOnly}

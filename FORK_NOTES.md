@@ -81,7 +81,9 @@ Live, source and reading views share document state and undo history. Visual
 edits patch source ranges, including table cells; untouched source and mixed
 line endings remain intact. Image imports use the file owner's existing
 local/SSH/runtime authorization. The Electron editor and source recovery path
-remain available. See [the editor design and validation notes](docs/readme/markdown-live-editor.md).
+remain available. Writing preferences persist separately in local WebView storage;
+self-contained HTML and native print/PDF export read complete source snapshots.
+See [the editor design and validation notes](docs/readme/markdown-live-editor.md).
 
 The legacy rich editor rejects saves when it cannot preserve the original Markdown source
 formatting. It opens the edited draft in source mode and pauses all saves until

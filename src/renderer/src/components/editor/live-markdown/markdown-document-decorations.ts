@@ -10,7 +10,8 @@ import {
   MarkdownFootnoteReferenceWidget,
   MarkdownFootnotesWidget
 } from './markdown-footnote-widgets'
-import { MarkdownHtmlWidget, MarkdownMathWidget } from './rendered-widgets'
+import { MarkdownMathWidget } from './rendered-widgets'
+import { MarkdownHtmlWidget } from './markdown-html-widget'
 import { canPreviewMarkdownHtml } from './markdown-html-preview'
 
 type LineDecoration = (position: number, className: string) => void
@@ -115,7 +116,7 @@ export function decorateMarkdownDocumentNode(
     if (/^<!--[\s\S]*-->\s*$/.test(source) && mode === 'preview') {
       replace(undefined, !inline)
     } else if (canPreviewMarkdownHtml(source) && !markdownRangeIsActive(state, from, to, !inline)) {
-      replace(new MarkdownHtmlWidget(source, from, version, inline), !inline)
+      replace(new MarkdownHtmlWidget(source, from, version, inline, !state.readOnly), !inline)
     } else if (!inline) {
       sourceBlock(state, from, to, line)
     }

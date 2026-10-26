@@ -2,6 +2,7 @@ import { StateEffect, StateField } from '@codemirror/state'
 import { invertedEffects } from '@codemirror/commands'
 import { markdownEditorMode } from './editor-context'
 import { tableCellAtCaret } from './table-cell-at-caret'
+import { tableGridSelection } from './table-grid-selection'
 
 export type TableCellRange = { from: number; to: number }
 export const selectTableCell = StateEffect.define<TableCellRange | null>({
@@ -14,6 +15,7 @@ export const tableCellSelection: StateField<TableCellRange | null> =
     update(value, transaction) {
       if (
         transaction.state.readOnly ||
+        transaction.state.field(tableGridSelection, false) ||
         transaction.state.facet(markdownEditorMode) !== 'live' ||
         !transaction.state.selection.main.empty
       ) {

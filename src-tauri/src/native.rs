@@ -12,6 +12,9 @@ pub async fn dispatch(app: &AppHandle, frame: &Value) -> Result<Value, String> {
             .ok_or("Missing native path or text")
     };
     match frame["channel"].as_str() {
+        Some("print-html") => {
+            crate::markdown_print::open(app, args.first().ok_or("Missing print request")?).await
+        }
         Some("profile-import-notice") => {
             app.dialog().message("无法完成 Orcaw 配置导入，将继续打开 Tauri。原 Orcaw 数据未修改；如已创建备份，可在 Tauri 数据目录查看。\n\nCould not finish importing Orcaw settings. Tauri will continue opening; the Orcaw source data was not modified.")
                 .title("Orcaw Tauri")
@@ -106,7 +109,20 @@ pub async fn dispatch(app: &AppHandle, frame: &Value) -> Result<Value, String> {
                 picker = picker.set_title(title);
             }
             if let Some(path) = options["defaultPath"].as_str() {
-                picker = picker.set_directory(path);
+                if frame["channel"] == "save-dialog" {
+                    let path = std::path::Path::new(path);
+                    if let Some(name) = path.file_name() {
+                        picker = picker.set_file_name(name.to_string_lossy());
+                    }
+                    if let Some(parent) = path
+                        .parent()
+                        .filter(|parent| !parent.as_os_str().is_empty())
+                    {
+                        picker = picker.set_directory(parent);
+                    }
+                } else {
+                    picker = picker.set_directory(path);
+                }
             }
             if let Some(filters) = options["filters"].as_array() {
                 for filter in filters {

@@ -5,6 +5,7 @@ mod backend;
 mod clipboard;
 mod credential_key;
 mod file_drop;
+mod markdown_print;
 mod native;
 #[cfg(target_os = "macos")]
 mod notifications;

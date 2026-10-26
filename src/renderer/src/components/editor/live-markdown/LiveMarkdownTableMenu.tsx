@@ -1,6 +1,18 @@
 import type { JSX } from 'react'
-import { ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu'
-import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
+import {
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent
+} from '@/components/ui/context-menu'
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent
+} from '@/components/ui/dropdown-menu'
 import type { TableStructureAction } from './table-source'
 
 const rowActions = [
@@ -24,14 +36,19 @@ const alignActions = [
 export function LiveMarkdownTableMenu({
   kind,
   onAction,
-  revealSource
+  revealSource,
+  onSelectGroup
 }: {
   kind: 'context' | 'dropdown'
   onAction: (action: TableStructureAction) => void
   revealSource: () => void
+  onSelectGroup: (kind: 'row' | 'column' | 'table') => void
 }): JSX.Element {
   const Item = kind === 'context' ? ContextMenuItem : DropdownMenuItem
   const Separator = kind === 'context' ? ContextMenuSeparator : DropdownMenuSeparator
+  const Sub = kind === 'context' ? ContextMenuSub : DropdownMenuSub
+  const SubTrigger = kind === 'context' ? ContextMenuSubTrigger : DropdownMenuSubTrigger
+  const SubContent = kind === 'context' ? ContextMenuSubContent : DropdownMenuSubContent
   return (
     <>
       {[rowActions, columnActions, alignActions].map((actions, index) => (
@@ -45,6 +62,39 @@ export function LiveMarkdownTableMenu({
         </div>
       ))}
       <Separator />
+      <Sub>
+        <SubTrigger>选择单元格</SubTrigger>
+        <SubContent>
+          {(
+            [
+              ['row', '选择当前行'],
+              ['column', '选择当前列'],
+              ['table', '选择整个表格']
+            ] as const
+          ).map(([value, label]) => (
+            <Item key={value} onSelect={() => onSelectGroup(value)}>
+              {label}
+            </Item>
+          ))}
+        </SubContent>
+      </Sub>
+      <Sub>
+        <SubTrigger>移动行或列</SubTrigger>
+        <SubContent>
+          {(
+            [
+              ['move-row-up', '当前行上移'],
+              ['move-row-down', '当前行下移'],
+              ['move-column-left', '当前列左移'],
+              ['move-column-right', '当前列右移']
+            ] as const
+          ).map(([value, label]) => (
+            <Item key={value} onSelect={() => onAction(value)}>
+              {label}
+            </Item>
+          ))}
+        </SubContent>
+      </Sub>
       <Item onSelect={revealSource}>编辑表格源码</Item>
       <Item onSelect={() => onAction('delete-table')}>删除表格</Item>
     </>

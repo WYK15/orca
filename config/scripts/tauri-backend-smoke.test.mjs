@@ -146,6 +146,30 @@ describe('standalone desktop backend', () => {
     await expect(call('fs:readFile', [{ filePath: outside }])).rejects.toThrow('Access denied')
   })
 
+  it('saves standalone HTML and routes printing through the native port', async () => {
+    const filePath = join(directory, 'export.html')
+    const payload = { html: '<!doctype html><p>原文 -> &gt;</p>', title: 'Report' }
+    nativeResponses.set('save-dialog', filePath)
+    expect(await call('export:html-to-file', [payload])).toEqual({ success: true, filePath })
+    expect(await readFile(filePath, 'utf8')).toBe(payload.html)
+    expect(nativeRequests.findLast((frame) => frame.channel === 'save-dialog').args).toEqual([
+      { defaultPath: 'Report.html', filters: [{ name: 'HTML', extensions: ['html'] }] }
+    ])
+    nativeResponses.set('save-dialog', null)
+    expect(await call('export:html-to-file', [payload])).toEqual({
+      success: false,
+      cancelled: true
+    })
+    nativeResponses.set('print-html', { opened: true })
+    await call('export:print-html', [payload])
+    expect(nativeRequests.findLast((frame) => frame.channel === 'print-html').args).toEqual([
+      payload
+    ])
+    await expect(call('export:print-html', [{ html: '', title: 'Invalid' }])).rejects.toThrow(
+      'Invalid export'
+    )
+  })
+
   it('reuses Git operations for registered repositories', async () => {
     await execute('git', ['init', project])
     await writeFile(join(project, 'new.txt'), 'new\n')

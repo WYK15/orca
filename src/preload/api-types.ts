@@ -756,6 +756,13 @@ export type PtyManagementApi = {
 }
 
 export type ExportApi = {
+  htmlToFile: (args: {
+    html: string
+    title: string
+  }) => Promise<
+    { success: true; filePath: string } | { success: false; cancelled?: boolean; error?: string }
+  >
+  printHtml: (args: { html: string; title: string }) => Promise<void>
   htmlToPdf: (args: {
     html: string
     title: string

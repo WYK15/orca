@@ -1,3 +1,5 @@
+import { reorderMarkdownTable } from './table-reorder-source'
+
 export type MarkdownTableCell = {
   from: number
   to: number
@@ -133,6 +135,10 @@ export type TableStructureAction =
   | 'align-left'
   | 'align-center'
   | 'align-right'
+  | 'move-row-up'
+  | 'move-row-down'
+  | 'move-column-left'
+  | 'move-column-right'
 
 export function editTableStructure(
   text: string,
@@ -145,6 +151,17 @@ export function editTableStructure(
   const selected = table.rows[row]
   if (!selected) {
     return []
+  }
+  if (action.startsWith('move-')) {
+    const axis = action.includes('-row-') ? 'row' : 'column'
+    const from = axis === 'row' ? row : column
+    return reorderMarkdownTable(
+      text,
+      table,
+      axis,
+      from,
+      from + (action.endsWith('up') || action.endsWith('left') ? -1 : 1)
+    )
   }
   if (action === 'delete-table' || (action === 'delete-column' && width <= 1)) {
     return [{ from: table.from, to: table.to, insert: '' }]

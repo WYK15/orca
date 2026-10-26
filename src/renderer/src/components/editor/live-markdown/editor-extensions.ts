@@ -16,6 +16,7 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { copyMarkdownSource } from './markdown-copy-source'
 import { markdownDocumentSyntax } from './markdown-document-syntax'
 import { markdownDocumentModel } from './markdown-document-model'
+import { tableGridSelection } from './table-grid-selection'
 
 export function markdownEditorExtensions(): Extension {
   return [
@@ -36,6 +37,7 @@ export function markdownEditorExtensions(): Extension {
     }),
     markdownDocumentModel,
     revealedTableField,
+    tableGridSelection,
     tableCellSelection,
     markdownSlashCompletion,
     liveMarkdownDecorations,

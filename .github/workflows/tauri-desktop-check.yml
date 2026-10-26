@@ -92,6 +92,7 @@ jobs:
           src/renderer/src/components/sidebar/personal-workspace-board.test.tsx
           src/renderer/src/components/sidebar/personal-workspace-lifecycle.test.ts
           src/renderer/src/components/editor/live-markdown
+          src/main/ipc/export-html-file.test.ts
           src/shared/native-file-drop.test.ts
           src/shared/native-markdown-drop.test.ts
           src/renderer/src/tauri/file-drop.test.ts

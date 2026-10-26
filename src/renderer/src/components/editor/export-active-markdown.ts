@@ -22,6 +22,11 @@ export async function exportActiveMarkdownToPdf(options: {
       return
     }
 
+    if (options.root?.querySelector('.live-markdown-editor')) {
+      await window.api.export.printHtml(payload)
+      toast.success('已打开系统打印窗口', { id: toastId })
+      return
+    }
     const result = await window.api.export.htmlToPdf({
       html: payload.html,
       title: payload.title

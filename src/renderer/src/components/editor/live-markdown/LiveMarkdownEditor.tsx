@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react'
-import { Compartment, EditorState, StateEffect, type Extension } from '@codemirror/state'
+import { Compartment, EditorState, StateEffect, Prec, type Extension } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { LiveMarkdownToolbar } from './LiveMarkdownToolbar'
 import { markdownEditorExtensions } from './editor-extensions'
@@ -25,6 +25,15 @@ import {
 } from './clipboard-markdown'
 import { markdownLinkAt } from './markdown-links'
 import { navigateMarkdownAnchor } from './markdown-document-navigation'
+import { useMarkdownResourceEditor } from './use-markdown-resource-editor'
+import { useMarkdownWritingPreferences } from './markdown-writing-preferences'
+import {
+  markdownWritingPreferences,
+  markdownFocusPresentation,
+  markdownTypewriterPresentation
+} from './markdown-writing-presentation'
+import { MarkdownWritingStatus } from './MarkdownWritingStatus'
+import { MarkdownExportMenu } from './MarkdownExportMenu'
 import '../../../assets/live-markdown-editor.css'
 
 const refreshPresentation = StateEffect.define<null>()
@@ -44,6 +53,7 @@ export type LiveMarkdownEditorProps = {
   onPaste?: (event: ClipboardEvent, view: EditorView) => boolean
   onDrop?: (event: DragEvent, view: EditorView) => boolean
   fontZoom?: number
+  documentTitle?: string
 }
 
 export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): React.JSX.Element {
@@ -51,6 +61,11 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
   const current = useRef(props)
   const viewRef = useRef<EditorView | null>(null)
   const [view, setView] = useState<EditorView | null>(null)
+  const resourceEditor = useMarkdownResourceEditor(view)
+  const preferences = useMarkdownWritingPreferences()
+  const writing = useRef(new Compartment())
+  const writingSettings = useRef(preferences)
+  const resourceAction = useRef(resourceEditor.open)
   const presentation = useRef(new Compartment())
   const media = useRef(new Compartment())
   const openLink = (href: string): void => {
@@ -60,6 +75,8 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
   }
   useLayoutEffect(() => {
     current.current = props
+    resourceAction.current = resourceEditor.open
+    writingSettings.current = preferences
   })
 
   const modeExtensions = (): ReturnType<Compartment['of']> => [
@@ -77,11 +94,31 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
     media.current.of(
       markdownEditorContext.of({
         version: current.current.context.version,
-        loadImage: (path) => current.current.context.loadImage(path),
+        loadImage: current.current.context.loadImage,
+        editResource: (position) => resourceAction.current(position),
         openLink
       })
     ),
-    EditorView.contentAttributes.of({ 'aria-label': 'Markdown 文档', spellcheck: 'false' }),
+    writing.current.of([
+      markdownWritingPreferences.of(writingSettings.current),
+      EditorView.contentAttributes.of({
+        'aria-label': 'Markdown 文档',
+        spellcheck: String(writingSettings.current.spellcheck)
+      })
+    ]),
+    markdownFocusPresentation,
+    markdownTypewriterPresentation,
+    Prec.highest(
+      keymap.of([
+        {
+          key: 'Mod-k',
+          run: () => {
+            resourceAction.current()
+            return true
+          }
+        }
+      ])
+    ),
     keymap.of([
       {
         key: 'Mod-/',
@@ -206,10 +243,24 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
 
   useLayoutEffect(() => {
     viewRef.current?.dispatch({
+      effects: writing.current.reconfigure([
+        markdownWritingPreferences.of(preferences),
+        EditorView.contentAttributes.of({
+          'aria-label': 'Markdown 文档',
+          spellcheck: String(preferences.spellcheck)
+        })
+      ])
+    })
+  }, [preferences])
+
+  useLayoutEffect(() => {
+    const context = current.current.context
+    viewRef.current?.dispatch({
       effects: media.current.reconfigure(
         markdownEditorContext.of({
           version: props.context.version,
-          loadImage: (path) => current.current.context.loadImage(path),
+          loadImage: context.loadImage,
+          editResource: (position) => resourceAction.current(position),
           openLink
         })
       )
@@ -230,12 +281,23 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
     <div
       className="live-markdown-editor"
       data-mode={props.mode}
+      data-focus={preferences.focus && props.mode === 'live' ? 'true' : undefined}
+      data-typewriter={preferences.typewriter && props.mode === 'live' ? 'true' : undefined}
+      data-width={preferences.width}
       style={{ '--editor-font-zoom-level': props.fontZoom ?? 0 } as React.CSSProperties}
     >
       {props.mode !== 'preview' && !props.readOnly && (
-        <LiveMarkdownToolbar view={view} pickImage={props.pickImage} />
+        <LiveMarkdownToolbar
+          view={view}
+          pickImage={props.pickImage}
+          editLink={() => resourceEditor.open()}
+        />
       )}
       <div className="live-md-host" ref={container} />
+      <MarkdownWritingStatus view={view} preferences={preferences}>
+        <MarkdownExportMenu view={view} title={props.documentTitle ?? 'Markdown'} />
+      </MarkdownWritingStatus>
+      {resourceEditor.dialog}
     </div>
   )
 }

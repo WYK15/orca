@@ -9,6 +9,7 @@ export type MarkdownEditorContext = {
   version?: string
   loadImage: (path: string) => Promise<string | null>
   openLink: (href: string) => void
+  editResource?: (position: number) => void
 }
 export const markdownEditorContext = Facet.define<MarkdownEditorContext, MarkdownEditorContext>({
   combine: (values) => values[0] ?? { loadImage: async () => null, openLink: () => {} }

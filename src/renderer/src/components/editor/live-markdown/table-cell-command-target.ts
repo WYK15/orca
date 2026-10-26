@@ -2,6 +2,7 @@ import { EditorState, type StateCommand, type Transaction } from '@codemirror/st
 import type { EditorView } from '@codemirror/view'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { markdownDocumentSyntax } from './markdown-document-syntax'
+import { isolateHistory } from '@codemirror/commands'
 
 type TableCellInput = {
   element: HTMLTextAreaElement
@@ -50,4 +51,40 @@ export function selectedTableCellText(view: EditorView): string | null {
   return element?.isConnected
     ? element.value.slice(element.selectionStart, element.selectionEnd)
     : null
+}
+
+export function captureMarkdownCommandTarget(view: EditorView, documentOnly = false) {
+  const target = inputs.get(view)
+  if (documentOnly || !target?.element.isConnected) {
+    const source = view.state.doc.toString()
+    return {
+      state: view.state,
+      apply: (transaction: Transaction) =>
+        view.dispatch({
+          changes: transaction.changes,
+          selection: transaction.newSelection,
+          userEvent: 'input',
+          annotations: isolateHistory.of('full'),
+          scrollIntoView: true
+        }),
+      current: () =>
+        view.dom.isConnected && view.state.doc.toString() === source && !view.state.readOnly
+    }
+  }
+  const element = target.element
+  const source = element.value
+  const state = EditorState.create({
+    doc: source,
+    selection: { anchor: element.selectionStart, head: element.selectionEnd },
+    extensions: [markdown({ base: markdownLanguage, extensions: markdownDocumentSyntax })]
+  })
+  return {
+    state,
+    apply: target.apply,
+    current: () =>
+      element.isConnected &&
+      element.value === source &&
+      inputs.get(view)?.element === element &&
+      !view.state.readOnly
+  }
 }

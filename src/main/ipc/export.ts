@@ -1,6 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { ExportTimeoutError, htmlToPdf } from '../lib/html-to-pdf'
+import { registerHtmlFileExportHandlers } from './export-html-file'
 
 export type ExportHtmlToPdfArgs = {
   html: string
@@ -12,6 +13,7 @@ export type ExportHtmlToPdfResult =
   | { success: false; cancelled?: boolean; error?: string }
 
 export function registerExportHandlers(): void {
+  registerHtmlFileExportHandlers()
   ipcMain.removeHandler('export:html-to-pdf')
   ipcMain.handle(
     'export:html-to-pdf',

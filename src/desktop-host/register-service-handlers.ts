@@ -27,6 +27,11 @@ import { agentHookServer } from '../main/agent-hooks/server'
 import { registerNotificationHandlers } from '../main/ipc/notifications'
 import { nativeCall } from './desktop-context'
 import type { NotificationAuthorizationStatus } from '../main/ipc/notification-authorization-status'
+import {
+  registerHtmlFileExportHandlers,
+  validateMarkdownExport
+} from '../main/ipc/export-html-file'
+import { ipcMain } from './ipc-port'
 
 export function registerServiceHandlers(
   store: Store,
@@ -35,6 +40,10 @@ export function registerServiceHandlers(
   const data = desktopPath('userData')
   const keys = new KeybindingService({ homePath: data })
   registerKeybindingHandlers(keys)
+  registerHtmlFileExportHandlers()
+  ipcMain.handle('export:print-html', async (_event, args: unknown) => {
+    await nativeCall('print-html', validateMarkdownExport(args))
+  })
   registerNotificationHandlers(store, undefined, {
     readAuthorization: async () =>
       (await nativeCall('notification-authorization')) as NotificationAuthorizationStatus,
