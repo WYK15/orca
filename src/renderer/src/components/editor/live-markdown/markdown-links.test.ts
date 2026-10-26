@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { EditorState } from '@codemirror/state'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import { markdownSourceLinks } from './markdown-links'
+import { markdownSourceLinks, markdownSourceImages } from './markdown-links'
 
 function links(doc: string) {
   return markdownSourceLinks(
@@ -32,4 +32,17 @@ it('never opens code, image destinations or link definitions as visible links', 
       '`https://code.test`\n\n```\nhttps://code.test\n```\n\n![image](https://image.test)\n\n[id]: https://reference.test'
     )
   ).toEqual([])
+})
+it('resolves image references, balanced destinations and escaped captions through the parser', () => {
+  const state = EditorState.create({
+    doc: '![caption][ID]\n\n![short][]\n\n![implicit]\n\n![a \\] b](image(one).png)\n\n[id]: <ref one.png>\n[short]: short.png\n[implicit]: implicit.png',
+    extensions: [markdown({ base: markdownLanguage })]
+  })
+  expect(markdownSourceImages(state).map((image) => [image.alt, image.src])).toEqual([
+    ['caption', 'ref one.png'],
+    ['short', 'short.png'],
+    ['implicit', 'implicit.png'],
+    ['a ] b', 'image(one).png']
+  ])
+  expect(markdownSourceLinks(state)).toEqual([])
 })

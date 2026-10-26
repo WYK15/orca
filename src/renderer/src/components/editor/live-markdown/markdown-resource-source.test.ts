@@ -87,3 +87,21 @@ it('rejects stale resource edits instead of overwriting later document changes',
   const changed = original.update({ changes: { from: 8, to: 11, insert: 'new' } }).state
   expect(resourceEditTransaction(changed, resource, { ...resource, href: 'other' })).toBeNull()
 })
+it('does not dirty the document or add undo history when applying unchanged resource fields', () => {
+  let current = state('[label](old)')
+  current = current.update({
+    changes: { from: current.doc.length, insert: 'x' },
+    userEvent: 'input.type'
+  }).state
+  const resource = readMarkdownResource(current, 2)!
+  const applied = current.update(resourceEditTransaction(current, resource, resource)!)
+  expect(applied.docChanged).toBe(false)
+  current = applied.state
+  undo({
+    state: current,
+    dispatch: (transaction) => {
+      current = transaction.state
+    }
+  })
+  expect(current.doc.toString()).toBe('[label](old)')
+})

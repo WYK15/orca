@@ -1,5 +1,6 @@
 import type { EditorState } from '@codemirror/state'
-import { syntaxTree } from '@codemirror/language'
+import type { Tree } from '@lezer/common'
+import { readMarkdownDocumentTree } from './markdown-document-model'
 
 export type MarkdownSourceLink = {
   from: number
@@ -8,19 +9,28 @@ export type MarkdownSourceLink = {
   labelTo: number
   href: string
 }
-const cache = new WeakMap<EditorState, { links: MarkdownSourceLink[]; definitions: string }>()
+export type MarkdownSourceImage = { from: number; to: number; src: string; alt: string }
+const cache = new WeakMap<
+  Tree,
+  {
+    links: MarkdownSourceLink[]
+    images: MarkdownSourceImage[]
+    definitions: string
+  }
+>()
 const labelKey = (label: string): string => label.trim().replace(/\s+/g, ' ').toLowerCase()
 const destination = (value: string): string =>
   value.replace(/^<|>$/g, '').replace(/\\([\p{P}\p{S}])/gu, '$1')
 
 function parseLinks(state: EditorState) {
-  const known = cache.get(state)
+  const tree = readMarkdownDocumentTree(state)
+  const known = cache.get(tree)
   if (known) {
     return known
   }
   const definitions: string[] = []
   const references = new Map<string, string>()
-  syntaxTree(state).iterate({
+  tree.iterate({
     enter(node) {
       if (node.name === 'LinkReference') {
         const label = node.node.getChild('LinkLabel')
@@ -38,12 +48,13 @@ function parseLinks(state: EditorState) {
     }
   })
   const links: MarkdownSourceLink[] = []
-  syntaxTree(state).iterate({
+  const images: MarkdownSourceImage[] = []
+  tree.iterate({
     enter(node) {
-      if (['LinkReference', 'Image', 'FencedCode', 'CodeBlock'].includes(node.name)) {
+      if (['LinkReference', 'FencedCode', 'CodeBlock'].includes(node.name)) {
         return false
       }
-      if (node.name === 'Link') {
+      if (node.name === 'Link' || node.name === 'Image') {
         const marks = node.node.getChildren('LinkMark')
         const opening = marks[0]
         const closing = marks.find((mark) => state.sliceDoc(mark.from, mark.to) === ']')
@@ -58,13 +69,22 @@ function parseLinks(state: EditorState) {
             ? destination(state.sliceDoc(url.from, url.to))
             : references.get(labelKey(key))
           if (href) {
-            links.push({
-              from: node.from,
-              to: node.to,
-              labelFrom: opening.to,
-              labelTo: closing.from,
-              href
-            })
+            if (node.name === 'Image') {
+              images.push({
+                from: node.from,
+                to: node.to,
+                src: href,
+                alt: label.replace(/\\([\p{P}\p{S}])/gu, '$1')
+              })
+            } else {
+              links.push({
+                from: node.from,
+                to: node.to,
+                labelFrom: opening.to,
+                labelTo: closing.from,
+                href
+              })
+            }
           }
         }
         return false
@@ -85,13 +105,15 @@ function parseLinks(state: EditorState) {
       return undefined
     }
   })
-  const parsed = { links, definitions: definitions.join('\n') }
-  cache.set(state, parsed)
+  const parsed = { links, images, definitions: definitions.join('\n') }
+  cache.set(tree, parsed)
   return parsed
 }
 
 export const markdownSourceLinks = (state: EditorState): MarkdownSourceLink[] =>
   parseLinks(state).links
+export const markdownSourceImages = (state: EditorState): MarkdownSourceImage[] =>
+  parseLinks(state).images
 export const markdownLinkDefinitions = (state: EditorState): string => parseLinks(state).definitions
 
 export function markdownLinkAt(

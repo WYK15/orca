@@ -14,7 +14,7 @@ import {
 import { MarkdownDiagramWidget } from './diagram-widget'
 import { tableCellSelection } from './table-cell-selection'
 import { tableGridSelection } from './table-grid-selection'
-import { markdownSourceLinks } from './markdown-links'
+import { markdownSourceLinks, markdownSourceImages } from './markdown-links'
 import { markdownRangeIsActive as active } from './markdown-caret-presentation'
 
 function buildDecorations(state: EditorState): DecorationSet {
@@ -25,6 +25,7 @@ function buildDecorations(state: EditorState): DecorationSet {
   const ranges: Range<Decoration>[] = []
   const text = state.doc.toString()
   const links = new Map(markdownSourceLinks(state).map((link) => [link.from, link]))
+  const images = new Map(markdownSourceImages(state).map((image) => [image.from, image]))
   const lineClasses = new Map<number, Set<string>>()
   const line = (position: number, className: string): void => {
     const from = state.doc.lineAt(position).from
@@ -209,11 +210,11 @@ function buildDecorations(state: EditorState): DecorationSet {
         hide(from, Math.min(from + 1, to))
       }
       if (name === 'Image') {
-        const match = source.match(/^!\[([^\]]*)\]\(\s*(?:<([^>]+)>|([^\s)]+))(?:\s+[^)]*)?\s*\)$/)
-        if (match) {
+        const image = images.get(from)
+        if (image) {
           const widget = new MarkdownImageWidget(
-            match[2] ?? match[3],
-            match[1],
+            image.src,
+            image.alt,
             from,
             mode !== 'preview',
             state.facet(markdownEditorContext).version

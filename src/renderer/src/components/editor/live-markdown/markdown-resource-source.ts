@@ -216,6 +216,9 @@ export function resourceEditTransaction(
     : resource.kind === 'link'
       ? resource.label
       : ''
+  if (insert === resource.source) {
+    return { selection: { anchor: resource.from + insert.length }, scrollIntoView: true }
+  }
   return {
     changes: { from: resource.from, to: resource.to, insert },
     selection: { anchor: resource.from + insert.length },
