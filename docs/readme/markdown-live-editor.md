@@ -173,3 +173,39 @@ Remaining gaps from the Typora comparison:
 
 This remains a phased replacement. Passing the checks above does not assert that
 every Typora interaction is already identical.
+
+## Comprehensive acceptance runner
+
+Run the browser workflows against a fresh temporary fixture server:
+
+```sh
+node tests/tools/markdown-live-editor/run-browser-acceptance.mjs
+```
+
+The runner executes all ten workflows sequentially in Chrome and WebKit. Each
+workflow has a deadline; logs and `results.json` are written to the printed
+artifact directory. The temporary server and owned test processes are cleaned up.
+Individual check names can be supplied as arguments for targeted regression work.
+
+Additional workflows cover:
+
+- A standalone backend with isolated user data reads real PNG/SVG files through
+  the renderer image loader. Absolute file URLs, encoded characters, document
+  references, missing-file retry and embedded export are checked together.
+- Unchanged resource dialogs do not add undo steps. File switches dismiss stale
+  dialogs, external reloads replace stale history, and reading mode accepts focus
+  while rejecting Backspace, cut and paste. Code, metadata and math retain literal
+  keyboard behavior.
+- Document copies preserve exact source through mode changes, heading deletion,
+  table edits and undo. `ORCA_MARKDOWN_TEST_DOCUMENTS` may contain a JSON array of
+  local paths; originals are read and hashed, never written. A generated document
+  with 2000 headings/tables checks full indexing and records typing-to-frame times.
+
+The document index parses complete Markdown independently of the viewport budget,
+reusing unchanged tree fragments during edits. Export holds image paths in inert
+attributes until the owning loader authorizes and embeds their bytes.
+
+Playwright WebKit checks browser-engine behavior. It does not exercise the macOS
+input-method candidate window or the actual system print dialog. Native unit tests
+cover clipboard bytes, native drop bounds and credential storage; those OS dialogs
+remain separate hands-on acceptance items.

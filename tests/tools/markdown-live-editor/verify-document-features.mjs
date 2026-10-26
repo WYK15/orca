@@ -216,6 +216,7 @@ try {
   assert.equal(await page.locator('.live-md-html details').getAttribute('open'), '')
   for (const name of ['preview', 'live']) {
     await mode(name)
+    await select(html.length)
     await page.locator('.live-md-html summary').waitFor()
     await page.locator('.live-md-html img').waitFor()
     assert.equal(await raw(), html)
