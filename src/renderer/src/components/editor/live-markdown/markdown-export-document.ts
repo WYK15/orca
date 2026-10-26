@@ -14,7 +14,7 @@ export async function markdownExportDocument(
   host.innerHTML = markdownExportMarkup(snapshot)
   await Promise.all(
     Array.from(host.querySelectorAll('img')).map(async (image) => {
-      const source = image.getAttribute('src')
+      const source = image.getAttribute('data-orcaw-export-image')
       if (!source) {
         return
       }
@@ -23,6 +23,7 @@ export async function markdownExportDocument(
         throw new Error(`无法导出图片：${source}`)
       }
       image.src = resolved.startsWith('data:') ? resolved : await exportAssetDataUrl(resolved)
+      image.removeAttribute('data-orcaw-export-image')
       image.removeAttribute('loading')
     })
   )

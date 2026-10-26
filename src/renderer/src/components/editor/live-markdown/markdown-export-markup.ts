@@ -109,7 +109,15 @@ function renderDocumentBody(state: EditorState): string {
 }
 
 export function markdownExportMarkup(state: EditorState): string {
-  return DOMPurify.sanitize(renderDocumentBody(state), {
+  const purifier = DOMPurify(window)
+  // Image paths stay inert until the owning file loader embeds their bytes.
+  purifier.addHook('uponSanitizeAttribute', (node, attribute) => {
+    if (node.nodeName === 'IMG' && attribute.attrName === 'src') {
+      node.setAttribute('data-orcaw-export-image', attribute.attrValue)
+      attribute.keepAttr = false
+    }
+  })
+  return purifier.sanitize(renderDocumentBody(state), {
     FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'button'],
     FORBID_ATTR: ['contenteditable', 'tabindex', 'srcset']
   })
