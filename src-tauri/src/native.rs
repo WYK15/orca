@@ -12,6 +12,7 @@ pub async fn dispatch(app: &AppHandle, frame: &Value) -> Result<Value, String> {
             .ok_or("Missing native path or text")
     };
     match frame["channel"].as_str() {
+        Some("keyboard-input-source") => crate::keyboard_input_source::read(app).await,
         Some("print-html") => {
             crate::markdown_print::open(app, args.first().ok_or("Missing print request")?).await
         }

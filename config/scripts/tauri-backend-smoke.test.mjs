@@ -1,4 +1,6 @@
 import { registerTauriMarkdownImageReadTest } from './tauri-markdown-image-read-cases.mjs'
+import { registerTauriKeyboardInputSourceTest } from './tauri-keyboard-input-source-cases.mjs'
+import { registerTauriPersonalDesktopSettingsTest } from './tauri-personal-desktop-setting-cases.mjs'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { spawn, execFile } from 'node:child_process'
 import { createInterface } from 'node:readline'
@@ -146,6 +148,8 @@ describe('standalone desktop backend', () => {
     await writeFile(outside, 'private')
     await expect(call('fs:readFile', [{ filePath: outside }])).rejects.toThrow('Access denied')
   })
+
+  registerTauriKeyboardInputSourceTest(() => ({ call, nativeResponses }))
 
   it('saves standalone HTML and routes printing through the native port', async () => {
     const filePath = join(directory, 'export.html')
@@ -334,29 +338,7 @@ describe('standalone desktop backend', () => {
     )
   })
 
-  it('keeps experimental features and remote routing disabled after settings updates and restart', async () => {
-    const disabled = {
-      experimentalPet: false,
-      experimentalActivity: false,
-      experimentalAgentDashboardPopout: false,
-      experimentalAgentHibernation: false,
-      experimentalNativeChat: false,
-      experimentalEphemeralVms: false,
-      experimentalNewWorktreeCardStyle: false,
-      openAgentTabsInChatByDefault: false,
-      activeRuntimeEnvironmentId: null
-    }
-    await call('settings:set', [
-      {
-        ...Object.fromEntries(Object.keys(disabled).map((key) => [key, true])),
-        activeRuntimeEnvironmentId: 'legacy-server'
-      }
-    ])
-    expect(await call('settings:get')).toMatchObject(disabled)
-    await stopHost()
-    await startHost()
-    expect(await call('settings:get')).toMatchObject(disabled)
-  })
+  registerTauriPersonalDesktopSettingsTest(() => ({ call, stopHost, startHost }))
 
   it('keeps legacy remote records on disk while exposing only local projects', async () => {
     const { repo } = await call('repos:add', [{ path: project, kind: 'folder' }])

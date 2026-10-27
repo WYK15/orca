@@ -101,7 +101,17 @@ function registerDesktopHandlers(state: Store, firstWindowReady: Promise<void>):
   }))
   ipcMain.handle('app:awaitFirstWindowStartupServices', () => firstWindowReady)
   ipcMain.handle('app:recoverLegacyWorkerTerminalsForRendererStartup', () => undefined)
-  ipcMain.handle('app:getKeyboardInputSourceId', () => null)
+  ipcMain.handle('app:getKeyboardInputSourceId', async () => {
+    if (process.platform !== 'darwin') {
+      return null
+    }
+    try {
+      const id = await nativeCall('keyboard-input-source')
+      return typeof id === 'string' && id.trim() ? id.trim() : null
+    } catch {
+      return null
+    }
+  })
   ipcMain.handle('app:setUnreadDockBadgeCount', () => undefined)
   ipcMain.handle('app:getFeatureWallAssetBaseUrl', () => './onboarding/feature-wall/')
   ipcMain.handle('app:getFloatingTerminalCwd', () => desktopPath('home'))

@@ -5,6 +5,7 @@ mod backend;
 mod clipboard;
 mod credential_key;
 mod file_drop;
+mod keyboard_input_source;
 mod markdown_print;
 mod native;
 #[cfg(target_os = "macos")]
