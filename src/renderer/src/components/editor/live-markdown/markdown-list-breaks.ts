@@ -14,9 +14,18 @@ const blankContainer = (text: string): boolean => /^[\t >]*$/.test(text)
 function enclosingListItem(state: EditorState, position: number): SyntaxNode | null {
   let node = readMarkdownDocumentTree(state).resolveInner(position, -1)
   while (node.parent) {
+    if (node.name === 'FencedCode') {
+      const closing = node.lastChild
+      if (
+        closing?.name !== 'CodeMark' ||
+        closing.from === node.firstChild?.from ||
+        position < closing.to
+      ) {
+        return null
+      }
+    }
     if (
       [
-        'FencedCode',
         'CodeBlock',
         'Table',
         'HTMLBlock',

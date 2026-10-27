@@ -114,6 +114,48 @@ it('keeps source mode and reading mode unchanged', () => {
 })
 
 it.each([
+  ['1. alpha  \n   ```\n   x\n   ```', '1. alpha  \n   ```\n   x\n   ```\n2. '],
+  ['1. alpha  \n   ~~~text\n   x\n   ~~~', '1. alpha  \n   ~~~text\n   x\n   ~~~\n2. '],
+  ['1. alpha  \n   ```\n   x\n   ```\n   ', '1. alpha  \n   ```\n   x\n   ```\n2. '],
+  ['1. alpha\n   ```\n   x\n   ```   ', '1. alpha\n   ```\n   x\n   ```\n2. '],
+  ['> 1. alpha\n>    ```\n>    x\n>    ```', '> 1. alpha\n>    ```\n>    x\n>    ```\n> 2. ']
+])('starts the next list item after a closed code fence in %j', (source, expected) => {
+  const editor = target(source)
+  expect(continueListAfterBreak(editor)).toBe(true)
+  expect(editor.raw).toBe(expected)
+  expect(undo(editor)).toBe(true)
+  expect(editor.raw).toBe(source)
+})
+
+it('leaves Enter inside a completed code block to the code command', () => {
+  const source = '1. alpha\n   ```\n   x\n   ```'
+  expect(continueListAfterBreak(target(source, source.indexOf('x') + 1))).toBe(false)
+})
+
+it.each([
+  '1. alpha\n   ````\n   x\n   ```',
+  '1. alpha\n   ```\n   x\n   ``` trailing',
+  '```\nx\n```'
+])('does not continue a list before its fence is closed or outside a list in %j', (source) => {
+  expect(continueListAfterBreak(target(source))).toBe(false)
+})
+
+it('renumbers following siblings after a code block while undo retains exact mixed line endings', () => {
+  const source =
+    'Before ->\r\n\r\n9. alpha\r\n   ```text\r\n   x\r\n   ```\r\n10. bravo\r\n11. charlie\r\n\r\nAfter &gt;\n'
+  const normalized = source.replaceAll('\r\n', '\n')
+  const editor = target(source, normalized.lastIndexOf('```') + 3)
+  expect(continueListAfterBreak(editor)).toBe(true)
+  expect(editor.raw).toBe(
+    source
+      .replace('```\r\n10. bravo', '```\r\n10. \r\n11. bravo')
+      .replace('11. charlie', '12. charlie')
+  )
+  expect(undo(editor)).toBe(true)
+  expect(editor.raw).toBe(source)
+})
+
+it.each([
   ['1. alpha\n2. bravo', 4, 6, '1. a\n2. ha\n3. bravo'],
   ['1. alpha  \n   detail\n2. bravo', 16, 18, '1. alpha  \n   de\n2. il\n3. bravo'],
   ['1. alpha\n2. bravo\n3. charlie\n4. delta', 4, 22, '1. a\n2. harlie\n3. delta']

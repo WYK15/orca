@@ -1,7 +1,12 @@
 import { EditorSelection, type StateCommand } from '@codemirror/state'
 import type { Command, KeyBinding } from '@codemirror/view'
 import { insertNewlineContinueMarkupCommand } from '@codemirror/lang-markdown'
-import { indentMore, indentLess, insertNewlineAndIndent } from '@codemirror/commands'
+import {
+  indentMore,
+  indentLess,
+  insertNewlineAndIndent,
+  isolateHistory
+} from '@codemirror/commands'
 import { revealTableSource, revealedTableField, markdownEditorMode } from './editor-context'
 import { parseMarkdownTable } from './table-source'
 import { selectTableCell } from './table-cell-selection'
@@ -15,7 +20,7 @@ import { markdownDocumentBreak } from './markdown-document-commands'
 import { runTableCellCommand, hasTableCellInput } from './table-cell-command-target'
 import { removeMarkdownListItemMarker } from './markdown-list-commands'
 import { insertQuotedCodeBreak } from './markdown-code-break'
-import { continueListAfterBreak } from './markdown-list-breaks'
+import { continueListAfterBreak, markdownListBreakPrefix } from './markdown-list-breaks'
 import { insertMarkdownSoftBreak } from './markdown-soft-break'
 import {
   completeMarkdownTable,
@@ -126,7 +131,17 @@ export const exitCodeBlock: Command = (view) => {
   }
   const line = view.state.doc.lineAt(node.to)
   const end = line.to
-  if (end === view.state.doc.length) {
+  const prefix = markdownListBreakPrefix(view.state, end)
+  if (prefix !== null) {
+    const insert = `\n\n${prefix}`
+    view.dispatch({
+      changes: { from: end, insert },
+      selection: { anchor: end + insert.length },
+      annotations: isolateHistory.of('full'),
+      userEvent: 'input',
+      scrollIntoView: true
+    })
+  } else if (end === view.state.doc.length) {
     view.dispatch({
       changes: { from: end, insert: '\n\n' },
       selection: { anchor: end + 2 },
@@ -200,8 +215,8 @@ export const liveMarkdownKeymap: KeyBinding[] = [
   { key: 'Enter', run: markdownDocumentBreak },
   { key: 'Enter', run: completeCodeFence },
   { key: 'Enter', run: completeMarkdownTable },
-  { key: 'Enter', run: insertQuotedCodeBreak },
   { key: 'Enter', run: continueListAfterBreak },
+  { key: 'Enter', run: insertQuotedCodeBreak },
   { key: 'Enter', run: insertNewlineContinueMarkupCommand({ nonTightLists: false }) },
   { key: 'Enter', run: paragraphBreak },
   { key: 'Enter', run: insertNewlineAndIndent },

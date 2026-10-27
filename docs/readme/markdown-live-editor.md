@@ -182,7 +182,7 @@ Run the browser workflows against a fresh temporary fixture server:
 node tests/tools/markdown-live-editor/run-browser-acceptance.mjs
 ```
 
-The runner executes all twelve workflows sequentially in Chrome and WebKit. Each
+The runner executes all thirteen workflows sequentially in Chrome and WebKit. Each
 workflow has a deadline; logs and `results.json` are written to the printed
 artifact directory. The temporary server and owned test processes are cleaned up.
 Individual check names can be supplied as arguments for targeted regression work.
@@ -316,3 +316,20 @@ Validation on macOS arm64, Chrome 156.0.8078.47 and WebKit 26.4:
 
 The packaged macOS test App was rebuilt. Native input-method candidate UI and
 the system print dialog remain separate manual acceptance items.
+
+## List continuation after code, 2026-10-27
+
+Enter after a list-owned closing code fence now creates the next item and updates
+following numbers. The closing fence and any indented paragraph below it retain
+their list ownership. The code-exit shortcut also keeps its new paragraph in the
+current item; undoing that shortcut preserves the preceding code typing.
+
+The regression reproduces the full keyboard sequence: ordered item, Shift+Enter,
+typed triple backticks, fence completion, code typing, closing-line navigation,
+Enter and typing in the new numbered item. Additional checks cover tilde fences,
+nested/quoted lists, trailing whitespace, existing siblings, mixed line endings,
+code-exit paragraphs, source mode and literal Enter inside code.
+
+Validation: 1814 tests in 212 files; renderer type check, lint, React audit and
+max-lines ratchet; the code-exit, container-editing, baseline and document-feature
+workflows passed in both Chrome and WebKit (eight targeted process runs).
