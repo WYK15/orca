@@ -1834,6 +1834,9 @@ function createWorktreesApi(): NonNullable<Partial<PreloadApi>['worktrees']> {
 
 function createFileApi(): NonNullable<Partial<PreloadApi>['fs']> {
   return {
+    readMarkdownImage: async () => {
+      throw new Error('External Markdown images are unavailable in paired web clients.')
+    },
     readDir: async ({ dirPath }) => {
       const file = await resolveRuntimeFilePath(dirPath)
       return callRuntimeResult<DirEntry[]>('files.readDir', {
