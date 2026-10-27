@@ -4,6 +4,7 @@ export type ContextualTourId =
   | 'workspace-board'
   | 'workspace-agent-sessions'
   | 'browser'
+  | 'client-hosted-browser'
   | 'tasks'
   | 'automations'
   | 'floating-workspace'
@@ -21,6 +22,7 @@ export type ContextualTourStepActionKind =
   | 'show-worktrees'
   | 'open-tasks'
   | 'open-getting-started'
+  | 'open-client-hosted-browser-settings'
 
 export type ContextualTourStepAction = {
   kind: ContextualTourStepActionKind
@@ -30,6 +32,8 @@ export type ContextualTourStepAction = {
 export type ContextualTourStepPlacement = 'top' | 'right' | 'bottom' | 'left'
 
 export type ContextualTourStep = {
+  // Stable anchor for localized copy — position-keyed translations shift onto the wrong step when one is inserted.
+  id?: string
   title: string
   body: string
   targetSelector: string
@@ -111,12 +115,25 @@ export const CONTEXTUAL_TOURS = [
       {
         title: 'Stay logged in',
         body: 'Bring your existing logins into Orca to stay signed in immediately.',
-        // Prefer the always-visible Import button; fall back to the overflow-menu
-        // item only once the user has dismissed the import hint.
+        // Prefer visible Import; use overflow after the hint is dismissed.
         targetSelector:
           '[data-contextual-tour-target="browser-import-hint"], [data-contextual-tour-target="browser-import-cookies-control"]',
-        // Sit below the Import button with the arrow pointing up at it.
         preferredPlacement: 'bottom'
+      }
+    ]
+  },
+  {
+    id: 'client-hosted-browser',
+    steps: [
+      {
+        id: 'client-hosted-browser-intro',
+        title: 'This page renders on your desktop',
+        body: 'Remote browser tabs now render on this device. Network traffic still goes through the remote host.',
+        targetSelector: '[data-contextual-tour-target="client-hosted-browser-controls"]',
+        requiredForStart: true,
+        preferredPlacement: 'bottom',
+        primaryAction: { kind: 'complete', label: 'Got it' },
+        secondaryAction: { kind: 'open-client-hosted-browser-settings', label: 'Browser settings' }
       }
     ]
   },
@@ -146,14 +163,16 @@ export const CONTEXTUAL_TOURS = [
     id: 'automations',
     steps: [
       {
+        id: 'automations-intro',
         title: 'What is an automation?',
         body: 'Automations run agent work on a schedule. Add an automation by clicking this button.',
         targetSelector: '[data-contextual-tour-target="automations-create"]',
         requiredForStart: true
       },
       {
+        id: 'automations-results',
         title: 'Find the results',
-        body: 'Runs show when automations executed, what happened, and where to inspect their output.',
+        body: 'Runs show when automations ran, what happened, and where to inspect their output.',
         targetSelector: '[data-contextual-tour-target="automations-runs"]'
       }
     ]
@@ -164,8 +183,7 @@ export const CONTEXTUAL_TOURS = [
       {
         title: 'Run an agent across every repo',
         body: 'Agents here run in any folder you choose. Point one at the directory above your services to work across all your repos at once.',
-        // Why: the per-action anchors only render in the empty state; fall back
-        // to the panel surface when floating tabs already exist.
+        // Action anchors exist only in empty state; use the panel when floating tabs already exist.
         targetSelector:
           '[data-contextual-tour-target="floating-workspace-new-terminal"], [data-contextual-tour-target="floating-workspace-surface"]',
         requiredForStart: true,

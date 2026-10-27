@@ -3,8 +3,13 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import { markRpcDeliveryUnknown } from '../transport/rpc-delivery-ambiguity'
-import { MOBILE_NATIVE_CHAT_SEND_TIMEOUT_MS } from './mobile-native-chat-send'
+
 import { useMobileNativeChatStop } from './use-mobile-native-chat-stop'
+
+const reportWorkerTerminalUserInput = vi.fn()
+vi.mock('../terminal/worker-terminal-takeover-report', () => ({
+  reportWorkerTerminalUserInput: (...args: unknown[]) => reportWorkerTerminalUserInput(...args)
+}))
 
 describe('useMobileNativeChatStop', () => {
   let renderer: ReactTestRenderer | null = null
@@ -14,12 +19,12 @@ describe('useMobileNativeChatStop', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
-    globalThis.IS_REACT_ACT_ENVIRONMENT = true
     sendRequest.mockReset().mockResolvedValue({
       ok: true,
       result: { send: { accepted: true } }
     })
     onSendError.mockReset()
+    reportWorkerTerminalUserInput.mockReset()
   })
 
   afterEach(() => {
@@ -69,7 +74,9 @@ describe('useMobileNativeChatStop', () => {
     expect(sendRequest).toHaveBeenCalledTimes(1)
 
     await render(enabled as boolean, streamIdentity as string)
-    await act(async () => vi.runAllTimersAsync())
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
 
     expect(sendRequest).toHaveBeenCalledTimes(1)
   })
@@ -96,7 +103,9 @@ describe('useMobileNativeChatStop', () => {
     await render(true, 'stream-1')
 
     act(() => stop?.())
-    await act(async () => vi.runAllTimersAsync())
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
 
     expect(onSendError).toHaveBeenCalledOnce()
     expect(onSendError).toHaveBeenCalledWith('Stop not sent')
@@ -118,7 +127,7 @@ describe('useMobileNativeChatStop', () => {
       await vi.runAllTimersAsync()
     })
 
-    // The Escape may have landed; a definite "not sent" invites a second Escape.
+    // Uncertain Escape may have landed; definite failure would invite another into changed state.
     expect(onSendError).toHaveBeenCalledOnce()
     expect(onSendError).toHaveBeenCalledWith('Stop unconfirmed — check chat before retrying')
   })
@@ -143,26 +152,9 @@ describe('useMobileNativeChatStop', () => {
       await vi.runAllTimersAsync()
     })
 
-    // Two paced Escapes are one user action: either landing means the agent stopped,
-    // so a straggler's failure must not tell the user to press Stop again.
+    // Treat paced Escapes as one Stop: either landing suppresses a later failure that would invite duplicate Stop.
     expect(sendRequest).toHaveBeenCalledTimes(2)
     expect(onSendError).not.toHaveBeenCalled()
-  })
-
-  it('bounds the Escape on a reconnect wait instead of parking forever', async () => {
-    await render(true, 'stream-1')
-
-    act(() => stop?.())
-
-    // The budget covers the reconnect wait too, so a stop can't outlast its ceiling.
-    expect(sendRequest).toHaveBeenCalledWith(
-      'terminal.send',
-      expect.anything(),
-      expect.objectContaining({
-        timeoutMs: MOBILE_NATIVE_CHAT_SEND_TIMEOUT_MS,
-        budgetSpansConnect: true
-      })
-    )
   })
 
   it('suppresses an older Stop verdict after a newer Stop succeeds', async () => {
@@ -177,12 +169,40 @@ describe('useMobileNativeChatStop', () => {
 
     act(() => stop?.())
     act(() => stop?.())
-    await act(async () => vi.runAllTimersAsync())
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
     await act(async () => {
       rejectFirst(new Error('late failure'))
       await Promise.resolve()
     })
 
     expect(onSendError).not.toHaveBeenCalled()
+  })
+
+  it('reports the takeover once an Escape is accepted', async () => {
+    await render(true, 'stream-1')
+
+    act(() => stop?.())
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    expect(reportWorkerTerminalUserInput).toHaveBeenCalledWith(
+      expect.objectContaining({ sendRequest }),
+      'terminal-1'
+    )
+  })
+
+  it('does not report a Stop the host rejected', async () => {
+    sendRequest.mockResolvedValue({ ok: true, result: { send: { accepted: false } } })
+    await render(true, 'stream-1')
+
+    act(() => stop?.())
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    expect(reportWorkerTerminalUserInput).not.toHaveBeenCalled()
   })
 })

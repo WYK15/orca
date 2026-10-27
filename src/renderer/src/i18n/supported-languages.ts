@@ -2,8 +2,10 @@ import { DEFAULT_UI_LOCALE, resolveRendererUiLocale } from '../../../shared/ui-l
 import {
   UI_LANGUAGE_CHINESE,
   UI_LANGUAGE_ENGLISH,
+  UI_LANGUAGE_FRENCH,
   UI_LANGUAGE_JAPANESE,
   UI_LANGUAGE_KOREAN,
+  UI_LANGUAGE_PORTUGUESE,
   UI_LANGUAGE_SPANISH,
   UI_LANGUAGE_SYSTEM,
   type BuiltInUiLanguage,
@@ -25,7 +27,9 @@ export const UI_LANGUAGE_CHOICES: UiLanguageChoice[] = [
   { value: UI_LANGUAGE_CHINESE, labelKey: 'settings.appearance.language.chinese' },
   { value: UI_LANGUAGE_KOREAN, labelKey: 'settings.appearance.language.korean' },
   { value: UI_LANGUAGE_JAPANESE, labelKey: 'settings.appearance.language.japanese' },
-  { value: UI_LANGUAGE_SPANISH, labelKey: 'settings.appearance.language.spanish' }
+  { value: UI_LANGUAGE_SPANISH, labelKey: 'settings.appearance.language.spanish' },
+  { value: UI_LANGUAGE_FRENCH, labelKey: 'settings.appearance.language.french' },
+  { value: UI_LANGUAGE_PORTUGUESE, labelKey: 'settings.appearance.language.portuguese' }
 ]
 
 const UI_LANGUAGE_CHOICE_FALLBACKS: Record<BuiltInUiLanguage, string> = {
@@ -34,7 +38,9 @@ const UI_LANGUAGE_CHOICE_FALLBACKS: Record<BuiltInUiLanguage, string> = {
   [UI_LANGUAGE_CHINESE]: '中文（简体）',
   [UI_LANGUAGE_KOREAN]: '한국어',
   [UI_LANGUAGE_JAPANESE]: '日本語',
-  [UI_LANGUAGE_SPANISH]: 'Español'
+  [UI_LANGUAGE_SPANISH]: 'Español',
+  [UI_LANGUAGE_FRENCH]: 'Français',
+  [UI_LANGUAGE_PORTUGUESE]: 'Português (Brasil)'
 }
 
 export function getUiLanguageChoiceLabel(
@@ -46,4 +52,8 @@ export function getUiLanguageChoiceLabel(
 
 export function resolveUiLocale(language: UiLanguage): string {
   return resolveRendererUiLocale(language)
+}
+
+export function getUiLanguageNativeLabel(language: BuiltInUiLanguage): string {
+  return UI_LANGUAGE_CHOICE_FALLBACKS[language]
 }

@@ -75,15 +75,13 @@ describe('rich Markdown table resizing', () => {
       const before = editor.getMarkdown()
 
       expect(editor.commands.setCellAttribute('colwidth', [160])).toBe(true)
-      expect((editor.view.dom.querySelector('col') as HTMLElement | null)?.style.width).toBe(
-        '160px'
-      )
+      expect(editor.view.dom.querySelector<HTMLTableColElement>('col')?.style.width).toBe('160px')
       const after = editor.getMarkdown()
       expect(after).toBe(before)
 
       const reopened = createEditor(after)
       try {
-        expect((reopened.view.dom.querySelector('col') as HTMLElement | null)?.style.width).not.toBe(
+        expect(reopened.view.dom.querySelector<HTMLTableColElement>('col')?.style.width).not.toBe(
           '160px'
         )
       } finally {

@@ -40,14 +40,26 @@ describe('resolveWindowShortcutAction', () => {
     ).toEqual({ type: 'dictationKeyDown' })
   })
 
-  it('resolves the explicit window shortcut allowlist on macOS', () => {
-    expect(
-      resolveWindowShortcutAction(
-        { code: 'Comma', key: ',', meta: true, control: false, alt: false, shift: false },
-        'darwin'
-      )
-    ).toEqual({ type: 'openSettings' })
+  it.each(['darwin', 'linux', 'win32'] as const)(
+    'leaves Cmd/Ctrl+, to terminal apps on %s unless explicitly rebound',
+    (platform) => {
+      const input = {
+        code: 'Comma',
+        key: ',',
+        meta: platform === 'darwin',
+        control: platform !== 'darwin',
+        alt: false,
+        shift: false
+      }
+      expect(resolveWindowShortcutAction(input, platform)).toBeNull()
+      expect(resolveWindowShortcutAction(input, platform, { 'tab.close': ['Mod+W'] })).toBeNull()
+      expect(
+        resolveWindowShortcutAction(input, platform, { 'app.settings': ['Mod+Comma'] })
+      ).toEqual({ type: 'openSettings' })
+    }
+  )
 
+  it('resolves the explicit window shortcut allowlist on macOS', () => {
     expect(
       resolveWindowShortcutAction(
         { code: 'KeyJ', key: 'j', meta: true, control: false, alt: false, shift: false },
@@ -169,7 +181,6 @@ describe('resolveWindowShortcutAction', () => {
       )
     ).toEqual({ type: 'jumpToWorktreeIndex', index: 2 })
 
-    // A custom chord with an extra modifier also resolves.
     expect(
       resolveWindowShortcutAction(
         { code: 'Digit2', key: '2', meta: false, control: true, alt: false, shift: true },
@@ -178,7 +189,6 @@ describe('resolveWindowShortcutAction', () => {
       )
     ).toEqual({ type: 'jumpToTabIndex', index: 1 })
 
-    // Disabling the range leaves the chord unclaimed.
     expect(
       resolveWindowShortcutAction(
         { code: 'Digit3', key: '3', meta: false, control: true, alt: false, shift: false },
@@ -187,7 +197,6 @@ describe('resolveWindowShortcutAction', () => {
       )
     ).toBeNull()
 
-    // Both ranges disabled: neither the workspace nor the tab digit chord resolves.
     const bothDisabled: KeybindingOverrides = {
       'workspace.selectByIndex': [],
       'tab.selectByIndex': []
@@ -377,7 +386,7 @@ describe('resolveWindowShortcutAction', () => {
     ).toEqual({ type: 'openTasks' })
   })
 
-  it('leaves workspace delete unbound by default but honors custom terminal-active bindings', () => {
+  it('resolves workspace delete by default and honors custom terminal-active bindings', () => {
     const input = {
       code: 'Backspace',
       key: 'Backspace',
@@ -387,17 +396,18 @@ describe('resolveWindowShortcutAction', () => {
       shift: true
     }
 
-    expect(resolveWindowShortcutAction(input, 'linux')).toBeNull()
+    expect(resolveWindowShortcutAction(input, 'linux')).toEqual({ type: 'deleteCurrentWorkspace' })
+    const customInput = { ...input, code: 'KeyX', key: 'x', alt: true, shift: false }
     expect(
-      resolveWindowShortcutAction(input, 'linux', {
-        'workspace.delete': ['Mod+Shift+Backspace']
+      resolveWindowShortcutAction(customInput, 'linux', {
+        'workspace.delete': ['Mod+Alt+X']
       })
     ).toEqual({ type: 'deleteCurrentWorkspace' })
     expect(
       resolveWindowShortcutAction(
-        input,
+        customInput,
         'linux',
-        { 'workspace.delete': ['Mod+Shift+Backspace'] },
+        { 'workspace.delete': ['Mod+Alt+X'] },
         { context: 'terminal', terminalShortcutPolicy: 'terminal-first' }
       )
     ).toEqual({ type: 'deleteCurrentWorkspace' })
@@ -683,9 +693,7 @@ describe('resolveWindowShortcutAction', () => {
   })
 
   it('ignores Cmd/Ctrl+Alt combined with ArrowUp or ArrowDown', () => {
-    // Why: the history predicate explicitly narrows to ArrowLeft/ArrowRight.
-    // Cmd+Alt+Up / Cmd+Alt+Down must fall through to null so the event
-    // reaches the renderer/PTTY (e.g. shells / readline).
+    // Leave primary+Alt+Up/Down to renderer/PTTY shell handling; history claims only Left/Right.
     expect(
       resolveWindowShortcutAction(
         {
@@ -716,9 +724,7 @@ describe('resolveWindowShortcutAction', () => {
   })
 
   it('rejects the history chord when the opposite primary modifier is also held', () => {
-    // Why: Cmd+Ctrl+Alt+Arrow on macOS collides with Mission Control space
-    // switching; Ctrl+Meta+Alt+Arrow on Linux collides with GNOME workspace
-    // switching. The app must not intercept either.
+    // Do not intercept Cmd+Ctrl+Alt on macOS or Ctrl+Meta+Alt on Linux: they collide with OS workspace switching.
     expect(
       resolveWindowShortcutAction(
         {
@@ -749,10 +755,7 @@ describe('resolveWindowShortcutAction', () => {
   })
 
   it('still returns null for other Cmd/Ctrl+Alt combos (not an allowlist escape)', () => {
-    // Why: regression guard — the history early-return must not swallow
-    // unrelated primary+alt chords in a way that changes their old null
-    // result. A future addition that intentionally consumes e.g. Cmd+Alt+KeyY
-    // must add a new branch explicitly.
+    // History’s special branch must not claim unrelated primary+Alt chords without an explicit new action.
     expect(
       resolveWindowShortcutAction(
         {
@@ -769,8 +772,7 @@ describe('resolveWindowShortcutAction', () => {
   })
 
   it('routes Cmd/Ctrl+Shift+N to the unified new-workspace composer', () => {
-    // Why: keep the former Create-from shortcut accepted so muscle memory
-    // still opens the composer; source switching now lives in the smart name field.
+    // Preserve the old Create-from chord; the unified composer now switches sources in its name field.
     expect(
       resolveWindowShortcutAction(
         { code: 'KeyN', key: 'n', meta: true, control: false, alt: false, shift: true },
@@ -785,8 +787,7 @@ describe('resolveWindowShortcutAction', () => {
       )
     ).toEqual({ type: 'openNewWorkspace' })
 
-    // Alt must still be rejected — the allowlist is alt-free for Cmd/Ctrl+N
-    // so future chords like Cmd+Alt+Shift+N remain available.
+    // Keep Alt chords unclaimed for future actions.
     expect(
       resolveWindowShortcutAction(
         { code: 'KeyN', key: 'n', meta: true, control: false, alt: true, shift: true },
@@ -796,15 +797,9 @@ describe('resolveWindowShortcutAction', () => {
   })
 
   it('resolves letter shortcuts by layout-aware key, with code as fallback', () => {
-    // Why: non-QWERTY layouts (Dvorak, Colemak, AZERTY, …) move letters to
-    // other physical keys. Matching only on `input.code` (always QWERTY)
-    // breaks the shortcut for those users. Prefer `input.key` when it is a
-    // letter; fall back to `input.code` only when `key` is empty or a
-    // non-letter marker (dead keys, IME edge cases).
+    // Prefer layout-aware letter keys over physical QWERTY codes; only empty/nonletter IME/dead-key values need code fallback.
 
-    // Dvorak layout: the letters the user presses sit on different codes
-    // ('b'→KeyN, 'l'→KeyP, 'p'→KeyR, 'n'→KeyL, 'j'→KeyC). All must resolve
-    // to the layout-matched shortcut.
+    // Dvorak letters sit on different physical codes; resolve the typed letters.
     const dvorak: [WindowShortcutInput, WindowShortcutAction][] = [
       [
         { code: 'KeyN', key: 'b', meta: true, alt: false, shift: false },
@@ -828,9 +823,7 @@ describe('resolveWindowShortcutAction', () => {
       expect(resolveWindowShortcutAction(input, 'darwin')).toEqual(expected)
     }
 
-    // Inverse guard: physical QWERTY-B on Dvorak types 'x' — that is the
-    // platform Cut shortcut, not the sidebar. The layout-aware match must
-    // reject it.
+    // Physical QWERTY-B types x on Dvorak, so its Cut chord must not open the sidebar.
     expect(
       resolveWindowShortcutAction(
         { code: 'KeyB', key: 'x', meta: true, alt: false, shift: false },
@@ -838,8 +831,7 @@ describe('resolveWindowShortcutAction', () => {
       )
     ).toBeNull()
 
-    // Fallback: drivers/IME states that leave `key` empty or non-letter
-    // (dead keys, modifier names) must still reach the shortcut on QWERTY.
+    // Empty/dead-key/modifier key values still need physical-code fallback.
     const fallbacks: [WindowShortcutInput, WindowShortcutAction][] = [
       [
         { code: 'KeyB', key: '', meta: true, alt: false, shift: false },
@@ -869,19 +861,16 @@ describe('resolveWindowShortcutAction', () => {
   })
 
   it('resolves an allowlisted action from a synthetic double-tap input', () => {
-    // (a) A synthetic DoubleTap+Shift input resolves the overridden action.
     const overrides: KeybindingOverrides = { 'worktree.quickOpen': ['DoubleTap+Shift'] }
     expect(
       resolveWindowShortcutAction({ doubleTapModifier: 'Shift' }, 'darwin', overrides)
     ).toEqual({ type: 'openQuickOpen' })
 
-    // (b) A different modifier does not resolve it.
     expect(
       resolveWindowShortcutAction({ doubleTapModifier: 'Alt' }, 'darwin', overrides)
     ).toBeNull()
 
-    // (c) Implicit numeric shortcuts are guarded on input.key, which a double-tap
-    // input never has, so they cannot accidentally match a double-tap event.
+    // Synthetic double taps have no key, so implicit numeric ranges must not match them.
     expect(resolveWindowShortcutAction({ doubleTapModifier: 'Cmd' }, 'darwin')).toBeNull()
   })
 })

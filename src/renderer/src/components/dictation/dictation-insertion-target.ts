@@ -1,13 +1,14 @@
 import { yieldToEventLoop } from '../../../../shared/event-loop-yield'
+import { getUtf8ChunkEndIndex } from '../../../../shared/utf8-byte-limits'
 import {
   TEXT_CONTROL_PASTE_CHUNK_MAX_BYTES,
   TEXT_CONTROL_PASTE_DIRECT_MAX_BYTES,
   TEXT_CONTROL_PASTE_MAX_BYTES,
-  getTextControlPasteByteLength,
   measureTextControlPasteByteLength,
   measureTextControlPasteByteLengthWithYield,
   pasteTextIntoTextControl
 } from '@/lib/text-control-paste'
+import { DICTATION_FOCUS_INPUT_EVENT } from './dictation-control-events'
 
 export type DictationInsertionTarget =
   | { kind: 'terminal'; tabId: string; paneId: number }
@@ -15,6 +16,15 @@ export type DictationInsertionTarget =
   | { kind: 'contentEditable'; element: HTMLElement }
 
 export function captureInsertionTarget(): DictationInsertionTarget | null {
+  const focused = readFocusedInsertionTarget()
+  if (focused) {
+    return focused
+  }
+  document.dispatchEvent(new Event(DICTATION_FOCUS_INPUT_EVENT))
+  return readFocusedInsertionTarget()
+}
+
+function readFocusedInsertionTarget(): DictationInsertionTarget | null {
   const activeElement = document.activeElement
 
   if (!activeElement) {
@@ -102,17 +112,12 @@ async function insertTextIntoContentEditableTarget(
   }
 
   let textIndex = 0
-  // Why: dictation can produce paste-sized text; chunking avoids one large
-  // execCommand while keeping editor beforeinput/input semantics.
+  // Chunk paste-sized dictation while preserving editor beforeinput/input semantics.
   while (textIndex < text.length) {
     if (!isContentEditableDictationTargetCurrent(element)) {
       return
     }
-    const nextIndex = getNextDictationChunkBoundary(
-      text,
-      textIndex,
-      TEXT_CONTROL_PASTE_CHUNK_MAX_BYTES
-    )
+    const nextIndex = getUtf8ChunkEndIndex(text, textIndex, TEXT_CONTROL_PASTE_CHUNK_MAX_BYTES)
     if (
       !insertContentEditableDictationChunk(element, editorElement, text.slice(textIndex, nextIndex))
     ) {
@@ -161,23 +166,4 @@ function insertContentEditableDictationChunk(
 
 function isContentEditableDictationTargetCurrent(element: HTMLElement): boolean {
   return element.isConnected && element.contains(element.ownerDocument.activeElement)
-}
-
-function getNextDictationChunkBoundary(text: string, startIndex: number, maxBytes: number): number {
-  let byteLength = 0
-  let index = startIndex
-
-  while (index < text.length) {
-    const codePoint = text.codePointAt(index) ?? 0
-    const codeUnitLength = codePoint > 0xffff ? 2 : 1
-    const nextByteLength = getTextControlPasteByteLength(text.slice(index, index + codeUnitLength))
-
-    if (byteLength > 0 && byteLength + nextByteLength > maxBytes) {
-      break
-    }
-    byteLength += nextByteLength
-    index += codeUnitLength
-  }
-
-  return index
 }

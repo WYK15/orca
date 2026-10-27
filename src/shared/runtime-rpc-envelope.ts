@@ -1,11 +1,8 @@
-// Why: runtime clients can be CLI, desktop, or future non-Electron shells.
-// Keeping the envelope contract here avoids making those clients import each
-// other just to validate the shared RPC frame shape.
+// Share envelopes across CLI/desktop/non-Electron clients without client-to-client imports.
 import { z } from 'zod'
 import type { OrchestrationCompatibilityEvidence } from './orchestration-compatibility-evidence'
 
-// Why: clients and runtimes update independently; strip additive envelope
-// fields while continuing to validate every known discriminator and field.
+// Independently updated peers may add envelope fields; strip unknown fields while validating known ones.
 const MetaSuccess = z
   .object({
     runtimeId: z.string()
@@ -81,6 +78,14 @@ export type RuntimeOrchestrationEnvelope = {
   orchestrationRequestId?: string
   compatibilityInvocationId?: string
   orchestrationCompatibilityEvidence?: OrchestrationCompatibilityEvidence
+}
+
+/** Which runtime a request is meant for; a host that is not that runtime refuses it before any handler. */
+export type ExpectedRuntimeSource = {
+  /** The launching profile's installation id. */
+  sourceId: string
+  /** The runtime the client verified for this send. */
+  runtimeId: string
 }
 
 export type RuntimeRpcKeepaliveFrame = z.infer<typeof Keepalive>

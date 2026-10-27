@@ -15,11 +15,13 @@ export type PickerOption<T extends string = string> = {
 type Props<T extends string = string> = {
   visible: boolean
   title: string
+  subtitle?: string
   options: PickerOption<T>[]
   selected: T
   onSelect: (value: T) => void
   onLongSelect?: (value: T) => void
   onClose: () => void
+  onAfterClose?: () => void
   zIndex?: number
 }
 
@@ -31,17 +33,20 @@ type PickerModalContentProps<T extends string = string> = Pick<
 export function PickerModal<T extends string = string>({
   visible,
   title,
+  subtitle,
   options,
   selected,
   onSelect,
   onLongSelect,
   onClose,
+  onAfterClose,
   zIndex
 }: Props<T>) {
   return (
-    <BottomDrawer visible={visible} onClose={onClose} zIndex={zIndex}>
+    <BottomDrawer visible={visible} onClose={onClose} onAfterClose={onAfterClose} zIndex={zIndex}>
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
 
       <PickerModalContent
@@ -62,8 +67,7 @@ function PickerModalContent<T extends string = string>({
   onLongSelect,
   onClose
 }: PickerModalContentProps<T>) {
-  // Why: closed BottomDrawer instances return null, so keeping option rows in
-  // this child avoids rebuilding hidden picker contents on every parent render.
+  // Put option rows in shown child; closed BottomDrawer returns null, avoiding hidden-content rebuilds on parent renders.
   return (
     <View style={styles.group}>
       {options.map((opt, i) => {
@@ -72,6 +76,9 @@ function PickerModalContent<T extends string = string>({
           <View key={opt.value}>
             {i > 0 && <View style={styles.separator} />}
             <Pressable
+              accessible
+              accessibilityRole="button"
+              accessibilityState={{ disabled: Boolean(opt.disabled), selected: isSelected }}
               disabled={opt.disabled}
               style={({ pressed }) => [
                 styles.row,
@@ -124,6 +131,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: colors.textMuted
+  },
+  subtitle: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2
   },
   group: {
     backgroundColor: colors.bgPanel,

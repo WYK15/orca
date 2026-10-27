@@ -6,7 +6,8 @@ import {
   resolveSourceControlActionRecipe,
   resolveSourceControlAiForOperation
 } from './source-control-ai'
-import type { GlobalSettings } from './types'
+import type { GlobalSettings } from './global-settings-types'
+import type { SourceControlActionRecipe } from './source-control-ai-actions'
 
 function settings(): GlobalSettings {
   const base = getDefaultSettings('/tmp')
@@ -144,6 +145,40 @@ describe('source-control AI action recipes', () => {
       commandInputTemplate: '{basePrompt}\n\nrepo',
       agentArgs: '--model gpt-5.5'
     })
+  })
+
+  it('gives a repository owning its agent its own default, and partial overrides global ownership', () => {
+    const base = settings()
+    base.sourceControlAi = {
+      ...base.sourceControlAi!,
+      actions: {
+        ...base.sourceControlAi!.actions,
+        fixChecks: {
+          agentId: 'codex',
+          launchPreferences: { agentId: 'codex' as const, model: 'gpt-5.6-terra' }
+        }
+      }
+    }
+    const resolve = (fixChecks: SourceControlActionRecipe) =>
+      resolveSourceControlActionRecipe({
+        settings: base,
+        repo: { sourceControlAi: { actionOverrides: { fixChecks } } },
+        actionId: 'fixChecks'
+      })
+
+    expect(resolve({ agentId: 'codex', agentArgs: '--search' }).launchPreferences).toBeUndefined()
+    expect(resolve({ agentId: null }).launchPreferences).toBeUndefined()
+    expect(resolve({ agentArgs: '--search' }).launchPreferences).toEqual({
+      agentId: 'codex',
+      model: 'gpt-5.6-terra'
+    })
+    expect(resolve({ agentId: 'claude' })).not.toHaveProperty('launchPreferences')
+    expect(
+      resolve({
+        agentId: 'codex',
+        launchPreferences: { agentId: 'codex', model: 'gpt-5.5', options: { effort: 'high' } }
+      }).launchPreferences
+    ).toEqual({ agentId: 'codex', model: 'gpt-5.5', options: { effort: 'high' } })
   })
 
   it('lets repo action recipes explicitly clear inherited CLI args', () => {
@@ -427,7 +462,7 @@ describe('source-control AI action recipes', () => {
     ).toEqual({
       ok: false,
       error:
-        'Agent "aider" does not support Source Control AI commit messages. Supported agents: Claude, Codex, OpenCode, Pi, Amp, Cursor, Kimi, GitHub Copilot, Antigravity, or Custom command.'
+        'Agent "aider" does not support Source Control AI commit messages. Supported agents: OMP, Claude, Codex, OpenCode, OpenCode 2, Pi, Amp, Cursor, Kimi, Muse, DeepSeek Harness, GitHub Copilot, Antigravity, Jcode, or Custom command.'
     })
   })
 })

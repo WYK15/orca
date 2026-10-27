@@ -29,13 +29,11 @@ export function MobileDiffReviewScreenView({ controller, onBack }: Props) {
     dockWidth: PR_SIDEBAR_DOCK_WIDTH
   })
   const presentationMode = resolvePresentationMode(isWideLayout, canDockSidebar)
-  // Inline-dock the sidebar only when wide and the repo is GitHub; otherwise it
-  // lives in the RightDrawer overlay toggled by showPRSidebar.
+  // Dock GitHub sidebar only when wide; otherwise showPRSidebar toggles RightDrawer overlay.
   const showInlineDock = presentationMode === 'inline' && controller.prSidebarIsGithubRepo
   const gitStatus = controller.screenState.kind === 'ready' ? controller.screenState.status : null
 
-  // The docked sidebar has no trigger to tap, so load its PR data once it becomes
-  // visible (the overlay loads on trigger press instead).
+  // Load docked PR data on visibility; overlay loads on trigger press.
   const prSidebarKind = controller.prSidebarState.kind
   const loadPRSidebar = controller.refetchPRSidebar
   useEffect(() => {
@@ -61,13 +59,12 @@ export function MobileDiffReviewScreenView({ controller, onBack }: Props) {
         unsentCount={controller.unsentComments.length}
         worktreeLabel={controller.worktreeLabel}
         onBack={onBack}
-        onOpenActions={() => controller.setShowOverflow(true)}
+        onOpenActions={() => controller.openSheet({ kind: 'actions' })}
         onOpenPRSidebar={controller.openPRSidebar}
         onSelectFilter={controller.selectFilter}
       />
       <View style={{ flex: 1, flexDirection: 'row' }} onLayout={handleContentRowLayout}>
-        {/* Diff column keeps its full layout; in wide mode the docked sidebar sits
-            beside it and each column scrolls independently. */}
+        {/* Keep diff layout full; wide sidebar and diff scroll independently. */}
         <View style={{ flex: 1, minWidth: 0 }}>
           {controller.currentItem ? (
             <MobileDiffReviewFileSummary
@@ -97,14 +94,14 @@ export function MobileDiffReviewScreenView({ controller, onBack }: Props) {
             staleCommentIds={controller.staleCommentIds}
             onAddNote={controller.openComposer}
             onEditNote={controller.openEditComposer}
-            onRetry={controller.retryAction}
+            onRetry={controller.retryAction ?? undefined}
           />
           {controller.currentItem ? (
             <MobileDiffReviewFooter
               busyAction={controller.busyAction}
               item={controller.currentItem}
               onAddFileNote={() => controller.openComposer(0)}
-              onDiscard={controller.setDiscardTarget}
+              onDiscard={(target) => controller.openSheet({ kind: 'discard', target })}
               onGitMutation={(method, item) => void controller.runGitMutation(method, item)}
               onMarkReviewed={() => void controller.markReviewed()}
               onMoveFile={controller.moveFile}
@@ -124,6 +121,7 @@ export function MobileDiffReviewScreenView({ controller, onBack }: Props) {
               gitStatus={gitStatus}
               headSha={controller.prSidebarHeadSha}
               bottomInset={insets.bottom}
+              workspaceLabel={controller.worktreeLabel}
             />
           </View>
         ) : null}
@@ -144,6 +142,7 @@ export function MobileDiffReviewScreenView({ controller, onBack }: Props) {
             gitBranch={controller.prSidebarBranch}
             gitStatus={gitStatus}
             headSha={controller.prSidebarHeadSha}
+            workspaceLabel={controller.worktreeLabel}
           />
         </RightDrawer>
       ) : null}

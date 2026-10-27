@@ -33,8 +33,7 @@ describe('isCodexRestartEligiblePane', () => {
   })
 
   it('accepts a launcher-started Codex pane whose wrapper has not resolved to an agent yet', () => {
-    // Windows reports pwsh while the descendant scan warms up, then `node`
-    // (the `node .../bin/codex` wrapper) before it resolves to "codex".
+    // During Windows descendant-scan warmup, pwsh/node can precede the resolved Codex name.
     expect(
       isCodexRestartEligiblePane({
         inspection: { foregroundProcess: 'node', hasChildProcesses: true },
@@ -44,9 +43,7 @@ describe('isCodexRestartEligiblePane', () => {
   })
 
   it('rejects a Codex-launched pane the user exited and is now typing into', () => {
-    // Why: the process scans only ever surface a recognized agent or the shell,
-    // so `less`/`vim`/`ssh` means Codex is gone — and a notice would eat the
-    // keystrokes the user needs to leave that program.
+    // less/vim/ssh proves the user left Codex; a notice would swallow keystrokes needed by their program.
     for (const foregroundProcess of ['less', 'vim', 'ssh', 'tmux', 'git']) {
       expect(
         isCodexRestartEligiblePane({
@@ -103,7 +100,12 @@ describe('isCodexRestartEligiblePane', () => {
     // Why: a stale remote handle reports the last-known name; it is not evidence.
     expect(
       isCodexRestartEligiblePane({
-        inspection: { foregroundProcess: 'codex', hasChildProcesses: true, unavailable: true },
+        inspection: {
+          foregroundProcess: null,
+          hasChildProcesses: false,
+          verdict: 'unverifiable',
+          reason: 'terminal_gone'
+        },
         launchAgent: 'codex'
       })
     ).toBe(false)

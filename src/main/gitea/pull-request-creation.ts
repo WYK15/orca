@@ -1,3 +1,5 @@
+import type { ExecutionHostId } from '../../shared/execution-host'
+import { hostedReviewSshConnectionId } from '../source-control/hosted-review-execution-host'
 import type { CreateHostedReviewInput, CreateHostedReviewResult } from '../../shared/hosted-review'
 import {
   normalizeHostedReviewBaseRef,
@@ -105,8 +107,7 @@ async function findExistingPullRequest(
   head: string,
   connectionId?: string | null
 ): Promise<{ number: number; url: string } | null> {
-  // Why: only called after a create attempt, which may have just mutated the
-  // remote — a cached /pulls scan from before the POST would miss the new PR.
+  // A create attempt may already have mutated the remote; discard pre-POST listings.
   const repo = await getGiteaRepoRef(repoPath, connectionId)
   if (repo) {
     invalidateGiteaPullRequestScanForRepo(repo)
@@ -118,7 +119,7 @@ async function findExistingPullRequest(
 export async function createGiteaPullRequest(
   repoPath: string,
   input: CreateHostedReviewInput,
-  connectionId?: string | null
+  executionHostId: ExecutionHostId
 ): Promise<CreateHostedReviewResult> {
   if (input.provider !== 'gitea') {
     return {
@@ -127,6 +128,9 @@ export async function createGiteaPullRequest(
       error: 'Creating reviews for this provider is not supported yet.'
     }
   }
+
+  // The Gitea REST calls run on this client; only the git reads under them are routed.
+  const connectionId = hostedReviewSshConnectionId(executionHostId)
 
   const repo = await getGiteaRepoRef(repoPath, connectionId)
   if (!repo) {

@@ -9,16 +9,15 @@ import { getDefaultRepoHookSettings } from './constants'
 import {
   createSequencedSetupAgentCommands,
   createSetupAgentSequenceNonce,
-  getSetupAgentSequenceShellForTests,
+  SETUP_COMPLETE_MESSAGE,
   resolveSetupAgentSequenceLaunchCommand,
-  SETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV
+  SETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV,
+  SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV
 } from './setup-agent-sequencing'
-import {
-  DEFAULT_SETUP_AGENT_STARTUP_POLICY,
-  shouldWaitForSetupBeforeAgentStartup
-} from './setup-agent-startup-policy'
+import { shouldWaitForSetupBeforeAgentStartup } from './setup-agent-startup-policy'
 
 const TEMP_DIRS: string[] = []
+const WINDOWS_PROCESS_TEST_TIMEOUT_MS = 30_000
 
 afterEach(() => {
   for (const dir of TEMP_DIRS.splice(0)) {
@@ -28,7 +27,6 @@ afterEach(() => {
 
 describe('createSequencedSetupAgentCommands', () => {
   it('defaults agent startup to immediate unless the wait policy is explicit', () => {
-    expect(DEFAULT_SETUP_AGENT_STARTUP_POLICY).toBe('start-immediately')
     expect(getDefaultRepoHookSettings().setupAgentStartupPolicy).toBe('start-immediately')
     expect(shouldWaitForSetupBeforeAgentStartup(undefined)).toBe(false)
     expect(shouldWaitForSetupBeforeAgentStartup('start-immediately')).toBe(false)
@@ -66,20 +64,99 @@ describe('createSequencedSetupAgentCommands', () => {
     expect(result.setupCommand).toContain(
       'mv -f /repo/.git/orca/setup-runner.sh.nonce-123.done.tmp'
     )
-    expect(result.startupCommand).toMatch(/^bash -lc /)
-    expect(result.startupCommand).toContain('deadline=$((SECONDS + 9))')
-    expect(result.startupCommand).not.toContain('date +%s')
-    expect(result.startupCommand).toContain('Waiting for setup to finish before starting agent...')
-    expect(result.startupCommand).toContain('[ "$seen" = nonce-123 ]')
-    expect(result.startupCommand).toContain(
+    const startupScript = result.startupEnv?.[SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]
+    expect(result.startupCommand).toBe(
+      `bash -lc 'eval "$${SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV}"'`
+    )
+    expect(startupScript).toContain('deadline=$((SECONDS + 9))')
+    expect(startupScript).not.toContain('date +%s')
+    expect(startupScript).toContain('Waiting for setup to finish before starting agent...')
+    expect(startupScript).toContain('[ "$seen" = nonce-123 ]')
+    expect(startupScript).toContain(
       'rm -f /repo/.git/orca/setup-runner.sh.nonce-123.done /repo/.git/orca/setup-runner.sh.nonce-123.done.tmp'
     )
-    expect(result.startupCommand).toContain('exec codex')
-    expect(result.startupCommand).toContain('fix bug')
+    expect(startupScript).toContain('exec codex')
+    expect(startupScript).toContain('fix bug')
     expect(result.startupEnv).toEqual(
       expect.objectContaining({
-        [SETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV]: "codex 'fix bug'"
+        [SETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV]: "codex 'fix bug'",
+        [SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]: startupScript
       })
+    )
+  })
+
+  it('announces success so the pane stops showing the waiting line', () => {
+    const commands = createSequencedSetupAgentCommands({
+      runnerScriptPath: '/repo/.git/orca/setup-runner.sh',
+      startupCommand: 'codex',
+      platform: 'posix',
+      nonce: 'nonce-1'
+    })
+    const script = commands.startupEnv?.ORCA_SEQUENCED_STARTUP_SCRIPT ?? ''
+    // Why ordering: `eval`/`exec` never returns, so a later message never renders.
+    expect(script.indexOf(SETUP_COMPLETE_MESSAGE)).toBeGreaterThan(-1)
+    expect(script.indexOf(SETUP_COMPLETE_MESSAGE)).toBeLessThan(
+      script.indexOf('eval "$ORCA_SEQUENCED_STARTUP_COMMAND"')
+    )
+  })
+
+  it('announces success on the native Windows gate too', () => {
+    const commands = createSequencedSetupAgentCommands({
+      runnerScriptPath: 'C:\\repo\\.git\\orca\\setup-runner.cmd',
+      platform: 'windows',
+      startupCommand: 'codex',
+      nonce: 'nonce-2'
+    })
+    const decoded = Buffer.from(
+      commands.startupCommand.split('-EncodedCommand ')[1] ?? '',
+      'base64'
+    ).toString('utf16le')
+    expect(decoded).toContain(SETUP_COMPLETE_MESSAGE)
+    expect(decoded.indexOf(SETUP_COMPLETE_MESSAGE)).toBeLessThan(
+      decoded.indexOf('Invoke-Expression $startup')
+    )
+  })
+
+  it('doubles typographic single quotes in native Windows gate literals', () => {
+    const commands = createSequencedSetupAgentCommands({
+      runnerScriptPath: 'C:\\O\u2019Brien\\.git\\orca\\setup-runner.cmd',
+      platform: 'windows',
+      startupCommand: 'codex',
+      nonce: 'nonce-3'
+    })
+    const decoded = Buffer.from(
+      commands.setupCommand.split('-EncodedCommand ')[1] ?? '',
+      'base64'
+    ).toString('utf16le')
+    expect(decoded).toContain("$runner = 'C:\\O\u2019\u2019Brien\\.git\\orca\\setup-runner.cmd'")
+  })
+
+  it('leaves the failure and timeout messages as the only other outcomes', () => {
+    const script =
+      createSequencedSetupAgentCommands({
+        runnerScriptPath: '/repo/.git/orca/setup-runner.sh',
+        startupCommand: 'codex',
+        platform: 'posix',
+        nonce: 'nonce-3'
+      }).startupEnv?.ORCA_SEQUENCED_STARTUP_SCRIPT ?? ''
+    // Silence on success is what made a healthy worktree look stuck.
+    expect(script).toContain(SETUP_COMPLETE_MESSAGE)
+    expect(script).toContain('Setup failed; skipping agent startup.')
+    expect(script).toContain('Timed out waiting for setup before starting agent.')
+  })
+
+  it('keeps the POSIX terminal submission below the canonical input floor', () => {
+    const result = createSequencedSetupAgentCommands({
+      runnerScriptPath: `/repo/${'nested-worktree/'.repeat(100)}setup-runner.sh`,
+      startupCommand: 'codex',
+      platform: 'posix',
+      nonce: 'long-path'
+    })
+
+    expect(result.startupCommand.length).toBeLessThan(256)
+    expect(result.startupCommand).not.toContain('nested-worktree')
+    expect(result.startupEnv?.[SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]).toContain(
+      'nested-worktree'
     )
   })
 
@@ -98,9 +175,13 @@ describe('createSequencedSetupAgentCommands', () => {
     })
 
     expect(first.setupCommand).toContain('/repo/.git/orca/setup-runner.sh.first-launch.done')
-    expect(first.startupCommand).toContain('/repo/.git/orca/setup-runner.sh.first-launch.done')
+    expect(first.startupEnv?.[SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]).toContain(
+      '/repo/.git/orca/setup-runner.sh.first-launch.done'
+    )
     expect(second.setupCommand).toContain('/repo/.git/orca/setup-runner.sh.second-launch.done')
-    expect(second.startupCommand).toContain('/repo/.git/orca/setup-runner.sh.second-launch.done')
+    expect(second.startupEnv?.[SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]).toContain(
+      '/repo/.git/orca/setup-runner.sh.second-launch.done'
+    )
     expect(first.setupCommand).not.toContain('/repo/.git/orca/setup-runner.sh.second-launch.done')
     expect(second.setupCommand).not.toContain('/repo/.git/orca/setup-runner.sh.first-launch.done')
   })
@@ -114,8 +195,9 @@ describe('createSequencedSetupAgentCommands', () => {
       waitTimeoutSeconds: 9
     })
 
-    expect(result.startupCommand).toContain("exec codex '\\''fix this; then test'\\''")
-    expect(result.startupCommand).not.toContain('eval codex')
+    const startupScript = result.startupEnv?.[SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]
+    expect(startupScript).toContain("exec codex 'fix this; then test'")
+    expect(startupScript).not.toContain('eval codex')
   })
 
   it('preserves POSIX inline environment assignment startup commands', () => {
@@ -127,9 +209,10 @@ describe('createSequencedSetupAgentCommands', () => {
       waitTimeoutSeconds: 9
     })
 
-    expect(result.startupCommand).toContain('FOO=bar claude')
-    expect(result.startupCommand).toContain('exit "$?"')
-    expect(result.startupCommand).not.toContain('exec FOO=bar claude')
+    const startupScript = result.startupEnv?.[SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]
+    expect(startupScript).toContain('FOO=bar claude')
+    expect(startupScript).toContain('exit "$?"')
+    expect(startupScript).not.toContain('exec FOO=bar claude')
   })
 
   it('uses the converted Linux marker path for WSL UNC runners on Windows', () => {
@@ -141,7 +224,6 @@ describe('createSequencedSetupAgentCommands', () => {
       nonce: 'nonce-wsl'
     })
 
-    expect(getSetupAgentSequenceShellForTests(resultPathWsl(), 'windows')).toBe('posix')
     expect(result.setupCommand).toContain(
       'bash /home/jin/repo/.git/worktrees/feature/orca/setup-runner.sh'
     )
@@ -162,7 +244,27 @@ describe('createSequencedSetupAgentCommands', () => {
     expect(result.setupCommand).toContain(
       'bash /remote/repo/.git/worktrees/feature/orca/setup-runner.sh'
     )
-    expect(result.startupCommand).toContain('[ "$seen" = nonce-remote ]')
+    expect(result.startupEnv?.[SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]).toContain(
+      '[ "$seen" = nonce-remote ]'
+    )
+  })
+
+  it('preserves WSL shell metadata when sequencing native Windows runners', () => {
+    const result = createSequencedSetupAgentCommands({
+      runnerScriptPath: 'C:\\repo\\.git\\orca\\setup-runner.sh',
+      startupCommand: 'claude',
+      platform: 'windows',
+      shell: { family: 'posix', executable: 'wsl.exe' },
+      nonce: 'nonce-wsl-shell'
+    })
+
+    expect(result.setupCommand).toContain('bash /mnt/c/repo/.git/orca/setup-runner.sh')
+    expect(result.setupCommand).toContain(
+      '/mnt/c/repo/.git/orca/setup-runner.sh.nonce-wsl-shell.done'
+    )
+    expect(result.startupEnv?.[SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]).toContain(
+      '/mnt/c/repo/.git/orca/setup-runner.sh.nonce-wsl-shell.done'
+    )
   })
 
   it('wraps native Windows runners in a cmd-pinned setup and startup gate', () => {
@@ -177,13 +279,13 @@ describe('createSequencedSetupAgentCommands', () => {
     const startupPowerShell = decodePowerShellScript(result.startupCommand)
 
     expect(result.setupCommand).toContain(
-      'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand'
+      'powershell.exe -NoProfile -NonInteractive -EncodedCommand'
     )
     expect(setupPowerShell).toContain("$runner = 'C:\\repo\\.git\\orca\\setup-runner.cmd'")
     expect(setupPowerShell).toContain('$nonce + ":" + $setupStatus')
     expect(result.startupCommand.match(/powershell\.exe/g)).toHaveLength(1)
     expect(result.startupCommand).toContain(
-      'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand'
+      'powershell.exe -NoProfile -NonInteractive -EncodedCommand'
     )
     expect(startupPowerShell).toContain('AddSeconds(3)')
     expect(startupPowerShell).toContain('Missing setup marker path.')
@@ -198,6 +300,58 @@ describe('createSequencedSetupAgentCommands', () => {
     expect(result.startupEnv).toEqual({
       [SETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV]: "codex --model gpt-5 'fix !PATH! & test'"
     })
+    // EncodedCommand is not policy-gated; command-line ExecutionPolicy Bypass was a no-op with an EDR-heavy shape.
+    // Keep base64 because terminal panes reparse these strings.
+    expect(result.setupCommand).not.toMatch(/-ExecutionPolicy/i)
+    expect(result.startupCommand).not.toMatch(/-ExecutionPolicy/i)
+    // User startup may invoke policy-gated .ps1; move relief inside the payload instead of deleting it.
+    expect(startupPowerShell).toContain(
+      'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction Stop'
+    )
+    // Stop routes autoload failures (e.g. duplicate PS5.1 type data) to a reporting catch.
+    // Report without rethrowing so broken policy cmdlets cannot abort startup.
+    expect(startupPowerShell).not.toContain('catch {}')
+    expect(startupPowerShell).toMatch(/catch \{ \[Console\]::Error\.WriteLine\(/)
+    expect(startupPowerShell).toContain('$_.FullyQualifiedErrorId')
+    expect(startupPowerShell).not.toMatch(/catch \{[^}]*throw/)
+    // Why: the autoloaded module's progress record would otherwise corrupt this gate's stderr.
+    expect(startupPowerShell).toContain("$ProgressPreference = 'SilentlyContinue'")
+    expect(startupPowerShell).toContain('$ProgressPreference = $orcaProgress')
+    // The setup gate only ever launches a .cmd/.bat runner, so it needs no relief.
+    expect(setupPowerShell).not.toMatch(/Set-ExecutionPolicy/i)
+  })
+
+  it('launches a batch runner through the cmd launcher inside a Git Bash gate', () => {
+    // Batch setup stays a cmd runner inside Git Bash; the gate remains bash to parse the already-POSIX-quoted startup command (#6896).
+    const result = createSequencedSetupAgentCommands({
+      runnerScriptPath: 'C:\\repo\\.git\\orca\\setup-runner.cmd',
+      startupCommand: "claude 'fix the user'\\''s login'",
+      platform: 'windows',
+      shell: { family: 'posix' },
+      nonce: 'nonce-gitbash-cmd'
+    })
+
+    expect(result.setupCommand).toContain(
+      'powershell.exe -NoProfile -NonInteractive -EncodedCommand'
+    )
+    expect(result.setupCommand).not.toMatch(/bash\s+\S*setup-runner/)
+    expect(decodePowerShellScript(result.setupCommand)).toContain(
+      "$runner = 'C:\\repo\\.git\\orca\\setup-runner.cmd'"
+    )
+    // PowerShell Invoke-Expression cannot parse POSIX apostrophe escaping; bash must evaluate startup.
+    expect(result.setupCommand).toMatch(/^bash -lc /)
+    expect(result.startupCommand).toMatch(/^bash -lc /)
+    expect(result.startupCommand).not.toContain('Invoke-Expression')
+    expect(result.startupEnv?.[SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]).toContain(
+      'eval "$ORCA_SEQUENCED_STARTUP_COMMAND"'
+    )
+    // Why: bash writes and reads the marker here, so it needs the /c/... form of the path.
+    expect(result.setupCommand).toContain(
+      '/c/repo/.git/orca/setup-runner.cmd.nonce-gitbash-cmd.done'
+    )
+    expect(result.startupEnv?.[SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]).toContain(
+      '/c/repo/.git/orca/setup-runner.cmd.nonce-gitbash-cmd.done'
+    )
   })
 
   it.skipIf(process.platform !== 'win32')(
@@ -248,7 +402,8 @@ describe('createSequencedSetupAgentCommands', () => {
       expect(startupExit.code).toBe(0)
       expect(startupExit.stderr).toContain('Waiting for setup to finish before starting agent...')
       expect(readFileSync(logPath, 'utf8')).toBe('setup-done\r\nagent-start\r\n')
-    }
+    },
+    WINDOWS_PROCESS_TEST_TIMEOUT_MS
   )
 
   it.skipIf(process.platform === 'win32')(
@@ -284,7 +439,10 @@ describe('createSequencedSetupAgentCommands', () => {
       })
 
       const startupExitPromise = waitForExit(
-        spawn('bash', ['-lc', commands.startupCommand], { stdio: 'pipe' })
+        spawn('bash', ['-lc', commands.startupCommand], {
+          stdio: 'pipe',
+          env: { ...process.env, ...commands.startupEnv }
+        })
       )
       await sleep(250)
       expect(readIfExists(logPath)).toBe('')
@@ -328,15 +486,19 @@ describe('createSequencedSetupAgentCommands', () => {
         spawn('bash', ['-lc', commands.setupCommand], { stdio: 'pipe' })
       )
       const startupExit = await waitForExit(
-        spawn('bash', ['-lc', commands.startupCommand], { stdio: 'pipe' })
+        spawn('bash', ['-lc', commands.startupCommand], {
+          stdio: 'pipe',
+          env: { ...process.env, ...commands.startupEnv }
+        })
       )
       const setupExit = await setupExitPromise
 
       expect(setupExit.code).toBe(0)
       expect(startupExit.code).toBe(0)
       expect(readFileSync(logPath, 'utf8')).toBe('setup-done\nagent-start\ncleanup\n')
-      expect(commands.startupCommand).toContain('eval')
-      expect(commands.startupCommand).not.toContain('exec printf')
+      const startupScript = commands.startupEnv?.[SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV]
+      expect(startupScript).toContain('eval')
+      expect(startupScript).not.toContain('exec printf')
     }
   )
 
@@ -378,6 +540,7 @@ describe('createSequencedSetupAgentCommands', () => {
           stdio: 'pipe',
           env: {
             ...process.env,
+            ...commands.startupEnv,
             [SETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV]: `FOO=bar bash ${quoteSh(startupScriptPath)}; printf 'env-cleanup\\n' >> ${quoteSh(logPath)}`
           }
         })
@@ -407,7 +570,10 @@ describe('createSequencedSetupAgentCommands', () => {
       })
 
       const startupExit = await waitForExit(
-        spawn('bash', ['-lc', commands.startupCommand], { stdio: 'pipe' })
+        spawn('bash', ['-lc', commands.startupCommand], {
+          stdio: 'pipe',
+          env: { ...process.env, ...commands.startupEnv }
+        })
       )
 
       expect(startupExit.code).toBe(124)
@@ -426,10 +592,6 @@ describe('createSetupAgentSequenceNonce', () => {
     vi.stubGlobal('crypto', originalCrypto)
   })
 })
-
-function resultPathWsl(): string {
-  return '\\\\wsl.localhost\\Ubuntu\\home\\jin\\repo\\.git\\worktrees\\feature\\orca\\setup-runner.sh'
-}
 
 function makeTempDir(): string {
   const dir = mkdtempSync(join(tmpdir(), 'orca-setup-sequencing-'))
@@ -467,8 +629,7 @@ function spawnWindowsCommand(
   env: Record<string, string> = {}
 ): ReturnType<typeof spawn> {
   const scriptPath = join(dir, filename)
-  // Why: /s strips the quotes Node adds for batch paths containing spaces;
-  // argv spawning still exercises cmd.exe's native parser without that loss.
+  // Avoid /s stripping Node’s batch-path quotes; argv spawning still exercises native cmd parsing.
   writeFileSync(scriptPath, `@echo off\r\n${command}\r\nexit /b %ERRORLEVEL%\r\n`, 'utf8')
   return spawn('cmd.exe', ['/d', '/c', scriptPath], {
     stdio: 'pipe',

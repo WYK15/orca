@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import { Pressable } from 'react-native'
 import { colors } from '../theme/mobile-theme'
-import { styles } from '../../app/h/[hostId]/session/mobile-session-styles'
+import { styles } from './mobile-session-styles'
 
 type HeaderIconProps = {
   size?: number
@@ -11,6 +11,7 @@ type HeaderIconProps = {
 
 type MobileSessionHeaderIconButtonProps = {
   active?: boolean
+  disabled?: boolean
   accessibilityLabel: string
   icon: ComponentType<HeaderIconProps>
   onPress: () => void
@@ -18,6 +19,7 @@ type MobileSessionHeaderIconButtonProps = {
 
 export function MobileSessionHeaderIconButton({
   active = false,
+  disabled = false,
   accessibilityLabel,
   icon: Icon,
   onPress
@@ -25,12 +27,15 @@ export function MobileSessionHeaderIconButton({
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.filesButton,
-        pressed && styles.filesButtonPressed,
-        active && styles.filesButtonActive
+        styles.headerButton,
+        pressed && styles.headerButtonPressed,
+        active && styles.headerButtonActive,
+        disabled && styles.headerButtonDisabled
       ]}
+      disabled={disabled}
       onPress={onPress}
-      hitSlop={8}
+      hitSlop={4}
+      accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
       <Icon size={18} color={colors.textSecondary} strokeWidth={2.1} />

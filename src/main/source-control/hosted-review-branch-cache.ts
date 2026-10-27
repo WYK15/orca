@@ -1,53 +1,68 @@
+import type { ExecutionHostId } from '../../shared/execution-host'
 import type { HostedReviewInfo } from '../../shared/hosted-review'
 import {
-  ACTIVE_CLAIM_TTL_MS,
+  __resetHostedReviewActiveClaimsForTests,
+  isActiveBranch,
+  noteActiveClaim
+} from './hosted-review-active-branch-claims'
+import {
+  __resetUnsettledHostedReviewLookupsForTests,
+  lookupCapacityRefusal,
+  noteDetachedLookup,
+  noteLookupStarted,
+  settleDetachedLookup,
+  settleLookup
+} from './hosted-review-unsettled-lookups'
+import {
+  __resetHostedReviewInflightLookupsForTests,
+  expireOverdueInflight,
+  getInflightLookup,
+  releaseInflight,
+  retireInflightWithPrefix,
+  trackInflight,
+  type InflightToken
+} from './hosted-review-inflight-lookups'
+import {
+  __resetHostedReviewScopeGenerationsForTests,
+  bumpScopeGeneration,
+  hostedReviewRepoScope,
+  scopeGeneration
+} from './hosted-review-scope-generations'
+import {
+  __resetHostedReviewLookupBackoffForTests,
+  backoffUntil,
+  clearFailures,
+  dropFailuresWithPrefix,
+  noteFailure
+} from './hosted-review-lookup-backoff'
+import {
   ACTIVE_REFRESH_INTERVAL_MS,
-  lookupBackoffDelayMs,
-  LOOKUP_BACKOFF_MAX_MS,
-  MAX_ACTIVE_BRANCHES,
+  HOSTED_REVIEW_LOOKUP_DEADLINE_MS,
+  MAX_BRANCH_MAP_ENTRIES,
   NO_REVIEW_REFRESH_INTERVAL_MS
 } from './hosted-review-refresh-pacing'
 
-/**
- * Process-wide cache for branch review lookups (#11532).
- *
- * `hostedReview:forBranch` is polled by every desktop window, the mobile client
- * and `orca serve` alike, and each one used to reach the provider directly. The
- * host's API quota is per user, so the only place that can pace them together is
- * here — the single funnel they all pass through.
- *
- * Pacing is tiered by what the user is looking at rather than applied flat: the
- * selected worktree is O(1) and can afford a per-minute re-check, while the
- * worktree list is O(N) and is what exhausts the budget.
- */
+/** All desktop/mobile/serve callers share this host's API quota. Pace active selection separately from the O(N) worktree list (#11532). */
 
-// Why: a found review still refreshes at the callers' poll cadence; the cache
-// exists to collapse concurrent clients, not to make review state go stale.
+// Collapse clients without making found reviews lag their polling cadence.
 const FOUND_REVIEW_TTL_MS = 60_000
-const MAX_ENTRIES = 500
+const MAX_ENTRIES = MAX_BRANCH_MAP_ENTRIES
 
 type CacheEntry = {
   review: HostedReviewInfo | null
   fetchedAt: number
   headOid: string | null
+  /** When the lookup that produced this answer began, for straggler ordering. */
+  startedAt: number
 }
 
 const entries = new Map<string, CacheEntry>()
-const inflight = new Map<string, Promise<HostedReviewInfo | null>>()
-const failureBackoff = new Map<string, { until: number; failures: number }>()
-/** Branches a caller reported as its current selection, least recent first. */
-const activeClaims = new Map<string, number>()
-/** Bumped per repo on invalidation so a lookup that predates it cannot store. */
-const scopeGenerations = new Map<string, number>()
-
-// Why: NUL is the one byte a repo path or branch name cannot contain, so a
-// scope prefix cannot straddle a component boundary — invalidating `/a/b` must
-// not also flush the unrelated repo at `/a/b c`.
+// NUL cannot occur in paths/branches, preventing invalidation prefixes from crossing identity components.
 const KEY_SEPARATOR = '\0'
 
 export type HostedReviewBranchCacheIdentity = {
   repoPath: string
-  connectionId?: string | null
+  executionHostId: ExecutionHostId
   branch: string
   linkedGitHubPR?: number | null
   fallbackGitHubPR?: number | null
@@ -63,16 +78,12 @@ export type HostedReviewBranchCacheOptions = {
   headOid: string | null
   /** Set by surfaces that only ever render the selected worktree. */
   active?: boolean
-}
-
-/** Repo-scoped prefix so a single repo's entries can be dropped without a full flush. */
-function repoScope(repoPath: string, connectionId?: string | null): string {
-  return `${connectionId ?? ''}${KEY_SEPARATOR}${repoPath}`
+  force?: boolean
 }
 
 export function hostedReviewBranchCacheKey(identity: HostedReviewBranchCacheIdentity): string {
   return [
-    repoScope(identity.repoPath, identity.connectionId),
+    hostedReviewRepoScope(identity.repoPath, identity.executionHostId),
     identity.branch,
     // Each linked id selects a different lookup, so it belongs in the identity.
     identity.linkedGitHubPR ?? '',
@@ -85,40 +96,7 @@ export function hostedReviewBranchCacheKey(identity: HostedReviewBranchCacheIden
   ].join(KEY_SEPARATOR)
 }
 
-/**
- * Records the caller's current selection, reporting whether the branch was not
- * already active. Claims are least-recently-used so the fast tier stays bounded
- * no matter how many a client asserts.
- */
-function noteActiveClaim(key: string): boolean {
-  const now = Date.now()
-  for (const [candidate, claimedAt] of activeClaims) {
-    if (now - claimedAt > ACTIVE_CLAIM_TTL_MS) {
-      activeClaims.delete(candidate)
-    }
-  }
-  const wasActive = activeClaims.has(key)
-  activeClaims.delete(key)
-  activeClaims.set(key, now)
-  while (activeClaims.size > MAX_ACTIVE_BRANCHES) {
-    const oldest = activeClaims.keys().next().value
-    if (oldest === undefined) {
-      break
-    }
-    activeClaims.delete(oldest)
-  }
-  return !wasActive
-}
-
-function isActiveBranch(key: string): boolean {
-  const claimedAt = activeClaims.get(key)
-  return claimedAt !== undefined && Date.now() - claimedAt <= ACTIVE_CLAIM_TTL_MS
-}
-
-// Why: a merged review is the one answer that depends on the inspected head —
-// the merged-at-head carve-out keeps it visible only while the head matches.
-// Negative answers are deliberately head-insensitive, so a branch under active
-// commits cannot defeat the long no-review interval.
+// Only merged visibility depends on HEAD; commits must not defeat negative-cache pacing.
 function isHeadSensitive(entry: CacheEntry): boolean {
   return entry.review?.state === 'merged'
 }
@@ -151,62 +129,12 @@ function storeEntry(key: string, entry: CacheEntry): void {
   }
 }
 
-function backoffUntil(key: string): number | null {
-  // Why: a lapsed window keeps its failure count, otherwise the very act of
-  // retrying resets the escalation and the backoff never grows past the base.
-  const entry = failureBackoff.get(key)
-  return entry !== undefined && entry.until > Date.now() ? entry.until : null
-}
-
-function noteFailure(key: string): void {
-  const now = Date.now()
-  for (const [candidate, entry] of failureBackoff) {
-    // Why: only counts that lapsed a full max window ago are stale enough to
-    // forget; anything more eager would undo the escalation above.
-    if (now - entry.until > LOOKUP_BACKOFF_MAX_MS) {
-      failureBackoff.delete(candidate)
-    }
-  }
-  const failures = (failureBackoff.get(key)?.failures ?? 0) + 1
-  failureBackoff.delete(key)
-  failureBackoff.set(key, { until: now + lookupBackoffDelayMs(failures), failures })
-  while (failureBackoff.size > MAX_ENTRIES) {
-    const oldest = failureBackoff.keys().next().value
-    if (oldest === undefined) {
-      break
-    }
-    failureBackoff.delete(oldest)
-  }
-}
-
-function scopeGeneration(scope: string): number {
-  return scopeGenerations.get(scope) ?? 0
-}
-
-function bumpScopeGeneration(scope: string): void {
-  const next = scopeGeneration(scope) + 1
-  scopeGenerations.delete(scope)
-  scopeGenerations.set(scope, next)
-  // Why: an evicted scope reads as generation 0, which only makes a lookup in
-  // flight at eviction discard its result — a wasted call, never a stale one.
-  while (scopeGenerations.size > MAX_ENTRIES) {
-    const oldest = scopeGenerations.keys().next().value
-    if (oldest === undefined) {
-      break
-    }
-    scopeGenerations.delete(oldest)
-  }
-}
-
-/**
- * Drops every cached answer for a repo. Called when Orca itself opens a review,
- * so the new one is visible immediately instead of after the no-review interval.
- */
+/** Invalidate after review creation so long negative-cache intervals cannot hide the new review. */
 export function invalidateHostedReviewBranchCache(
   repoPath: string,
-  connectionId?: string | null
+  executionHostId: ExecutionHostId
 ): void {
-  const scope = repoScope(repoPath, connectionId)
+  const scope = hostedReviewRepoScope(repoPath, executionHostId)
   bumpScopeGeneration(scope)
   const prefix = `${scope}${KEY_SEPARATOR}`
   for (const key of entries.keys()) {
@@ -214,27 +142,144 @@ export function invalidateHostedReviewBranchCache(
       entries.delete(key)
     }
   }
-  for (const key of failureBackoff.keys()) {
-    if (key.startsWith(prefix)) {
-      failureBackoff.delete(key)
-    }
-  }
+  retireInflightWithPrefix(prefix)
+  dropFailuresWithPrefix(prefix)
 }
 
 /** @internal - exposed for tests only */
 export function __resetHostedReviewBranchCacheForTests(): void {
   entries.clear()
-  inflight.clear()
-  failureBackoff.clear()
-  activeClaims.clear()
-  scopeGenerations.clear()
+  __resetHostedReviewInflightLookupsForTests()
+  __resetHostedReviewLookupBackoffForTests()
+  __resetHostedReviewActiveClaimsForTests()
+  __resetUnsettledHostedReviewLookupsForTests()
+  __resetHostedReviewScopeGenerationsForTests()
 }
 
-/**
- * Serves `lookup` through the shared cache: a fresh answer is reused, concurrent
- * callers share one in-flight lookup, and a failing branch backs off instead of
- * being re-asked at every caller's poll cadence.
- */
+/** Detached answers may fill gaps or replace strictly older attempts only; never outrank the served pre-refresh answer or a replacement owner. Late null would otherwise mask a real review. */
+function canAdoptDetachedAnswer(key: string, startedAt: number): boolean {
+  if (getInflightLookup(key) !== undefined) {
+    return false
+  }
+  const current = entries.get(key)
+  return current === undefined || (current.startedAt < startedAt && current.fetchedAt >= startedAt)
+}
+
+function lookupUnavailableReason(key: string): string | null {
+  const until = backoffUntil(key)
+  if (until !== null) {
+    return `Hosted review lookup is backing off after repeated failures. Retrying after ${new Date(
+      until
+    ).toLocaleTimeString()}.`
+  }
+  return lookupCapacityRefusal(key)
+}
+
+/** Deadline detaches uninterruptible work and releases callers; adopt a later answer only if still current so a host can recover in-session (P1-D). */
+function startLookup(
+  key: string,
+  scope: string,
+  headOid: string | null,
+  lookup: () => Promise<HostedReviewInfo | null>
+): Promise<HostedReviewInfo | null> {
+  const startedAt = Date.now()
+  const generation = scopeGeneration(scope)
+  const token: InflightToken = {}
+  let timedOut = false
+  let completed = false
+  let release: (review: HostedReviewInfo | null) => void = () => {}
+  let fail: (error: unknown) => void = () => {}
+  const promise = new Promise<HostedReviewInfo | null>((resolve, reject) => {
+    release = resolve
+    fail = reject
+  })
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  const expire = (): void => {
+    if (timedOut || completed) {
+      return
+    }
+    timedOut = true
+    if (timer !== undefined) {
+      clearTimeout(timer)
+    }
+    // Only current ownership may shape backoff; a straggler must not penalize its running successor.
+    if (releaseInflight(key, token)) {
+      noteFailure(key)
+    }
+    // Detached work remains uninterruptible; count it process-wide until completion.
+    noteDetachedLookup()
+    const stale = entries.get(key)
+    if (stale) {
+      release(stale.review)
+      return
+    }
+    fail(
+      new Error(
+        `Hosted review lookup timed out after ${Math.round(
+          HOSTED_REVIEW_LOOKUP_DEADLINE_MS / 1000
+        )}s. It will be retried on a later poll.`
+      )
+    )
+  }
+
+  // Reserve when starting, not at deadline: an entire first wave could wedge before then.
+  noteLookupStarted(key)
+  timer = setTimeout(expire, HOSTED_REVIEW_LOOKUP_DEADLINE_MS)
+  if (typeof timer === 'object' && 'unref' in timer) {
+    timer.unref()
+  }
+  // Register before invoking so synchronous throws cannot leave a pinned record.
+  trackInflight(key, { token, startedAt, promise, expire })
+
+  void (async () => {
+    try {
+      const review = await lookup()
+      // Generation invalidates pre-creation answers; without key ownership, stragglers must prove their result still outranks the cache.
+      const stored =
+        generation === scopeGeneration(scope) &&
+        (getInflightLookup(key)?.token === token || canAdoptDetachedAnswer(key, startedAt))
+      if (stored) {
+        storeEntry(key, { review, fetchedAt: Date.now(), headOid, startedAt })
+      }
+      // Only on-time answers prove health; clearing failures on late data would prevent escalation.
+      if (stored && !timedOut) {
+        clearFailures(key)
+      }
+      release(review)
+    } catch (error) {
+      // Deadline already counted failure; never count late rejection twice.
+      if (timedOut) {
+        return
+      }
+      // Size-evicted stragglers must not back off their successor's branch.
+      if (getInflightLookup(key)?.token === token) {
+        noteFailure(key)
+      }
+      // Keep last-good data on failure to avoid blinking cards; invalidation still removes obsolete answers.
+      const stale = entries.get(key)
+      if (stale) {
+        release(stale.review)
+        return
+      }
+      fail(error)
+    } finally {
+      completed = true
+      if (timer !== undefined) {
+        clearTimeout(timer)
+      }
+      if (timedOut) {
+        settleDetachedLookup()
+      }
+      settleLookup(key)
+      releaseInflight(key, token)
+    }
+  })()
+
+  return promise
+}
+
+/** Share fresh answers/in-flight lookups across clients and back off failed branches. */
 export async function withHostedReviewBranchCache(
   identity: HostedReviewBranchCacheIdentity,
   options: HostedReviewBranchCacheOptions,
@@ -242,65 +287,37 @@ export async function withHostedReviewBranchCache(
 ): Promise<HostedReviewInfo | null> {
   const key = hostedReviewBranchCacheKey(identity)
   const headOid = options.headOid
+  // Sweep wall-clock deadlines before joining so suspended timers cannot pin a branch after sleep.
+  expireOverdueInflight(Date.now())
   if (options.active === true && noteActiveClaim(key) && entries.get(key)?.review === null) {
-    // Why: switching to a worktree is the user asking whether a review exists
-    // yet, so the long no-review interval must not answer on their behalf. This
-    // is the cheap half of the fast tier — it costs one lookup per selection
-    // rather than one per minute.
+    // Selection asks again immediately rather than waiting out the long negative cache.
     entries.delete(key)
   }
   const active = isActiveBranch(key)
 
   const cached = entries.get(key)
-  if (cached && isFresh(cached, headOid, active)) {
+  if (!options.force && cached && isFresh(cached, headOid, active)) {
     return cached.review
   }
 
-  const pending = inflight.get(key)
+  const pending = getInflightLookup(key)
   if (pending) {
-    return pending
+    return pending.promise
   }
 
-  const until = backoffUntil(key)
-  if (until !== null) {
-    // Why: a stale answer beats an error card, but with nothing cached the
-    // caller must hear the failure rather than read it as "no review".
+  const unavailable = lookupUnavailableReason(key)
+  if (unavailable !== null) {
+    // Serve stale answers on backoff, but without cached evidence report error rather than no review.
     if (cached) {
       return cached.review
     }
-    throw new Error(
-      `Hosted review lookup is backing off after repeated failures. Retrying after ${new Date(
-        until
-      ).toLocaleTimeString()}.`
-    )
+    throw new Error(unavailable)
   }
 
-  const scope = repoScope(identity.repoPath, identity.connectionId)
-  const request = (async () => {
-    const generation = scopeGeneration(scope)
-    try {
-      const review = await lookup()
-      // Why: a review created while this lookup was out makes its answer older
-      // than the invalidation; storing it would re-pin the stale "no review".
-      if (generation === scopeGeneration(scope)) {
-        storeEntry(key, { review, fetchedAt: Date.now(), headOid })
-        failureBackoff.delete(key)
-      }
-      return review
-    } catch (error) {
-      noteFailure(key)
-      // Why: the last good review beats an error card here just as it does on
-      // the backed-off path — otherwise it blinks out on the first failure.
-      // An invalidation drops the entry, so this cannot revive a retired answer.
-      const stale = entries.get(key)
-      if (stale) {
-        return stale.review
-      }
-      throw error
-    } finally {
-      inflight.delete(key)
-    }
-  })()
-  inflight.set(key, request)
-  return request
+  return startLookup(
+    key,
+    hostedReviewRepoScope(identity.repoPath, identity.executionHostId),
+    headOid,
+    lookup
+  )
 }

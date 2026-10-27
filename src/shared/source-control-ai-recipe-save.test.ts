@@ -5,7 +5,8 @@ import {
   saveSourceControlActionRecipe,
   toSourceControlAiRepoUpdate
 } from './source-control-ai-recipe-save'
-import type { GlobalSettings, Repo } from './types'
+import type { GlobalSettings } from './global-settings-types'
+import type { Repo } from './repo-types'
 
 function settings(): GlobalSettings {
   const base = getDefaultSettings('/tmp')
@@ -63,12 +64,36 @@ describe('source-control AI recipe saves', () => {
               agentArgs: '--model sonnet'
             },
             pullRequest: {
-              agentId: null,
               commandInputTemplate: '{basePrompt}\n\nlegacy review'
             }
           },
           prCreationDefaults: {
             draft: true
+          }
+        }
+      }
+    })
+  })
+
+  it('keeps the action model when saving a repo recipe', () => {
+    const launchPreferences = {
+      agentId: 'codex' as const,
+      model: 'gpt-5.6-terra',
+      options: { effort: 'high' }
+    }
+    const result = saveSourceControlActionRecipe({
+      target: { type: 'repo', repoId: 'repo-1' },
+      settings: settings(),
+      repo: null,
+      actionId: 'fixChecks',
+      recipe: { agentId: 'codex', commandInputTemplate: '{basePrompt}', launchPreferences }
+    })
+
+    expect(result).toMatchObject({
+      update: {
+        sourceControlAi: {
+          actionOverrides: {
+            fixChecks: { agentId: 'codex', commandInputTemplate: '{basePrompt}', launchPreferences }
           }
         }
       }

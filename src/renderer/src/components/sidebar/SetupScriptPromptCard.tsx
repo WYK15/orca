@@ -75,8 +75,8 @@ function SetupScriptPromptCard(): React.JSX.Element | null {
       const hostId = getRepoExecutionHostId(repo)
       const inspection = await inspectSetupScriptPromptState({
         repo,
-        checkHooks: () => checkRuntimeHooks(settings, repo.id, hostId),
-        inspectImports: () => inspectRuntimeSetupScriptImports(settings, repo.id, hostId)
+        checkHooks: () => checkRuntimeHooks(hostId, repo.id),
+        inspectImports: () => inspectRuntimeSetupScriptImports(hostId, repo.id)
       })
       if (!cancelled) {
         const nextState = {
@@ -368,9 +368,7 @@ function SetupScriptPromptCard(): React.JSX.Element | null {
     return null
   }
 
-  // Why: a forbidden (mobile-scope) inspection is permanent, so suppress the
-  // retry-able card entirely — the global scope-mismatch banner explains it and
-  // a retry would just re-fire repo.hooksCheck on every repo focus.
+  // Mobile-scope inspection is permanently forbidden; the global banner explains it, and retrying would probe on every focus.
   if (renderedPromptState.status === 'forbidden') {
     return null
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { ProjectHostSetup, Repo } from '../../../../shared/types'
+import type { ProjectHostSetup } from '../../../../shared/project-types'
+import type { Repo } from '../../../../shared/repo-types'
 import {
   buildRepoIdToHostSelection,
   buildRepoIdToRepresentative,
@@ -60,7 +61,6 @@ describe('buildSettingsProjectList', () => {
 
     expect(projects).toHaveLength(1)
     expect(projects[0].setups).toHaveLength(2)
-    // Representative is the local host's repo.
     expect(projects[0].representativeRepoId).toBe('local-1')
   })
 
@@ -75,6 +75,23 @@ describe('buildSettingsProjectList', () => {
     expect(projects).toHaveLength(1)
     expect(projects[0].setups).toHaveLength(2)
     expect(projects[0].representativeRepoId).toBe('folder-x')
+  })
+
+  it('gives each same-host clone of one remote its own entry; other hosts join the first (#20861)', () => {
+    const repos: Repo[] = [
+      makeRepo({ id: 'clone-b', displayName: 'app-b', addedAt: 2, gitRemoteIdentity: gitRemote }),
+      makeRepo({ id: 'clone-a', displayName: 'app', addedAt: 1, gitRemoteIdentity: gitRemote }),
+      makeRepo({ id: 'remote-9', gitRemoteIdentity: gitRemote, executionHostId: 'ssh:box' })
+    ]
+
+    const projects = buildSettingsProjectList(repos)
+
+    expect(projects.map((entry) => entry.setups.map((setup) => setup.repoId))).toEqual([
+      ['clone-b'],
+      ['clone-a', 'remote-9']
+    ])
+    expect(projects.map((entry) => entry.project.displayName)).toEqual(['app-b', 'app'])
+    expect(buildRepoIdToRepresentative(projects).get('clone-b')).toBe('clone-b')
   })
 
   it('keeps the representative stable when an unrelated host is removed', () => {
@@ -156,7 +173,8 @@ describe('deep-link resolution', () => {
     const map = buildRepoIdToHostSelection(projects)
     expect(map.get('remote-9')).toEqual({
       projectId: projects[0].projectId,
-      hostId: 'runtime:home-mac'
+      hostId: 'runtime:home-mac',
+      setupId: 'remote-9'
     })
   })
 
@@ -212,6 +230,20 @@ describe('deep-link resolution', () => {
     )
   })
 
+  it('opens the linked setup when one entry holds two setups on that host (#11689)', () => {
+    const wslPath = '\\\\wsl.localhost\\Ubuntu\\home\\me\\app'
+    const sameHostRepos = [
+      makeRepo({ id: 'windows-clone', gitRemoteIdentity: gitRemote, path: 'C:\\repos\\app' }),
+      makeRepo({ id: 'wsl-clone', gitRemoteIdentity: gitRemote, path: wslPath })
+    ]
+    const [entry] = buildSettingsProjectList(sameHostRepos)
+    const selection = buildRepoIdToHostSelection([entry]).get('wsl-clone')
+
+    expect(
+      getSettingsProjectHostRepo(entry, sameHostRepos, selection?.hostId, selection?.setupId)?.path
+    ).toBe(wslPath)
+  })
+
   it('defaults to the local host repo row when no host is selected', () => {
     expect(getSettingsProjectHostRepo(projects[0], repos, undefined)?.id).toBe('local-1')
   })
@@ -238,12 +270,14 @@ describe('deep-link resolution', () => {
       id: 'direct-repo',
       gitRemoteIdentity: gitRemote,
       executionHostId: 'runtime:home-mac',
+      connectionId: 'direct-box',
       path: '/direct/repo'
     })
     const jumpRepo = makeRepo({
       id: 'jump-repo',
       gitRemoteIdentity: gitRemote,
       executionHostId: 'runtime:home-mac',
+      connectionId: 'jump-box',
       path: '/jump/repo'
     })
     const sameHubProjects = buildSettingsProjectList([directRepo, jumpRepo])
@@ -271,9 +305,10 @@ describe('removeSettingsProjectFromAllHosts', () => {
 
     await removeSettingsProjectFromAllHosts(setups, removeProject)
 
+    // User-initiated removal failures must surface.
     expect(removeProject.mock.calls).toEqual([
-      ['local-1', { hostId: 'local' }],
-      ['remote-9', { hostId: 'runtime:home-mac' }]
+      ['local-1', { hostId: 'local', errorFeedback: 'toast' }],
+      ['remote-9', { hostId: 'runtime:home-mac', errorFeedback: 'toast' }]
     ])
   })
 

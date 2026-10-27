@@ -1,17 +1,31 @@
+import '../unused-default-rpc-methods.test-fixture'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RpcDispatcher } from '../dispatcher'
 import type { RpcRequest } from '../core'
 import type { OrcaRuntimeService } from '../../orca-runtime'
 
-const { isPwshAvailable, isWslAvailable, listWslDistros, isGitBashAvailable } = vi.hoisted(() => ({
+const {
+  isPwshAvailable,
+  isPwshAvailableAsync,
+  isWslAvailableAsync,
+  listWslDistros,
+  listWslDistrosAsync,
+  isGitBashAvailable
+} = vi.hoisted(() => ({
   isPwshAvailable: vi.fn(),
-  isWslAvailable: vi.fn(),
+  isPwshAvailableAsync: vi.fn(),
+  isWslAvailableAsync: vi.fn(),
   listWslDistros: vi.fn(),
+  listWslDistrosAsync: vi.fn(),
   isGitBashAvailable: vi.fn()
 }))
 
-vi.mock('../../../pwsh', () => ({ isPwshAvailable }))
-vi.mock('../../../wsl', () => ({ isWslAvailable, listWslDistros }))
+vi.mock('../../../pwsh', () => ({ isPwshAvailable, isPwshAvailableAsync }))
+vi.mock('../../../wsl', () => ({
+  isWslAvailableAsync,
+  listWslDistros,
+  listWslDistrosAsync
+}))
 vi.mock('../../../git-bash', () => ({ isGitBashAvailable }))
 
 import { HOST_CAPABILITY_METHODS } from './host-capabilities'
@@ -23,15 +37,17 @@ function makeRequest(method: string, params?: unknown): RpcRequest {
 describe('host capability RPC methods', () => {
   beforeEach(() => {
     isPwshAvailable.mockReset()
-    isWslAvailable.mockReset()
+    isPwshAvailableAsync.mockReset()
+    isWslAvailableAsync.mockReset()
     listWslDistros.mockReset()
+    listWslDistrosAsync.mockReset()
     isGitBashAvailable.mockReset()
   })
 
   it('reports Windows shell capability probes through explicit methods', async () => {
-    isPwshAvailable.mockReturnValue(true)
-    isWslAvailable.mockReturnValue(true)
-    listWslDistros.mockReturnValue(['Ubuntu'])
+    isPwshAvailableAsync.mockResolvedValue(true)
+    isWslAvailableAsync.mockResolvedValue(true)
+    listWslDistrosAsync.mockResolvedValue(['Ubuntu'])
     isGitBashAvailable.mockReturnValue(true)
     const runtime = { getRuntimeId: () => 'test-runtime' } as unknown as OrcaRuntimeService
     const dispatcher = new RpcDispatcher({ runtime, methods: HOST_CAPABILITY_METHODS })
@@ -54,5 +70,24 @@ describe('host capability RPC methods', () => {
       ok: true,
       result: true
     })
+  })
+
+  // Paired capability reads must not block the main loop with synchronous wsl.exe/pwsh.exe probes (up to 5s).
+  it('answers the Windows shell capability methods without a blocking spawn', async () => {
+    isPwshAvailableAsync.mockResolvedValue(false)
+    isWslAvailableAsync.mockResolvedValue(false)
+    listWslDistrosAsync.mockResolvedValue([])
+    const runtime = { getRuntimeId: () => 'test-runtime' } as unknown as OrcaRuntimeService
+    const dispatcher = new RpcDispatcher({ runtime, methods: HOST_CAPABILITY_METHODS })
+
+    await dispatcher.dispatch(makeRequest('host.wsl.isAvailable'))
+    await dispatcher.dispatch(makeRequest('host.wsl.listDistros'))
+    await dispatcher.dispatch(makeRequest('host.pwsh.isAvailable'))
+
+    expect(isWslAvailableAsync).toHaveBeenCalledTimes(1)
+    expect(listWslDistrosAsync).toHaveBeenCalledTimes(1)
+    expect(isPwshAvailableAsync).toHaveBeenCalledTimes(1)
+    expect(listWslDistros).not.toHaveBeenCalled()
+    expect(isPwshAvailable).not.toHaveBeenCalled()
   })
 })

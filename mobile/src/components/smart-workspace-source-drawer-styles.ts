@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
+import { TEXT_INPUT_FONT_SIZE } from '../platform/text-input-font-size'
 
 export const smartWorkspaceSourceDrawerStyles = StyleSheet.create({
   root: {
@@ -39,8 +40,7 @@ export const smartWorkspaceSourceDrawerStyles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: spacing.sm
   },
-  // Why: pin the dock to the sheet bottom so a flex-greedy FlatList cannot
-  // push the TextInput out of the fill frame (and under the keyboard).
+  // Pin dock to fill sheet bottom so flex-greedy FlatList cannot push TextInput below frame/keyboard.
   dock: {
     flexShrink: 0,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -57,7 +57,7 @@ export const smartWorkspaceSourceDrawerStyles = StyleSheet.create({
     borderRadius: radii.input,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
-    fontSize: typography.bodySize,
+    fontSize: TEXT_INPUT_FONT_SIZE,
     borderWidth: 1,
     borderColor: colors.borderSubtle
   },

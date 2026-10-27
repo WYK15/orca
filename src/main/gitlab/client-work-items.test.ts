@@ -91,9 +91,6 @@ describe('gitlab client — combined listWorkItems', () => {
     glabApiWithHeadersMock.mockResolvedValueOnce({ body: '[]', headers: {} })
 
     await listWorkItems('/repo', 'merged', 1, 20)
-    // Why: the merged-state filter doesn't apply to issues (issues
-    // don't have a merged lifecycle), so the IPC must not even spawn
-    // the issues read. Verifies the listIssues path was not taken.
     expect(glabExecFileAsyncMock).not.toHaveBeenCalled()
   })
 
@@ -117,6 +114,18 @@ describe('gitlab client — combined listWorkItems', () => {
     const issuesCallPath = glabExecFileAsyncMock.mock.calls[0][0] as string[]
     expect(mergeRequestCallPath[0]).toContain('search=ambiguous%20selector')
     expect(issuesCallPath.at(-1)).toContain('search=ambiguous%20selector')
+  })
+
+  it('looks up `#N` as the issue iid instead of a text search', async () => {
+    glabApiWithHeadersMock.mockResolvedValueOnce({ body: '[]', headers: {} })
+    glabExecFileAsyncMock.mockResolvedValueOnce({ stdout: '[]' })
+
+    await listWorkItems('/repo', 'opened', 1, 20, undefined, ' #23 ')
+
+    const issuesCallPath = glabExecFileAsyncMock.mock.calls[0][0] as string[]
+    const issueParams = new URLSearchParams(issuesCallPath.at(-1)?.split('?')[1])
+    expect(issueParams.getAll('iids[]')).toEqual(['23'])
+    expect(issueParams.has('search')).toBe(false)
   })
 
   it('passes the requested page through to merge request and issue fetches', async () => {
@@ -190,5 +199,17 @@ describe('gitlab client — combined listWorkItems', () => {
     expect(result.items).toHaveLength(1)
     expect(result.items[0].title).toBe('live issue')
     expect(result.error).toBeDefined()
+  })
+
+  it('reports the body instead of ".map is not a function" when the issues fetch returns a non-array', async () => {
+    glabApiWithHeadersMock.mockResolvedValueOnce({ body: '[]', headers: {} })
+    glabExecFileAsyncMock.mockResolvedValueOnce({
+      stdout: JSON.stringify({ data: [], total: 0 })
+    })
+
+    const result = await listWorkItems('/repo', 'opened', 1, 20)
+    expect(result.items).toEqual([])
+    expect(result.error?.message).toContain('{"data":[],"total":0}')
+    expect(result.error?.message).not.toContain('is not a function')
   })
 })

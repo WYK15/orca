@@ -16,23 +16,34 @@ afterEach(() => {
   resetLocalPreflightContextCachesForTests()
 })
 
-function makeWslState(distro: string): AppState {
-  return {
-    activeRepoId: 'repo-1',
-    activeWorktreeId: null,
-    repos: [{ id: 'repo-1', path: `\\\\wsl.localhost\\${distro}\\home\\alice\\repo` }],
-    worktreesByRepo: {}
-  } as AppState
+function makeRepos(id: string, path: string): AppState['repos'] {
+  return [{ id, path, displayName: id, badgeColor: 'blue', addedAt: 1 }]
 }
 
-function makeWindowsProjectState(projectId: string): AppState {
+function makeWslState(distro: string): Parameters<typeof getLocalPreflightContext>[0] {
   return {
+    endpointProjects: [],
+    endpointProjectHostSetups: [],
+    activeRepoId: 'repo-1',
+    activeWorktreeId: null,
+    repos: makeRepos('repo-1', `\\\\wsl.localhost\\${distro}\\home\\alice\\repo`),
+    settings: null,
+    worktreesByRepo: {}
+  }
+}
+
+function makeWindowsProjectState(
+  projectId: string
+): Parameters<typeof getLocalPreflightContext>[0] {
+  return {
+    endpointProjects: [],
+    endpointProjectHostSetups: [],
     activeRepoId: projectId,
     activeWorktreeId: null,
-    repos: [{ id: projectId, path: `C:\\Users\\alice\\${projectId}` }],
-    settings: {},
+    repos: makeRepos(projectId, `C:\\Users\\alice\\${projectId}`),
+    settings: null,
     worktreesByRepo: {}
-  } as AppState
+  }
 }
 
 describe('local preflight context caches', () => {

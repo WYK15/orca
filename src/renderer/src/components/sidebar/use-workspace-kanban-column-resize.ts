@@ -20,7 +20,8 @@ export function useWorkspaceKanbanColumnResize(
     clampWorkspaceBoardColumnWidth(committedWidth)
   )
   const [isResizingColumn, setIsResizingColumn] = useState(false)
-  const committedWidthRef = useRef(clampWorkspaceBoardColumnWidth(committedWidth))
+  const nextCommittedWidth = clampWorkspaceBoardColumnWidth(committedWidth)
+  const committedWidthRef = useRef(nextCommittedWidth)
   const commitWidthRef = useRef(onCommitWidth)
   const resizingRef = useRef(false)
   const startXRef = useRef(0)
@@ -29,14 +30,12 @@ export function useWorkspaceKanbanColumnResize(
   const frameRef = useRef<number | null>(null)
 
   commitWidthRef.current = onCommitWidth
-  const nextCommittedWidth = clampWorkspaceBoardColumnWidth(committedWidth)
   if (committedWidthRef.current !== nextCommittedWidth) {
     committedWidthRef.current = nextCommittedWidth
     if (!resizingRef.current) {
       draftWidthRef.current = nextCommittedWidth
       if (columnWidth !== nextCommittedWidth) {
-        // Why: external width changes should be reflected before children
-        // render; during active drag the local draft remains authoritative.
+        // Apply external widths before rendering children; retain the local draft during active resize.
         setColumnWidth(nextCommittedWidth)
       }
     }

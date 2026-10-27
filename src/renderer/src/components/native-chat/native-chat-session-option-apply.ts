@@ -11,15 +11,19 @@ import type {
   SessionOptionSetResult,
   SessionOptionValue
 } from '../../../../shared/native-chat-session-options'
-import type { NativeChatSessionOptionRecord } from './native-chat-session-option-cache'
-import { buildNativeChatSessionOptionCommand } from './native-chat-session-option-command-builder'
+import { buildNativeChatSessionOptionCommand } from '../../../../shared/native-chat-session-option-commands'
+import {
+  getTrackedSessionOption as getTrackedOption,
+  isFlipOnlyMidSession,
+  type NativeChatSessionOptionRecord
+} from '../../../../shared/native-chat-session-option-state'
 import type {
   NativeChatSessionOptionDispatchCommand,
   NativeChatSessionOptionDispatchResult
 } from './native-chat-session-option-command-dispatch'
-import { getTrackedOption, isFlipOnlyMidSession } from './native-chat-session-option-flip'
 import {
   flattenNativeChatSessionOptionRecord,
+  resolveEffectiveNativeChatModelId,
   type NativeChatSessionOptionMode
 } from './native-chat-session-option-snapshot'
 
@@ -30,11 +34,8 @@ type SessionOptionApplyContext = {
   getRecord: () => NativeChatSessionOptionRecord
   dispatchCommand: NativeChatSessionOptionDispatchCommand
   onAgentPicker?: () => void
-  persistSelection?: (args: {
-    modelId: string
-    optionId: string
-    value: SessionOptionValue
-  }) => Promise<void> | void
+  /** Share persistence with typed commands so null-model and launch-adoption checks apply everywhere. */
+  persist: (modelId: string | null, optionId: string, value: SessionOptionValue) => void
   onDraftValuesChanged?: (values: Record<string, SessionOptionValue>) => void
   publish: () => SessionOptionDescriptor[]
   clearModelTruth: () => void
@@ -45,8 +46,7 @@ type SessionOptionApplyContext = {
   ) => string | null
 }
 
-/** Why: ordered applies make a later absolute target observe the result of an
- * earlier flip instead of dispatching against a stale baseline. */
+/** Serialize absolute targets so they observe prior flips instead of stale baselines. */
 function createSerializedApplyQueue(): <T>(fn: () => Promise<T>) => Promise<T> {
   let tail: Promise<unknown> = Promise.resolve()
   return <T>(fn: () => Promise<T>): Promise<T> => {
@@ -63,27 +63,20 @@ function currentApply(
   ctx: SessionOptionApplyContext,
   optionId: string
 ): { apply: CatalogOptionApply; modelId: string | null } | null {
-  const record = ctx.getRecord()
-  const modelId = typeof record.model?.value === 'string' ? record.model.value : null
+  const models = ctx.getModels()
+  // Resolve the effective model shown in the picker, even without tracked selection.
+  const modelId = resolveEffectiveNativeChatModelId(ctx.catalog, models, ctx.getRecord())
   if (optionId === 'model') {
     return { apply: ctx.catalog.modelApply, modelId }
   }
-  const model = modelId
-    ? findCatalogModel({ ...ctx.catalog, models: ctx.getModels() }, modelId)
-    : undefined
+  const model = modelId ? findCatalogModel({ ...ctx.catalog, models }, modelId) : undefined
   const option = findCatalogOption(model, optionId)
   return option ? { apply: option.apply, modelId } : null
 }
 
-function persist(
-  ctx: SessionOptionApplyContext,
-  modelId: string | null,
-  optionId: string,
-  value: SessionOptionValue
-): void {
-  if (modelId) {
-    void ctx.persistSelection?.({ modelId, optionId, value })
-  }
+/** Guard record changes only; discovery moving a default row must not discard accepted values. */
+function trackedModelId(record: NativeChatSessionOptionRecord): string | null {
+  return typeof record.model?.value === 'string' ? record.model.value : null
 }
 
 function finish(
@@ -96,12 +89,13 @@ function finish(
   }
 ): SessionOptionSetResult {
   if (args && !args.skipPersist) {
-    persist(ctx, args.modelId, args.optionId, args.value)
+    ctx.persist(args.modelId, args.optionId, args.value)
   }
   const snapshot = ctx.publish()
   const record = ctx.getRecord()
-  if (ctx.mode === 'draft' && typeof record.model?.value === 'string') {
-    ctx.onDraftValuesChanged?.(flattenNativeChatSessionOptionRecord(record, record.model.value))
+  const draftModelId = trackedModelId(record)
+  if (ctx.mode === 'draft' && draftModelId !== null) {
+    ctx.onDraftValuesChanged?.(flattenNativeChatSessionOptionRecord(record, draftModelId))
   }
   return { snapshot }
 }
@@ -110,7 +104,9 @@ async function handleAgentPicker(
   ctx: SessionOptionApplyContext,
   midSession: Extract<CatalogMidSessionApply, { kind: 'agent-picker' }>
 ): Promise<SessionOptionSetResult> {
-  await ctx.dispatchCommand(midSession.command)
+  await (midSession.delivery
+    ? ctx.dispatchCommand(midSession.command, { delivery: midSession.delivery })
+    : ctx.dispatchCommand(midSession.command))
   ctx.clearModelTruth()
   const snapshot = ctx.publish()
   ctx.onAgentPicker?.()
@@ -170,12 +166,6 @@ function applyDispatchOutcome(
     ctx.publish()
     throw new Error('Could not verify the model change; open the terminal to check.')
   }
-  if (dispatchResult?.outcome === 'interaction-required') {
-    ctx.clearModelTruth()
-    const snapshot = ctx.publish()
-    ctx.onAgentPicker?.()
-    return { snapshot }
-  }
   return null
 }
 
@@ -198,18 +188,18 @@ async function applySetOption(
     ? getTrackedOption(ctx.getRecord(), previousModelId, id)
     : undefined
   if (liveFlipOnly && !trackedToggle) {
-    // Why: a flip from an unknown baseline cannot honor an absolute target.
+    // An unknown baseline cannot honor an absolute flip target.
     throw new Error('Current value is unknown; use the Toggle action instead.')
   }
-  // Why: same absolute target must never re-dispatch a flip (would invert the agent).
+  // Retrying an already reached flip target would invert it.
   if (liveFlipOnly && trackedToggle?.value === value) {
     return { snapshot: ctx.publish() }
   }
-  // Why: flip-only never heals via agent report — track as applied best-known.
+  // Flip-only state cannot heal through reports; preserve it as best-known applied state.
   const source = liveFlipOnly || ctx.mode !== 'live' ? 'applied' : 'dispatched'
 
-  // Why: baseline for detecting a model switch, typed command, or agent report
-  // that lands mid-dispatch, so the commit below never overwrites newer state.
+  // Capture record identity so dispatch cannot overwrite newer model or option state.
+  const trackedModelBeforeDispatch = trackedModelId(ctx.getRecord())
   const trackedBeforeDispatch =
     ctx.mode === 'live' && id !== 'model'
       ? getTrackedOption(ctx.getRecord(), previousModelId, id)
@@ -236,33 +226,28 @@ async function applySetOption(
   if (id === 'model' && previousModelId !== value) {
     record.model = undefined
     if (ctx.mode === 'live' && typeof value === 'string') {
-      // Why: switching models can reset effort/toggles for the destination model.
+      // Model switches can reset destination effort and toggles.
       delete record.valuesByModel[value]
     }
   }
 
   if (liveFlipOnly) {
-    // Why: typed flips, reports, or model changes during dispatch supersede the
-    // baseline this absolute target was computed from.
-    const modelStill = typeof record.model?.value === 'string' ? record.model.value : null
-    if (modelStill !== previousModelId) {
+    // Mid-dispatch reports, typed flips or model changes supersede this target’s baseline.
+    if (trackedModelId(record) !== trackedModelBeforeDispatch) {
       return finish(ctx, { modelId: previousModelId, optionId: id, value, skipPersist: true })
     }
     if (getTrackedOption(record, previousModelId, id) !== trackedToggle) {
       return finish(ctx, { modelId: previousModelId, optionId: id, value, skipPersist: true })
     }
-    // Why: never persist unconfirmed flip-only state into durable defaults.
+    // Keep unconfirmed flip-only state out of durable defaults.
     ctx.setTrackedValue(id, value, source)
     return finish(ctx, { modelId: previousModelId, optionId: id, value, skipPersist: true })
   }
 
   if (ctx.mode === 'live' && id !== 'model') {
-    // Why: a model switch, typed command, or agent report during dispatch supersedes
-    // the baseline this commit was computed from — committing now would overwrite
-    // newer state and could write/persist a model-scoped value under the new model.
-    const modelStill = typeof record.model?.value === 'string' ? record.model.value : null
+    // Newer model/option records supersede this dispatch; never persist its value under the new model.
     if (
-      modelStill !== previousModelId ||
+      trackedModelId(record) !== trackedModelBeforeDispatch ||
       getTrackedOption(record, previousModelId, id) !== trackedBeforeDispatch
     ) {
       return finish(ctx, { modelId: previousModelId, optionId: id, value, skipPersist: true })
@@ -297,7 +282,7 @@ async function applyInvokeAction(
   if (getTrackedOption(ctx.getRecord(), modelId, id)) {
     throw new Error('This option has a known value; choose On or Off instead.')
   }
-  // Why: an unknown baseline remains unknown after one inversion.
+  // Inverting an unknown baseline still leaves an unknown absolute value.
   await ctx.dispatchCommand(apply.midSession.command)
   return finish(ctx)
 }

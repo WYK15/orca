@@ -6,12 +6,23 @@ import process from 'node:process'
 // TypeScript 7 is a native CLI; AST consumers still need the legacy JavaScript API.
 import ts from 'typescript-api'
 
+import { canonicalGenericRenderings } from './locale-generic-ui-terms.mjs'
+import { repairTranslatedValue } from './locale-translation-policy.mjs'
+
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts'])
 const SKIP_PATH_PARTS = new Set(['.git', 'dist', 'node_modules', 'out', '__snapshots__', 'assets'])
-const LOCALIZATION_FUNCTION_NAMES = new Set(['t', 'translate', 'translateMain'])
+const LOCALIZATION_FUNCTION_NAMES = new Set([
+  't',
+  'translate',
+  'translateMain',
+  'translateSearchKeyword'
+])
 const PLACEHOLDER_RE = /\{\{[^}]+\}\}/g
 const LOCALES_RELATIVE_DIR = path.join('src', 'renderer', 'src', 'i18n', 'locales')
-const SOURCE_RELATIVE_ROOTS = [path.join('src', 'renderer', 'src'), path.join('src', 'main')]
+export const LOCALIZATION_SOURCE_ROOTS = [
+  path.join('src', 'renderer', 'src'),
+  path.join('src', 'main')
+]
 
 function normalizePath(root, filePath) {
   return path.relative(root, filePath).split(path.sep).join('/')
@@ -30,7 +41,7 @@ function isSkippedFile(root, filePath) {
   return relative.split('/').some((part) => SKIP_PATH_PARTS.has(part))
 }
 
-async function collectSourceFiles(root, dir) {
+export async function collectSourceFiles(root, dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true })
   const files = []
 
@@ -138,6 +149,30 @@ function formatMissingReferences(missing) {
 
 function formatMissingKeys(label, keys) {
   return keys.map((key) => `${label}: ${key}`).join('\n')
+}
+
+// Language packs require nested names even though i18next also accepts flat keys.
+function collectDottedCatalogKeys(value, prefix = '') {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return []
+  }
+  return Object.entries(value).flatMap(([key, child]) => {
+    const keyPath = prefix ? `${prefix}.${key}` : key
+    return [...(key.includes('.') ? [keyPath] : []), ...collectDottedCatalogKeys(child, keyPath)]
+  })
+}
+
+function reportDottedCatalogKeys(fileName, catalog) {
+  const dottedKeys = collectDottedCatalogKeys(catalog)
+  if (dottedKeys.length === 0) {
+    return 0
+  }
+  console.error(`${fileName} has keys with a dot in the name. Write them as nested objects.`)
+  console.error(formatMissingKeys('dotted', dottedKeys.slice(0, 20)))
+  if (dottedKeys.length > 20) {
+    console.error(`...and ${dottedKeys.length - 20} more dotted keys`)
+  }
+  return 1
 }
 
 function normalizeInterpolationVariables(value) {
@@ -282,17 +317,102 @@ function applyMissingEnglishEntries(catalog, missing) {
   return changed
 }
 
+// Check repair policy too: parity passed while repair rewrote translated generic terms into English (#12113).
+export function collectGenericTermRegressions(enEntries, localeEntries, localeName) {
+  const renderings = canonicalGenericRenderings(localeName)
+  if (renderings.length === 0) {
+    return []
+  }
+
+  const regressions = []
+  for (const [key, enValue] of enEntries) {
+    const localeValue = localeEntries.get(key)
+    if (typeof enValue !== 'string' || typeof localeValue !== 'string') {
+      continue
+    }
+    const repaired = repairTranslatedValue({ key, enValue, localeValue, locale: localeName })
+    if (repaired === localeValue) {
+      continue
+    }
+    // Why: {{agent}} is an interpolation name, not English copy the reader sees.
+    const repairedCopy = repaired.replace(PLACEHOLDER_RE, '')
+    for (const { form, terms } of renderings) {
+      if (!localeValue.includes(form) || repaired.includes(form)) {
+        continue
+      }
+      if (
+        terms.some((term) => new RegExp(`(^|[^A-Za-z])${term}($|[^A-Za-z])`).test(repairedCopy))
+      ) {
+        regressions.push({ key, form, localeValue, repaired })
+        break
+      }
+    }
+  }
+  return regressions
+}
+
+function formatGenericTermRegressions(regressions) {
+  return regressions
+    .map((entry) => `${entry.key}: ${entry.form} -> English (${entry.repaired})`)
+    .join('\n')
+}
+
+// Why: JSON.parse silently keeps the last duplicate key.
+function collectDuplicateCatalogKeys(fileName, text) {
+  const sourceFile = ts.parseJsonText(fileName, text)
+  const duplicates = []
+  const visit = (node, prefix) => {
+    if (!ts.isObjectLiteralExpression(node)) {
+      return
+    }
+    const seen = new Set()
+    for (const property of node.properties) {
+      if (!ts.isPropertyAssignment(property)) {
+        continue
+      }
+      const name = property.name.text
+      const key = prefix ? `${prefix}.${name}` : name
+      if (seen.has(name)) {
+        const { line } = sourceFile.getLineAndCharacterOfPosition(property.getStart(sourceFile))
+        duplicates.push(`${fileName}:${line + 1} ${key}`)
+      }
+      seen.add(name)
+      visit(property.initializer, key)
+    }
+  }
+  for (const statement of sourceFile.statements) {
+    visit(statement.expression, '')
+  }
+  return duplicates
+}
+
+async function readCatalogFile(catalogPath) {
+  const text = await fs.readFile(catalogPath, 'utf8')
+  const duplicates = collectDuplicateCatalogKeys(path.basename(catalogPath), text)
+  if (duplicates.length > 0) {
+    console.error('Localization catalog has duplicate keys; JSON keeps only the last value.')
+    console.error('')
+    console.error(duplicates.map((duplicate) => `- ${duplicate}`).join('\n'))
+    return undefined
+  }
+  return JSON.parse(text)
+}
+
 function verifyLocaleCatalog(enCatalog, localeName, localeCatalog) {
   const { enEntries, localeEntries, missingInLocale, extraInLocale, interpolationMismatches } =
     collectLocaleParityIssues(enCatalog, localeCatalog)
+  const genericTermRegressions = collectGenericTermRegressions(enEntries, localeEntries, localeName)
 
-  // Why: feature PRs own English declarations; absent target leaves deliberately
-  // use i18next's existing English fallback until a localization PR supplies them.
+  // Feature PRs own English declarations; missing target translations use i18next fallback until localization supplies them.
   console.log(
     `${localeName}.json coverage: ${enEntries.size - missingInLocale.length}/${enEntries.size} translated, ${missingInLocale.length} missing.`
   )
 
-  if (extraInLocale.length > 0 || interpolationMismatches.length > 0) {
+  if (
+    extraInLocale.length > 0 ||
+    interpolationMismatches.length > 0 ||
+    genericTermRegressions.length > 0
+  ) {
     console.error(`Locale catalog validation failed for ${localeName}.json.`)
     if (extraInLocale.length > 0) {
       console.error('')
@@ -308,6 +428,18 @@ function verifyLocaleCatalog(enCatalog, localeName, localeCatalog) {
       )
       if (interpolationMismatches.length > 20) {
         console.error(`...and ${interpolationMismatches.length - 20} more interpolation mismatches`)
+      }
+    }
+    if (genericTermRegressions.length > 0) {
+      console.error('')
+      console.error(
+        'repair-locale-catalog would rewrite these translated terms back to English.',
+        'Treat the term as generic in config/scripts/locale-generic-ui-terms.mjs',
+        'instead of listing its translation as a mistranslation.'
+      )
+      console.error(formatGenericTermRegressions(genericTermRegressions.slice(0, 20)))
+      if (genericTermRegressions.length > 20) {
+        console.error(`...and ${genericTermRegressions.length - 20} more generic term regressions`)
       }
     }
     return 1
@@ -368,15 +500,37 @@ async function reportPluginCatalog(root, catalog, pluginCatalogPath) {
   if (interpolationMismatches.length > 0) {
     console.log(formatMissingKeys('interpolation mismatch', interpolationMismatches.slice(0, 20)))
   }
-  // Why: absent plugin translations safely fall back to English, but a present
-  // value with different variables can render broken or misleading UI.
+  // Missing plugin translation can fall back; mismatched variables in present value can mislead or break UI.
   return interpolationMismatches.length > 0 ? 1 : 0
 }
 
-export async function main(root = process.cwd(), options = parseArgs(process.argv.slice(2))) {
+export async function collectLocalizationReferences(root) {
+  const sourceRoots = LOCALIZATION_SOURCE_ROOTS.map((sourceRoot) => path.join(root, sourceRoot))
+  const references = []
+
+  for (const sourceRoot of sourceRoots) {
+    const files = await collectSourceFiles(root, sourceRoot)
+    for (const filePath of files) {
+      references.push(
+        ...collectLocalizationKeyReferences(filePath, await fs.readFile(filePath, 'utf8'), root)
+      )
+    }
+  }
+
+  return references
+}
+
+export async function main(
+  root = process.cwd(),
+  options = parseArgs(process.argv.slice(2)),
+  sharedReferences
+) {
   const localesDir = path.join(root, LOCALES_RELATIVE_DIR)
   const catalogPath = path.join(localesDir, 'en.json')
-  const catalog = JSON.parse(await fs.readFile(catalogPath, 'utf8'))
+  const catalog = await readCatalogFile(catalogPath)
+  if (catalog === undefined) {
+    return 1
+  }
   const pluginCatalogs = options.pluginCatalogs ?? []
   if (pluginCatalogs.length > 0) {
     if (options.fix) {
@@ -391,18 +545,11 @@ export async function main(root = process.cwd(), options = parseArgs(process.arg
     }
     return 0
   }
-  let catalogKeys = new Set(flattenCatalogKeys(catalog))
-  const sourceRoots = SOURCE_RELATIVE_ROOTS.map((sourceRoot) => path.join(root, sourceRoot))
-  const references = []
-
-  for (const sourceRoot of sourceRoots) {
-    const files = await collectSourceFiles(root, sourceRoot)
-    for (const filePath of files) {
-      references.push(
-        ...collectLocalizationKeyReferences(filePath, await fs.readFile(filePath, 'utf8'), root)
-      )
-    }
+  if (reportDottedCatalogKeys('en.json', catalog) !== 0) {
+    return 1
   }
+  let catalogKeys = new Set(flattenCatalogKeys(catalog))
+  const references = sharedReferences ?? (await collectLocalizationReferences(root))
 
   const missing = references.filter((reference) => !catalogKeys.has(reference.key))
   if (missing.length > 0) {
@@ -459,7 +606,10 @@ export async function main(root = process.cwd(), options = parseArgs(process.arg
   for (const fileName of localeFiles) {
     const localeName = fileName.replace(/\.json$/, '')
     const localeCatalogPath = path.join(localesDir, fileName)
-    const localeCatalog = JSON.parse(await fs.readFile(localeCatalogPath, 'utf8'))
+    const localeCatalog = await readCatalogFile(localeCatalogPath)
+    if (localeCatalog === undefined || reportDottedCatalogKeys(fileName, localeCatalog) !== 0) {
+      return 1
+    }
     const exitCode = verifyLocaleCatalog(catalog, localeName, localeCatalog)
     if (exitCode !== 0) {
       console.error('')

@@ -1,4 +1,10 @@
-import type { CheckStatus, PRConflictSummary, PRMergeableState, PRReviewDecision } from './types'
+import type {
+  CheckStatus,
+  GitHubRepositoryIdentity,
+  PRConflictSummary,
+  PRMergeableState,
+  PRReviewDecision
+} from './github/pull-request-types'
 
 export type HostedReviewProvider =
   | 'github'
@@ -9,6 +15,11 @@ export type HostedReviewProvider =
   | 'unsupported'
 
 export type HostedReviewState = 'open' | 'closed' | 'merged' | 'draft'
+
+// Bitbucket Cloud has no draft API; offering the toggle would publish live or fail.
+export function hostedReviewProviderSupportsDraft(provider: HostedReviewProvider): boolean {
+  return provider !== 'bitbucket'
+}
 
 /** A linked review is identified by a positive integer PR/MR number. */
 export function isPositiveHostedReviewNumber(value: unknown): value is number {
@@ -30,8 +41,9 @@ export type HostedReviewInfo = {
   mergeQueueRequired?: boolean | null
   mergeStateStatus?: string | null
   headSha?: string
-  // Why: mirrors PRInfo.confirmedContainedHeadOid so merged-review staleness
-  // checks accept a worktree head confirmed to be part of the merged PR.
+  /** GitHub repository that owns the PR; absent on older runtimes and other providers. */
+  githubRepository?: GitHubRepositoryIdentity
+  // Mirror PRInfo containment proof so merged-review cache checks retain confirmed worktree heads.
   confirmedContainedHeadOid?: string
   /** Target branch name for review-created worktree compare-base repair. */
   baseRefName?: string
@@ -39,8 +51,12 @@ export type HostedReviewInfo = {
 }
 
 export type HostedReviewForBranchArgs = {
+  force?: boolean
   repoPath: string
   repoId?: string
+  admissionTier?: 'interactive' | 'status' | 'background'
+  /** Desktop IPC-only owner guard; runtime RPC callers omit this field. */
+  repoOwnerExecutionHostId?: string
   branch: string
   linkedGitHubPR?: number | null
   fallbackGitHubPR?: number | null
@@ -50,11 +66,7 @@ export type HostedReviewForBranchArgs = {
   linkedGiteaPR?: number | null
   // The worktree's checked-out HEAD oid (GitHub merged-at-head visibility).
   currentHeadOid?: string | null
-  /**
-   * Set only by surfaces scoped to the selected worktree. That tier is O(1), so
-   * the host re-checks it per minute; the worktree list is O(N) and is paced far
-   * more slowly to stay inside the shared API budget (#11532).
-   */
+  /** Only selected-worktree surfaces set active: O(1) checks refresh per minute; O(N) lists refresh more slowly within the shared API budget (#11532). */
   active?: boolean
 }
 
@@ -80,6 +92,14 @@ export type CreateHostedReviewArgs = CreateHostedReviewInput & {
   connectionId?: string | null
 }
 
+export type CreateStackedHostedReviewInput = CreateHostedReviewInput
+
+export type CreateStackedHostedReviewArgs = CreateStackedHostedReviewInput & {
+  repoPath: string
+  repoId?: string
+  connectionId?: string | null
+}
+
 export type CreateHostedReviewErrorCode =
   | 'auth_required'
   | 'unsupported_provider'
@@ -99,6 +119,21 @@ export type CreateHostedReviewResult =
       existingReview?: HostedReviewSummary
     }
 
+export type CreateStackedHostedReviewResult =
+  | {
+      ok: true
+      number: number
+      url: string
+      stackNumber: number
+      parentReview: HostedReviewSummary
+    }
+  | {
+      ok: false
+      code: CreateHostedReviewErrorCode
+      error: string
+      createdReview?: HostedReviewSummary
+    }
+
 export type HostedReviewCreationBlockedReason =
   | 'dirty'
   | 'detached_head'
@@ -110,9 +145,7 @@ export type HostedReviewCreationBlockedReason =
   | 'fork_head_unsupported'
   | 'unsupported_provider'
   | 'existing_review'
-  // Why: a stacked worktree's local-only parent base is unresolvable on the
-  // remote; blocked at create-time so the submit fails with actionable copy
-  // instead of the provider's opaque error.
+  // Reject local-only stack bases before submission so unresolvable remote refs get actionable copy.
   | 'base_not_on_remote'
   | null
 
@@ -125,12 +158,7 @@ export type HostedReviewCreationNextAction =
   | 'open_existing_review'
   | null
 
-/**
- * Records whether the eligibility result observed an authoritative existing-review
- * lookup. `found` / `not_found` come only from an accepted provider lookup;
- * `unavailable` marks a local-blocker fallback returned after a swallowed or
- * skipped lookup, so it can never masquerade as authoritative no-review evidence.
- */
+/** Only accepted provider lookups yield found/not_found. Unavailable marks skipped/swallowed lookups and cannot prove no review exists. */
 export type HostedReviewLookupOutcome = 'found' | 'not_found' | 'unavailable'
 
 export type HostedReviewCreationEligibility = {
@@ -144,6 +172,8 @@ export type HostedReviewCreationEligibility = {
   head?: string | null
   title?: string | null
   body?: string | null
+  /** Present only when the executing host supports GitHub stack creation. */
+  stackedCreationSupported?: boolean
 }
 
 export type HostedReviewCreationEligibilityArgs = {
@@ -165,56 +195,4 @@ export type HostedReviewCreationEligibilityArgs = {
   linkedGiteaPR?: number | null
 }
 
-export type HostedReviewIdentity = {
-  provider: HostedReviewProvider
-  host: string
-  owner: string
-  repo: string
-  number: number
-}
-
-export type HostedReviewUser = {
-  login: string | null
-  isBot?: boolean
-}
-
 export type HostedReviewDecision = 'approved' | 'changes_requested' | 'review_required' | null
-
-export type HostedReviewThreadSummary = {
-  unresolvedCount: number | null
-  dataCompleteness?: 'full' | 'partial'
-}
-
-export type HostedReviewQueueSummary = {
-  identity: HostedReviewIdentity
-  title: string
-  url: string
-  state: HostedReviewState
-  author: HostedReviewUser | null
-  updatedAt: string
-  lastViewedAt?: number
-  mergeable: PRMergeableState
-  mergeStateStatus?: string | null
-  checksStatus: CheckStatus
-  reviewDecision?: HostedReviewDecision
-  threadSummary?: HostedReviewThreadSummary
-  requestedReviewerLogins?: string[] | null
-  draft?: boolean
-}
-
-export type HostedReviewQueueKey =
-  | 'mine'
-  | 'requested'
-  | 'agent'
-  | 'teammate'
-  | 'needs-response'
-  | 'ready-to-merge'
-
-export type HostedReviewQueueState = 'mine' | 'requested' | 'agent' | 'teammate'
-
-export type HostedReviewQueueClassification = {
-  state: HostedReviewQueueState
-  needsResponse: boolean
-  readyToMerge: boolean
-  requested: boolean
-}

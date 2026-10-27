@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   ClaudeRateLimitAccountsState,
   CodexRateLimitAccountsState
-} from '../../../shared/types'
+} from '../../../shared/managed-account-types'
 import {
   fetchProviderAccountsSnapshot,
   removeClaudeProviderAccount,
@@ -18,8 +18,8 @@ import {
 } from './runtime-compatibility-test-fixture'
 import { clearRuntimeCompatibilityCacheForTests } from './runtime-rpc-client'
 
-const LOCAL = { activeRuntimeEnvironmentId: null }
-const REMOTE = { activeRuntimeEnvironmentId: 'env-1' }
+const LOCAL = { kind: 'local' } as const
+const REMOTE = { kind: 'environment', environmentId: 'env-1' } as const
 
 function emptyClaudeState(): ClaudeRateLimitAccountsState {
   return { accounts: [], activeAccountId: null, activeAccountIdsByRuntime: { host: null, wsl: {} } }
@@ -312,8 +312,8 @@ describe('fetchProviderAccountsSnapshot', () => {
   })
 
   it('isolates in-flight snapshots by remote account owner', async () => {
-    const first = fetchProviderAccountsSnapshot({ activeRuntimeEnvironmentId: 'env-1' })
-    const second = fetchProviderAccountsSnapshot({ activeRuntimeEnvironmentId: 'env-2' })
+    const first = fetchProviderAccountsSnapshot({ kind: 'environment', environmentId: 'env-1' })
+    const second = fetchProviderAccountsSnapshot({ kind: 'environment', environmentId: 'env-2' })
     await flushMicrotasks()
 
     expect(runtimeEnvironmentSubscribe).toHaveBeenCalledTimes(2)
@@ -343,7 +343,7 @@ describe('fetchProviderAccountsSnapshot', () => {
     )
 
     const local = fetchProviderAccountsSnapshot(LOCAL)
-    const remote = fetchProviderAccountsSnapshot({ activeRuntimeEnvironmentId: 'local' })
+    const remote = fetchProviderAccountsSnapshot({ kind: 'environment', environmentId: 'local' })
     await flushMicrotasks()
 
     expect(remote).not.toBe(local)
@@ -388,8 +388,7 @@ describe('fetchProviderAccountsSnapshot', () => {
     claudeListLocal.mockRejectedValue(new Error('Claude keychain unavailable'))
     codexListLocal.mockResolvedValue(codexState)
 
-    // Why: one-shot consumers (status bar menus) must keep the healthy provider
-    // even when the sibling list rejects instead of seeing a rejected promise.
+    // One-shot menus must retain the healthy provider despite sibling failure.
     await expect(fetchProviderAccountsSnapshot(LOCAL)).resolves.toEqual({
       claude: emptyClaudeState(),
       codex: codexState,
@@ -455,8 +454,7 @@ describe('provider account mutations', () => {
     ])
     expect(runtimeEnvironmentCall.mock.calls[0]?.[0]).toMatchObject({
       selector: 'env-1',
-      // Why this matters: the server API takes only accountId; host/WSL
-      // targeting is a desktop-local concept and must not leak into params.
+      // Server accepts only accountId; desktop host/WSL targeting must stay outside params.
       params: { accountId: 'server-codex-2' }
     })
     expect(codexSelectLocal).not.toHaveBeenCalled()

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { getDefaultUIState } from '../../../shared/constants'
-import type { PersistedUIState } from '../../../shared/types'
+import type { PersistedUIState } from '../../../shared/persisted-ui-state-types'
 import {
   getStartupErrorFallbackUI,
   hydratePersistedUIAfterStartupRead
@@ -30,9 +30,7 @@ describe('startup UI hydration fallback', () => {
       hydratePersistedUI
     })
 
-    // Simulates session.get()/session hydration throwing after ui.get() was
-    // already applied. The catch path must not replace the loaded UI with
-    // fallback defaults that would then be written back to disk.
+    // Session hydration can fail after UI loads; defaults must not overwrite that successful UI snapshot on disk.
     const fallbackUI = getStartupErrorFallbackUI(uiHydrated)
     if (fallbackUI) {
       hydratePersistedUI(fallbackUI)

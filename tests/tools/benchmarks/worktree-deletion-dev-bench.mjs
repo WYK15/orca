@@ -13,12 +13,13 @@ import { rm } from 'node:fs/promises'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
-// Why @playwright/test, not playwright: only the former is a declared devDependency; it re-exports
-// the same browser types, so the benchmark resolves without relying on a hoisted transitive install.
+// Use declared @playwright/test’s re-export instead of relying on a hoisted transitive playwright install.
 import { chromium } from '@playwright/test'
+import * as branchFixture from './worktree-deletion-branch-fixture.mjs'
 
 const DEFAULT_ITERATIONS = 3
 const DEFAULT_HISTORY_FILES = 10_000
+const DEFAULT_FETCH_DELAY_MS = 1_500
 const CDP_START_PORT = 9_700
 const START_TIMEOUT_MS = 180_000
 const IPC_TIMEOUT_MS = 90_000
@@ -29,6 +30,7 @@ function parseArgs(argv) {
     instances: [],
     iterations: DEFAULT_ITERATIONS,
     historyFiles: DEFAULT_HISTORY_FILES,
+    fetchDelayMs: DEFAULT_FETCH_DELAY_MS,
     keepFixture: false
   }
   for (let index = 2; index < argv.length; index += 1) {
@@ -65,6 +67,8 @@ function parseArgs(argv) {
       options.iterations = readPositiveInteger(value, next())
     } else if (value === '--history-files') {
       options.historyFiles = readPositiveInteger(value, next())
+    } else if (value === '--fetch-delay-ms') {
+      options.fetchDelayMs = readPositiveInteger(value, next())
     } else {
       throw new Error(`Unknown argument: ${value}`)
     }
@@ -91,6 +95,7 @@ Options:
   --instance <label=path>  Dev checkout to launch; repeat for A/B comparison
   --iterations <count>     Deletions per instance (default: ${DEFAULT_ITERATIONS})
   --history-files <count>  Files seeded in each worktree history (default: ${DEFAULT_HISTORY_FILES})
+  --fetch-delay-ms <ms>    Slow-remote delay for branch cleanup (default: ${DEFAULT_FETCH_DELAY_MS})
   --keep-fixture           Keep disposable profiles and repos for inspection`)
 }
 
@@ -117,6 +122,7 @@ function createFixture(instanceLabel) {
   run('git', ['add', 'README.md'], repoPath)
   run('git', ['commit', '-m', 'Initialize benchmark fixture', '--no-gpg-sign'], repoPath)
   run('git', ['branch', '-m', 'main'], repoPath)
+  branchFixture.initializeBranchCleanupRemote(root, repoPath)
   return { root, repoPath, userDataPath }
 }
 
@@ -164,8 +170,7 @@ async function connectToOrca(instance) {
     try {
       const browser = await chromium.connectOverCDP(instance.endpoint)
       try {
-        // CDP answers long before the renderer exposes window.__store; without this, every
-        // findOrcaPage timeout drops a live browser handle and leaks a connection per retry.
+        // Wait for __store before accepting CDP; findOrcaPage retries otherwise leak browser handles.
         const page = await findOrcaPage(browser)
         return { browser, page }
       } catch (error) {
@@ -317,8 +322,7 @@ async function measureDeletion(page, worktreeId, rootWorktreeId) {
           return result
         })
         .catch((error) => {
-          // Why: without this the poll loop below spins forever on a rejected delete — the exact
-          // failure this benchmark exists to surface would read as a hang.
+          // Surface rejected delete before polling so the regression cannot become an infinite wait.
           settled = true
           failure = error
           return null
@@ -338,8 +342,7 @@ async function measureDeletion(page, worktreeId, rootWorktreeId) {
           )
         ])
         ipcSamplesMs.push(performance.now() - ipcStartedAt)
-        // Why re-read the clock here: anchoring on `now` would fold the IPC round trip that
-        // ipcSamplesMs already records into the next iteration's drift.
+        // Re-read clock after IPC so its separately recorded round-trip does not inflate the next drift sample.
         expectedTimerAt = performance.now() + 10
       }
       const result = await deletion
@@ -406,6 +409,7 @@ async function verifyDeletion(page, worktree, historyPath, measurement) {
 async function runIteration(page, fixture, repoState, iteration, historyFiles) {
   const worktree = await createMeasuredWorktree(page, repoState.repoId, iteration)
   await assertWorktreeRowVisible(page, worktree.id)
+  branchFixture.seedBranchCleanupRepro(fixture.repoPath, worktree.path)
   const historyPath = seedTerminalHistory(fixture.userDataPath, worktree.id, historyFiles)
   const measurement = await measureDeletion(page, worktree.id, repoState.rootWorktreeId)
   await verifyDeletion(page, worktree, historyPath, measurement)
@@ -433,7 +437,8 @@ async function verifyRestart(instanceConfig, fixture, port, repoId) {
       await window.api.repos.list()
       let recovery = { repoPresent: false, worktreeCount: 0 }
       for (let attempt = 0; attempt < 60; attempt += 1) {
-        await store.getState().fetchRepos()
+        const owner = store.getState().settings?.activeRuntimeEnvironmentId ?? null
+        await store.getState().fetchRepos({ runtimeEnvironmentId: owner })
         if (store.getState().repos.some((repo) => repo.id === fixtureRepoId)) {
           await store.getState().fetchWorktrees(fixtureRepoId)
         }
@@ -467,14 +472,14 @@ async function benchmarkInstance(instanceConfig, index, options) {
     instanceConfig.repoRoot
   )
   const fixture = createFixture(instanceConfig.label)
-  const port = await findAvailablePort(CDP_START_PORT + index)
-  const instance = launchDevInstance(instanceConfig, fixture, port)
-  let browser = null
-  console.log(`[${instanceConfig.label}] launching ${instanceConfig.repoRoot}`)
+  let delayedFetchServer, instance, browser
   try {
-    const connection = await connectToOrca(instance)
-    browser = connection.browser
-    const { page } = connection
+    delayedFetchServer = await branchFixture.startDelayedFetchServer(options.fetchDelayMs)
+    run('git', ['remote', 'set-url', 'origin', delayedFetchServer.url], fixture.repoPath)
+    const port = await findAvailablePort(CDP_START_PORT + index)
+    instance = launchDevInstance(instanceConfig, fixture, port)
+    const { browser: connectedBrowser, page } = await connectToOrca(instance)
+    browser = connectedBrowser
     const repoState = await addFixtureRepo(page, fixture.repoPath)
     const iterations = []
     for (let iteration = 1; iteration <= options.iterations; iteration += 1) {
@@ -488,8 +493,7 @@ async function benchmarkInstance(instanceConfig, index, options) {
     await browser.close()
     browser = null
     await stopDevInstance(instance)
-    // Why a fresh port: the debug listener may still hold the old one, so reusing it can attach to
-    // the dying endpoint or burn the whole start timeout.
+    // Use fresh CDP ports so teardown cannot leave retries attaching to a dying endpoint.
     await verifyRestart(
       instanceConfig,
       fixture,
@@ -500,6 +504,7 @@ async function benchmarkInstance(instanceConfig, index, options) {
       label: instanceConfig.label,
       repoRoot: instanceConfig.repoRoot,
       historyFiles: options.historyFiles,
+      fetchDelayMs: options.fetchDelayMs,
       iterations,
       summary: summarize(iterations.map((entry) => entry.totalMs)),
       ipcSummary: summarize(iterations.flatMap((entry) => entry.ipcLatencyMs.samples)),
@@ -508,7 +513,10 @@ async function benchmarkInstance(instanceConfig, index, options) {
     }
   } finally {
     await browser?.close().catch(() => undefined)
-    await stopDevInstance(instance)
+    if (instance) {
+      await stopDevInstance(instance)
+    }
+    await delayedFetchServer?.close()
     if (!options.keepFixture) {
       await rm(fixture.root, {
         recursive: true,
@@ -539,8 +547,7 @@ function isPortAvailable(port) {
 }
 
 async function stopDevInstance(instance) {
-  // Why signalCode too: a signal-terminated child leaves exitCode null, so an exitCode-only guard
-  // re-enters the kill path for a dead process and burns the full 8s race on every teardown.
+  // Check signalCode too: signal-exited children retain null exitCode and otherwise burn another 8s kill race.
   if (instance.child.exitCode !== null || instance.child.signalCode !== null) {
     return
   }

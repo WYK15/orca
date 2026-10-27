@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { Repo, TerminalTab, Worktree } from '../../../shared/types'
+import type { Repo } from '../../../shared/repo-types'
+import type { TerminalTab } from '../../../shared/terminal-tab-types'
+import type { Worktree } from '../../../shared/worktree/types'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
 import { toRuntimeExecutionHostId, toSshExecutionHostId } from '../../../shared/execution-host'
 import { isGitRepoKind } from '../../../shared/repo-kind'
@@ -9,6 +11,8 @@ import {
   getProjectHostSetupProjectionFromState,
   getWorktreeMapFromState,
   resetFloatingVisibleTabCountSelectorCacheForTest,
+  resetFloatingWorkspaceUnreadSelectorCacheForTest,
+  selectKnownWorktreeById,
   selectRepoByIdForActiveWorkspace,
   selectFloatingVisibleTabCount,
   selectFloatingWorkspaceHasUnread
@@ -133,6 +137,7 @@ describe('store selectors', () => {
         }
       }
     })
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the selector reads only each tab's contentType and entityId, which every fixture entry sets; the omitted Tab fields are never read.
     const unifiedTabs = [
       {
         id: 'unified-term-1',
@@ -171,6 +176,16 @@ describe('store selectors', () => {
         createdAt: 4
       },
       {
+        // A structured chat is its own backing record, so it counts like a simulator.
+        id: 'chat-1',
+        entityId: 'session-1',
+        worktreeId,
+        contentType: 'agent-session',
+        label: 'Claude Chat',
+        sortOrder: 4,
+        createdAt: 5
+      },
+      {
         id: 'unified-stale-terminal',
         entityId: 'missing-term',
         worktreeId,
@@ -187,10 +202,10 @@ describe('store selectors', () => {
       unifiedTabsByWorktree: { [worktreeId]: unifiedTabs }
     } satisfies Parameters<typeof selectFloatingVisibleTabCount>[0]
 
-    expect(selectFloatingVisibleTabCount(state)).toBe(4)
+    expect(selectFloatingVisibleTabCount(state)).toBe(5)
     expect(openFileScans).toBe(1)
 
-    expect(selectFloatingVisibleTabCount({ ...state })).toBe(4)
+    expect(selectFloatingVisibleTabCount({ ...state })).toBe(5)
     expect(openFileScans).toBe(1)
   })
 
@@ -249,7 +264,9 @@ describe('store selectors', () => {
         displayName: 'orca'
       })
     ]
-    const state = { repos }
+    const endpointProjects: AppState['endpointProjects'] = []
+    const endpointProjectHostSetups: AppState['endpointProjectHostSetups'] = []
+    const state = { repos, endpointProjects, endpointProjectHostSetups }
 
     const projection = getProjectHostSetupProjectionFromState(state)
 
@@ -259,8 +276,10 @@ describe('store selectors', () => {
       projectId: 'repo:repo-1',
       hostId: 'local'
     })
-    expect(getProjectHostSetupProjectionFromState({ repos })).toBe(projection)
-    expect(getProjectHostSetupProjectionFromState({ repos: [...repos] })).not.toBe(projection)
+    expect(getProjectHostSetupProjectionFromState({ ...state, repos })).toBe(projection)
+    expect(getProjectHostSetupProjectionFromState({ ...state, repos: [...repos] })).not.toBe(
+      projection
+    )
   })
 
   it('does not fall back to a same-ID local repo when the active runtime row is absent', () => {
@@ -366,6 +385,43 @@ describe('store selectors', () => {
     ).toBe(ssh)
   })
 
+  it('resolves the active worktree id on the active workspace host', () => {
+    const local = {
+      ...makeWorktree({ id: 'repo::/same', repoId: 'repo', displayName: 'local' }),
+      path: '/local/same',
+      hostId: 'local' as const
+    }
+    const ssh = {
+      ...makeWorktree({ id: 'repo::/same', repoId: 'repo', displayName: 'ssh' }),
+      path: '/ssh/same',
+      hostId: toSshExecutionHostId('target-1')
+    }
+    const catalog = {
+      worktreesByRepo: { repo: [local, ssh] },
+      detectedWorktreesByRepo: {},
+      folderWorkspaces: [],
+      floatingWorkspacePath: null
+    }
+
+    expect(
+      selectKnownWorktreeById(
+        {
+          ...catalog,
+          activeWorktreeId: 'repo::/same',
+          activeWorkspaceExecutionHostId: toSshExecutionHostId('target-1')
+        },
+        'repo::/same'
+      )
+    ).toBe(ssh)
+    expect(
+      selectKnownWorktreeById(
+        { ...catalog, activeWorktreeId: 'repo::/same', activeWorkspaceExecutionHostId: null },
+        'repo::/same',
+        toSshExecutionHostId('target-1')
+      )
+    ).toBe(ssh)
+  })
+
   it('keeps every non-paired-hub host mismatch failing closed', () => {
     // Why: the paired-hub exemption is ssh-selection-over-runtime-repo only; anything else is a wrong host.
     const runtime = makeRepo({
@@ -436,7 +492,13 @@ describe('store selectors', () => {
       }
     ]
 
-    expect(getProjectHostSetupProjectionFromState({ repos, projects, projectHostSetups })).toEqual({
+    expect(
+      getProjectHostSetupProjectionFromState({
+        repos,
+        endpointProjects: projects,
+        endpointProjectHostSetups: projectHostSetups
+      })
+    ).toEqual({
       projects,
       setups: projectHostSetups
     })
@@ -505,8 +567,8 @@ describe('store selectors', () => {
 
     const projection = getProjectHostSetupProjectionFromState({
       repos,
-      projects,
-      projectHostSetups
+      endpointProjects: projects,
+      endpointProjectHostSetups: projectHostSetups
     })
 
     expect(projection.projects.map((project) => project.id)).toEqual(['github:stablyai/orca'])
@@ -530,8 +592,8 @@ describe('store selectors', () => {
 
     const projection = getProjectHostSetupProjectionFromState({
       repos,
-      projects: [],
-      projectHostSetups: []
+      endpointProjects: [],
+      endpointProjectHostSetups: []
     })
 
     expect(projection.projects).toEqual([
@@ -586,8 +648,8 @@ describe('store selectors', () => {
 
     const projection = getProjectHostSetupProjectionFromState({
       repos,
-      projects,
-      projectHostSetups
+      endpointProjects: projects,
+      endpointProjectHostSetups: projectHostSetups
     })
 
     expect(projection.projects.map((project) => project.id)).toEqual([
@@ -595,9 +657,13 @@ describe('store selectors', () => {
       'cloud-project'
     ])
     expect(projection.setups.map((setup) => setup.id)).toEqual(['repo-1', 'cloud-project::gpu-vm'])
-    expect(getProjectHostSetupProjectionFromState({ repos, projects, projectHostSetups })).toBe(
-      projection
-    )
+    expect(
+      getProjectHostSetupProjectionFromState({
+        repos,
+        endpointProjects: projects,
+        endpointProjectHostSetups: projectHostSetups
+      })
+    ).toBe(projection)
   })
 })
 
@@ -605,6 +671,10 @@ describe('selectFloatingWorkspaceHasUnread', () => {
   const FLOATING = FLOATING_TERMINAL_WORKTREE_ID
 
   type UnreadState = Parameters<typeof selectFloatingWorkspaceHasUnread>[0]
+
+  beforeEach(() => {
+    resetFloatingWorkspaceUnreadSelectorCacheForTest()
+  })
 
   function makeState(overrides: Partial<UnreadState>): UnreadState {
     return {
@@ -657,13 +727,81 @@ describe('selectFloatingWorkspaceHasUnread', () => {
   })
 
   it('does not light for a stale unread entry whose floating tab no longer exists', () => {
-    // Mirrors closing a floating tab: the tab is gone from tabsByWorktree, so even
-    // a lingering map entry (there should be none — closeTab purges) cannot show.
+    // Removed floating tabs must not show attention through lingering unread-map entries.
     const state = makeState({
       tabsByWorktree: { [FLOATING]: [floatingTab('ft-live')] },
       unreadTerminalTabs: { 'ft-closed': true },
       unreadAgentCompletionPanes: { 'ft-closed:leaf-a': true }
     })
     expect(selectFloatingWorkspaceHasUnread(state)).toBe(false)
+  })
+
+  it('shares one scan across consumers and skips 1,000 unrelated writes', () => {
+    let tabIdReads = 0
+    let terminalUnreadReads = 0
+    let completionKeyScans = 0
+    const tabs = [
+      {
+        get id() {
+          tabIdReads += 1
+          return 'ft1'
+        },
+        title: 'floating',
+        ptyId: null
+      } as unknown as TerminalTab
+    ]
+    const unreadTerminalTabs = new Proxy<Record<string, true>>(
+      {},
+      {
+        get(target, property, receiver) {
+          if (typeof property === 'string') {
+            terminalUnreadReads += 1
+          }
+          // oxlint-disable-next-line anti-slop/no-reflect-get -- Proxy `get` trap: only Reflect.get forwards a raw string|symbol key with the proxy receiver.
+          return Reflect.get(target, property, receiver)
+        }
+      }
+    )
+    const unreadAgentCompletionPanes = new Proxy<Record<string, true>>(
+      { 'main-tab:leaf-a': true },
+      {
+        ownKeys(target) {
+          completionKeyScans += 1
+          return Reflect.ownKeys(target)
+        }
+      }
+    )
+    const state = makeState({
+      tabsByWorktree: { [FLOATING]: tabs },
+      unreadTerminalTabs,
+      unreadAgentCompletionPanes
+    })
+
+    expect(selectFloatingWorkspaceHasUnread(state)).toBe(false)
+    const countsAfterFirstConsumer = {
+      tabIdReads,
+      terminalUnreadReads,
+      completionKeyScans
+    }
+    expect(selectFloatingWorkspaceHasUnread(state)).toBe(false)
+    for (let write = 0; write < 1_000; write += 1) {
+      expect(
+        selectFloatingWorkspaceHasUnread({
+          ...state,
+          unrelatedStoreRevision: write
+        } as unknown as UnreadState)
+      ).toBe(false)
+    }
+    expect({ tabIdReads, terminalUnreadReads, completionKeyScans }).toEqual(
+      countsAfterFirstConsumer
+    )
+
+    expect(
+      selectFloatingWorkspaceHasUnread({
+        ...state,
+        unreadTerminalTabs: { ft1: true }
+      })
+    ).toBe(true)
+    expect(tabIdReads).toBeGreaterThan(countsAfterFirstConsumer.tabIdReads)
   })
 })

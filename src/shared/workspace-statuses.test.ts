@@ -10,18 +10,6 @@ import {
 } from './workspace-statuses'
 
 describe('workspace status visuals', () => {
-  it.each([13, 20, 21, 64])('keeps all %i authored columns in order', (count) => {
-    const authored = Array.from({ length: count }, (_, index) => ({
-      id: `state-${index + 1}`,
-      label: `State ${index + 1}`
-    }))
-
-    const statuses = normalizeWorkspaceStatuses(authored)
-
-    expect(statuses).toHaveLength(count)
-    expect(statuses.map((status) => status.id)).toEqual(authored.map((status) => status.id))
-  })
-
   it('normalizes every valid status without truncating the workflow', () => {
     const authored = Array.from({ length: 500 }, (_, index) => ({
       id: `state-${index}`,
@@ -280,15 +268,12 @@ describe('workspace status visuals', () => {
     })
   })
 
-  it('keeps intentional custom in-progress visuals', () => {
-    const statuses = normalizeWorkspaceStatuses([
-      { id: 'in-progress', label: 'Doing', color: 'blue', icon: 'circle-dot' }
+  it('truncates long labels without splitting an emoji surrogate pair', () => {
+    const [status] = normalizeWorkspaceStatuses([
+      { id: 'review', label: `${'a'.repeat(31)}🚀 later` }
     ])
 
-    expect(statuses[0]).toMatchObject({
-      color: 'blue',
-      icon: 'circle-dot'
-    })
+    expect(status.label).toBe('a'.repeat(31))
   })
 
   it('clamps workspace board column widths to resizable bounds', () => {

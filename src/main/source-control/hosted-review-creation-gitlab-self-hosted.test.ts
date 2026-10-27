@@ -8,8 +8,7 @@ const {
   getBitbucketRepoSlugMock,
   getGiteaRepoSlugMock,
   getHostedReviewForBranchMock,
-  getRepoSlugMock,
-  getSshGitProviderMock
+  getRepoSlugMock
 } = vi.hoisted(() => ({
   gitExecFileAsyncMock: vi.fn(),
   glabExecFileAsyncMock: vi.fn(),
@@ -18,8 +17,7 @@ const {
   getBitbucketRepoSlugMock: vi.fn(),
   getGiteaRepoSlugMock: vi.fn(),
   getHostedReviewForBranchMock: vi.fn(),
-  getRepoSlugMock: vi.fn(),
-  getSshGitProviderMock: vi.fn()
+  getRepoSlugMock: vi.fn()
 }))
 
 vi.mock('../git/runner', () => ({
@@ -53,14 +51,11 @@ vi.mock('../gitea/client', () => ({
   getGiteaPullRequest: vi.fn()
 }))
 
-vi.mock('../providers/ssh-git-dispatch', () => ({
-  getSshGitProvider: getSshGitProviderMock
-}))
-
 vi.mock('./hosted-review', () => ({
   getHostedReviewForBranch: getHostedReviewForBranchMock
 }))
 
+import { REMOTE_URL_PROBE_TIMEOUT_MS } from '../git/remote-url-probe'
 import { _resetKnownHostsCache, _resetProjectRefCache } from '../gitlab/gl-utils'
 import { diagnoseAuth } from '../gitlab/client'
 import { getHostedReviewCreationEligibility } from './hosted-review-creation'
@@ -74,8 +69,7 @@ function resetMocks(): void {
     getBitbucketRepoSlugMock,
     getGiteaRepoSlugMock,
     getHostedReviewForBranchMock,
-    getRepoSlugMock,
-    getSshGitProviderMock
+    getRepoSlugMock
   ]) {
     mock.mockReset()
   }
@@ -124,6 +118,7 @@ describe('GitLab self-hosted hosted review creation eligibility', () => {
 
     await expect(
       getHostedReviewCreationEligibility({
+        executionHostId: 'local',
         repoPath: '/repo',
         branch: 'feature/self-hosted-mr',
         base: 'main',
@@ -140,8 +135,10 @@ describe('GitLab self-hosted hosted review creation eligibility', () => {
       head: 'feature/self-hosted-mr'
     })
 
+    // A dead mount must not pin provider detection beyond its deadline (P1-D).
     expect(gitExecFileAsyncMock).toHaveBeenCalledWith(['remote', 'get-url', 'origin'], {
-      cwd: '/repo'
+      cwd: '/repo',
+      timeout: REMOTE_URL_PROBE_TIMEOUT_MS
     })
     expect(glabExecFileAsyncMock).toHaveBeenCalledWith(
       ['auth', 'status', '--hostname', 'gitlab.internal'],
@@ -176,6 +173,7 @@ gitlab.internal
     })
 
     const result = await getHostedReviewCreationEligibility({
+      executionHostId: 'local',
       repoPath: '/repo',
       branch: 'feature/self-hosted-mr',
       base: 'main',
@@ -227,6 +225,7 @@ gitlab.internal
     })
 
     const eligibilityInput = {
+      executionHostId: 'local' as const,
       repoPath: '/repo',
       branch: 'feature/self-hosted-mr',
       base: 'main',

@@ -1,30 +1,21 @@
-import type { NotificationDispatchRequest } from '../../shared/types'
+import { formatAgentTypeLabel } from '../../shared/agent-type-label'
+import type { NotificationDispatchRequest } from '../../shared/notification-settings-types'
+
+type NotificationStatusTranslator = (key: string, fallback: string) => string
+
+const englishNotificationStatus: NotificationStatusTranslator = (_key, fallback) => fallback
 
 const NOTIFICATION_AGENT_LABEL_MAX_LENGTH = 40
 const NOTIFICATION_TITLE_CONTEXT_MAX_LENGTH = 80
 const NOTIFICATION_BODY_PREVIEW_MAX_LENGTH = 180
 
-const AGENT_TYPE_LABELS: Readonly<Record<string, string>> = {
-  claude: 'Claude',
-  openclaude: 'OpenClaude',
-  codex: 'Codex',
-  gemini: 'Gemini',
-  antigravity: 'Antigravity',
-  opencode: 'OpenCode',
-  cursor: 'Cursor',
-  aider: 'Aider',
-  pi: 'Pi',
-  omp: 'OMP',
-  droid: 'Droid',
-  grok: 'Grok',
-  hermes: 'Hermes'
-}
-
-export function buildNotificationOptions(args: NotificationDispatchRequest): {
+export function buildNotificationOptions(
+  args: NotificationDispatchRequest,
+  translate: NotificationStatusTranslator = englishNotificationStatus
+): {
   title: string
   body: string
   silent?: boolean
-  sound?: string
 } {
   if (args.source === 'terminal-bell') {
     return {
@@ -40,7 +31,7 @@ export function buildNotificationOptions(args: NotificationDispatchRequest): {
     }
   }
 
-  const richOptions = buildAgentTaskCompleteNotificationOptions(args)
+  const richOptions = buildAgentTaskCompleteNotificationOptions(args, translate)
   if (richOptions) {
     return richOptions
   }
@@ -49,7 +40,8 @@ export function buildNotificationOptions(args: NotificationDispatchRequest): {
 }
 
 function buildAgentTaskCompleteNotificationOptions(
-  args: NotificationDispatchRequest
+  args: NotificationDispatchRequest,
+  translate: NotificationStatusTranslator
 ): { title: string; body: string } | null {
   if (!hasAgentNotificationSnapshot(args)) {
     return null
@@ -57,16 +49,41 @@ function buildAgentTaskCompleteNotificationOptions(
 
   const agentLabel = formatNotificationAgentLabel(args.agentType)
   const worktreeContext = formatNotificationWorktreeContext(args)
-  const statusText =
-    args.agentState === 'blocked' || args.agentState === 'waiting'
-      ? 'needs input'
-      : args.agentState === 'done' && args.agentInterrupted
-        ? 'stopped'
-        : 'finished'
+  const statusText = formatAgentNotificationStatusText(args, translate)
 
   return {
     title: `${worktreeContext} - ${agentLabel} ${statusText}`,
     body: buildAgentTaskCompleteRichBody(args) ?? `${agentLabel} ${statusText}.`
+  }
+}
+
+// Announce finished only for proved terminal state or an expired snapshot's completion signal (#4375).
+function formatAgentNotificationStatusText(
+  args: NotificationDispatchRequest,
+  translate: NotificationStatusTranslator
+): string {
+  if (args.agentState === 'blocked' || args.agentState === 'waiting') {
+    return translate('notifications.agentStatus.needsInput', 'needs input')
+  }
+  if (args.agentState === 'working') {
+    return translate('notifications.agentStatus.working', 'working')
+  }
+  if (args.agentState !== 'done') {
+    return translate('notifications.agentStatus.finished', 'finished')
+  }
+  switch (args.agentTurnOutcome) {
+    // A turn cut short by anything but the user is a fault, as a failure is.
+    case 'failure':
+    case 'interruption':
+      return translate('notifications.agentStatus.failed', 'failed')
+    // User stops, supersession and unproved endings must not read as finished.
+    case 'cancellation':
+    case 'superseded':
+    case 'unconfirmed':
+      return translate('notifications.agentStatus.stopped', 'stopped')
+    case 'success':
+    case undefined:
+      return translate('notifications.agentStatus.finished', 'finished')
   }
 }
 
@@ -76,7 +93,7 @@ function formatNotificationWorktreeContext(args: NotificationDispatchRequest): s
     NOTIFICATION_TITLE_CONTEXT_MAX_LENGTH
   )
   const repoLabel = normalizeNotificationText(args.repoLabel, NOTIFICATION_TITLE_CONTEXT_MAX_LENGTH)
-  if (args.hasMultipleActiveRepos && repoLabel && worktreeLabel) {
+  if (repoLabel && worktreeLabel) {
     return normalizeNotificationText(
       `${repoLabel} / ${worktreeLabel}`,
       NOTIFICATION_TITLE_CONTEXT_MAX_LENGTH
@@ -93,7 +110,7 @@ function hasAgentNotificationSnapshot(args: NotificationDispatchRequest): boolea
     args.agentToolName ||
     args.agentToolInput ||
     args.agentLastAssistantMessage ||
-    args.agentInterrupted
+    args.agentTurnOutcome !== undefined
   )
 }
 
@@ -141,11 +158,9 @@ function buildAgentTaskCompleteFallbackBody(args: NotificationDispatchRequest): 
 }
 
 function formatNotificationAgentLabel(agentType: string | null | undefined): string {
-  const normalized = normalizeNotificationText(agentType, NOTIFICATION_AGENT_LABEL_MAX_LENGTH)
-  if (!normalized || normalized === 'unknown') {
-    return 'Agent'
-  }
-  return AGENT_TYPE_LABELS[normalized] ?? normalized
+  return formatAgentTypeLabel(
+    normalizeNotificationText(agentType, NOTIFICATION_AGENT_LABEL_MAX_LENGTH)
+  )
 }
 
 function normalizeNotificationText(value: string | null | undefined, maxLength: number): string {

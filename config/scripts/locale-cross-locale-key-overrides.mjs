@@ -1,4 +1,13 @@
 export const CROSS_LOCALE_KEY_OVERRIDES = {
+  // The live status describes ongoing reasoning; the composer option names the feature.
+  'components.native-chat.status.thinking': {
+    zh: '思考中',
+    ja: '思考中',
+    ko: '생각 중',
+    fr: 'Réflexion en cours',
+    es: 'Pensando'
+  },
+  'auto.components.feature.wall.WorkbenchAnimatedVisual.633a91e358': { zh: '思考中…' },
   'auto.components.GitLabItemDialog.4168eb2c51': {
     zh: '解决',
     ja: '解決'
@@ -115,10 +124,6 @@ export const CROSS_LOCALE_KEY_OVERRIDES = {
     zh: '评审中',
     ja: 'レビュー中'
   },
-  'auto.components.skills.SkillsPage.b088e0785d': {
-    zh: '测试版',
-    ja: 'ベータ'
-  },
   'auto.components.status.bar.WorkspaceSpaceCompactPanel.c361440dc0': {
     zh: '测试版',
     ja: 'ベータ'
@@ -134,5 +139,30 @@ export const CROSS_LOCALE_KEY_OVERRIDES = {
   'auto.hooks.useSettingsNavigationMetadata.40d80bad8a': {
     zh: '测试版',
     ja: 'ベータ'
+  },
+  // Issue/PR state picker; it sits beside 已关闭, so 进行中 is a different state.
+  'auto.components.PullRequestPage.7b8f6bf6d8': {
+    zh: '开放'
+  },
+  // This "Open" is the button that opens the config file, not an issue state.
+  'auto.components.settings.McpConfigFileRow.e720c139cd': {
+    zh: '打开'
+  },
+  // Terminal cursor-color group: the on-screen cursor, not the Cursor editor.
+  'auto.components.settings.TerminalWindowSection.c9e1fdf42f': {
+    ko: '커서',
+    zh: '光标'
+  },
+  'auto.components.onboarding.ThemeStep.ab2a583a97': {
+    ko: '커서',
+    zh: '光标'
+  },
+  // Tailwind swatch labels: bare 天空 (the sky), 锌 and 空 (the metal, the sky) are not colors.
+  'auto.components.sidebar.workspace.status.6437a8c253': {
+    zh: '天蓝',
+    ja: '空色'
+  },
+  'auto.components.sidebar.workspace.status.caabd5ca85': {
+    zh: '锌灰'
   }
 }

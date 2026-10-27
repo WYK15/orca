@@ -1,8 +1,11 @@
 import {
   richMarkdownContextMenuCommandChannel,
   type RichMarkdownContextMenuCommand,
-  type RichMarkdownContextMenuCommandPayload
+  type RichMarkdownContextMenuCommandPayload,
+  type RichMarkdownContextMenuTableTarget
 } from '../../shared/rich-markdown-context-menu'
+import type { ContextMenuSpelling } from '../../shared/browser-guest-events'
+import { translateMain } from '../i18n/main-i18n'
 
 type EditableContextMenuWebContents = Pick<
   Electron.WebContents,
@@ -13,12 +16,17 @@ function markdownCommandItem(
   label: string,
   command: RichMarkdownContextMenuCommand,
   webContents: EditableContextMenuWebContents,
-  point: { x: number; y: number }
+  point: { x: number; y: number },
+  tableTargetId?: string
 ): Electron.MenuItemConstructorOptions {
   return {
     label,
     click: () => {
-      const payload: RichMarkdownContextMenuCommandPayload = { command, ...point }
+      const payload: RichMarkdownContextMenuCommandPayload = {
+        command,
+        ...point,
+        ...(tableTargetId ? { tableTargetId } : {})
+      }
       webContents.send(richMarkdownContextMenuCommandChannel, payload)
     }
   }
@@ -32,9 +40,7 @@ function editableContextPasteItem(
   return {
     label,
     click: () => {
-      // Why: context-menu paste must share renderer ownership with keyboard and
-      // app-menu paste so large text controls can chunk and terminals cannot
-      // receive duplicate native paste.
+      // Use renderer paste ownership for chunked text controls and to avoid duplicate native terminal paste.
       webContents.send('ui:editableContextPaste', {
         plainTextOnly: options?.plainTextOnly === true
       })
@@ -44,7 +50,8 @@ function editableContextPasteItem(
 
 function buildMarkdownMenuTemplate(
   webContents: EditableContextMenuWebContents,
-  point: { x: number; y: number }
+  point: { x: number; y: number },
+  tableTarget: RichMarkdownContextMenuTableTarget | null
 ): Electron.MenuItemConstructorOptions[] {
   return [
     markdownCommandItem('Add link', 'add-link', webContents, point),
@@ -84,6 +91,84 @@ function buildMarkdownMenuTemplate(
         markdownCommandItem('Code block', 'code-block', webContents, point)
       ]
     },
+    ...(tableTarget
+      ? [
+          {
+            label: translateMain('auto.main.window.editableContextMenu.table', 'Table'),
+            submenu: [
+              {
+                ...markdownCommandItem(
+                  translateMain(
+                    'auto.main.window.editableContextMenu.insertRowAbove',
+                    'Insert row above'
+                  ),
+                  'insert-row-above',
+                  webContents,
+                  point,
+                  tableTarget.targetId
+                ),
+                enabled: tableTarget.cellType !== 'header'
+              },
+              markdownCommandItem(
+                translateMain(
+                  'auto.main.window.editableContextMenu.insertRowBelow',
+                  'Insert row below'
+                ),
+                'insert-row-below',
+                webContents,
+                point,
+                tableTarget.targetId
+              ),
+              {
+                ...markdownCommandItem(
+                  translateMain('auto.main.window.editableContextMenu.deleteRow', 'Delete row'),
+                  'delete-row',
+                  webContents,
+                  point,
+                  tableTarget.targetId
+                ),
+                enabled: tableTarget.cellType !== 'header'
+              },
+              { type: 'separator' as const },
+              markdownCommandItem(
+                translateMain(
+                  'auto.main.window.editableContextMenu.insertColumnLeft',
+                  'Insert column left'
+                ),
+                'insert-column-left',
+                webContents,
+                point,
+                tableTarget.targetId
+              ),
+              markdownCommandItem(
+                translateMain(
+                  'auto.main.window.editableContextMenu.insertColumnRight',
+                  'Insert column right'
+                ),
+                'insert-column-right',
+                webContents,
+                point,
+                tableTarget.targetId
+              ),
+              markdownCommandItem(
+                translateMain('auto.main.window.editableContextMenu.deleteColumn', 'Delete column'),
+                'delete-column',
+                webContents,
+                point,
+                tableTarget.targetId
+              ),
+              { type: 'separator' as const },
+              markdownCommandItem(
+                translateMain('auto.main.window.editableContextMenu.deleteTable', 'Delete table'),
+                'delete-table',
+                webContents,
+                point,
+                tableTarget.targetId
+              )
+            ]
+          }
+        ]
+      : []),
     { type: 'separator' },
     { role: 'cut' },
     { role: 'copy' },
@@ -94,40 +179,55 @@ function buildMarkdownMenuTemplate(
 }
 
 function buildNativeEditMenuTemplate(
+  params: Electron.ContextMenuParams,
   webContents: EditableContextMenuWebContents
 ): Electron.MenuItemConstructorOptions[] {
   return [
     { role: 'cut' },
     { role: 'copy' },
     editableContextPasteItem('Paste', webContents),
-    editableContextPasteItem('Paste as plain text', webContents, { plainTextOnly: true }),
+    // Plain-text contenteditable composers already paste literally; omit redundant text-only mode.
+    ...(params.formControlType !== 'none'
+      ? [editableContextPasteItem('Paste as plain text', webContents, { plainTextOnly: true })]
+      : []),
     { role: 'selectAll' }
   ]
 }
 
+/** The spelling actions an editable context menu offers; Orca's window and browser pages share it. */
+export function readContextMenuSpelling(
+  params: Pick<Electron.ContextMenuParams, 'dictionarySuggestions' | 'misspelledWord'>
+): ContextMenuSpelling {
+  return {
+    suggestions: params.dictionarySuggestions.slice(0, 5),
+    misspelledWord: params.misspelledWord
+  }
+}
+
 export function buildEditableContextMenuTemplate(
   params: Electron.ContextMenuParams,
-  webContents: EditableContextMenuWebContents
+  webContents: EditableContextMenuWebContents,
+  options?: { tableTarget?: RichMarkdownContextMenuTableTarget | null; plainText?: boolean }
 ): Electron.MenuItemConstructorOptions[] {
   if (!params.isEditable) {
     return []
   }
 
-  const suggestions = params.dictionarySuggestions.slice(0, 5)
-  const isRichMarkdownSurface = params.formControlType === 'none'
+  const { suggestions, misspelledWord } = readContextMenuSpelling(params)
+  const isRichMarkdownSurface = params.formControlType === 'none' && options?.plainText !== true
   const template: Electron.MenuItemConstructorOptions[] = suggestions.map((suggestion) => ({
     label: suggestion,
     click: () => webContents.replaceMisspelling(suggestion)
   }))
 
-  if (params.misspelledWord) {
+  if (misspelledWord) {
     if (template.length > 0) {
       template.push({ type: 'separator' })
     }
     template.push({
       label: 'Add to dictionary',
       click: () => {
-        webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord)
+        webContents.session.addWordToSpellCheckerDictionary(misspelledWord)
       }
     })
   }
@@ -137,9 +237,55 @@ export function buildEditableContextMenuTemplate(
   }
   template.push(
     ...(isRichMarkdownSurface
-      ? buildMarkdownMenuTemplate(webContents, { x: params.x, y: params.y })
-      : buildNativeEditMenuTemplate(webContents))
+      ? buildMarkdownMenuTemplate(
+          webContents,
+          { x: params.x, y: params.y },
+          options?.tableTarget ?? null
+        )
+      : buildNativeEditMenuTemplate(params, webContents))
   )
 
   return template
+}
+
+export function parseRichMarkdownContextMenuTableTarget(
+  value: unknown
+): RichMarkdownContextMenuTableTarget | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  const target = value as Partial<RichMarkdownContextMenuTableTarget>
+  if (
+    (target.cellType !== 'body' && target.cellType !== 'header') ||
+    typeof target.targetId !== 'string' ||
+    target.targetId.length === 0 ||
+    typeof target.x !== 'number' ||
+    !Number.isFinite(target.x) ||
+    typeof target.y !== 'number' ||
+    !Number.isFinite(target.y)
+  ) {
+    return null
+  }
+  return {
+    cellType: target.cellType,
+    targetId: target.targetId,
+    x: target.x,
+    y: target.y
+  }
+}
+
+export function matchingRichMarkdownContextMenuTableTarget(
+  params: Electron.ContextMenuParams,
+  target: RichMarkdownContextMenuTableTarget | null
+): RichMarkdownContextMenuTableTarget | null {
+  if (
+    !target ||
+    !params.isEditable ||
+    params.formControlType !== 'none' ||
+    params.x !== target.x ||
+    params.y !== target.y
+  ) {
+    return null
+  }
+  return target
 }

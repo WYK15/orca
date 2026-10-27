@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { create } from 'zustand'
 import type { AppState } from '../types'
-import type { Repo, Worktree } from '../../../../shared/types'
+import type { Repo } from '../../../../shared/repo-types'
+import { projectHostSetupProjectionFromRepos } from '../../../../shared/project-host-setup-projection'
+import type { Worktree } from '../../../../shared/worktree/types'
 import { _getRemoteDetectPromiseCountForTest, createDetectedAgentsSlice } from './detected-agents'
 import {
   _getRuntimeDetectPromiseCountForTest,
@@ -12,6 +14,7 @@ import {
   RUNTIME_PROTOCOL_VERSION
 } from '../../../../shared/protocol-version'
 import { clearRuntimeCompatibilityCacheForTests } from '@/runtime/runtime-rpc-client'
+import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 
 const detectAgents = vi.fn()
 const refreshAgents = vi.fn()
@@ -43,12 +46,14 @@ function createTestStore(initial?: Partial<AppState>) {
       }) as AppState
   )
   store.setState({
+    endpointProjects: [],
+    endpointProjectHostSetups: [],
     repos: [],
     worktreesByRepo: {},
     activeRepoId: null,
     activeWorktreeId: null,
     ...initial
-  } as Partial<AppState>)
+  })
   return store
 }
 
@@ -130,13 +135,66 @@ describe('createDetectedAgentsSlice WSL context', () => {
         runtime: {
           kind: 'wsl',
           hostPlatform: 'wsl',
-          projectId: 'repo-1',
+          projectId: 'repo:repo-1',
           distro: 'Ubuntu',
           reason: 'project-override',
-          cacheKey: 'repo-1:wsl:Ubuntu'
+          cacheKey: 'repo:repo-1:wsl:Ubuntu'
         }
       }
     })
+  })
+
+  it('publishes a Floating-first host probe to a later ordinary local caller', async () => {
+    let resolveDetection: (agents: string[]) => void = () => {}
+    detectAgents.mockReturnValueOnce(
+      new Promise<string[]>((resolve) => {
+        resolveDetection = resolve
+      })
+    )
+    const store = createTestStore()
+
+    const floating = store.getState().ensureDetectedAgents(FLOATING_TERMINAL_WORKTREE_ID)
+    const ordinary = store.getState().ensureDetectedAgents()
+
+    expect(detectAgents).toHaveBeenCalledTimes(1)
+    expect(store.getState().isDetectingAgents).toBe(true)
+    resolveDetection(['codex'])
+    await expect(Promise.all([floating, ordinary])).resolves.toEqual([['codex'], ['codex']])
+    expect(store.getState().detectedAgentIds).toEqual(['codex'])
+    expect(store.getState().isDetectingAgents).toBe(false)
+  })
+
+  it('restores the legacy inventory when returning to a cached local context', async () => {
+    detectAgents.mockImplementation(async (context) =>
+      context?.projectRuntime?.runtime.kind === 'wsl' ? ['claude'] : ['codex']
+    )
+    const store = createTestStore({
+      repos: [makeRepo({ id: 'repo-1', path: '\\\\wsl.localhost\\Ubuntu\\home\\alice\\repo' })],
+      activeRepoId: 'repo-1',
+      activeWorktreeId: null
+    })
+
+    await store.getState().ensureDetectedAgents()
+    store.setState({ activeRepoId: null })
+    await store.getState().ensureDetectedAgents()
+    store.setState({ activeRepoId: 'repo-1' })
+
+    await expect(store.getState().ensureDetectedAgents()).resolves.toEqual(['claude'])
+    expect(detectAgents).toHaveBeenCalledTimes(2)
+    expect(store.getState().detectedAgentIds).toEqual(['claude'])
+  })
+
+  it('retries a local context after a transient detection failure', async () => {
+    detectAgents
+      .mockRejectedValueOnce(new Error('cold-start timeout'))
+      .mockResolvedValueOnce(['codex'])
+    const store = createTestStore()
+
+    await expect(store.getState().ensureDetectedAgents()).resolves.toEqual([])
+    await expect(store.getState().ensureDetectedAgents()).resolves.toEqual(['codex'])
+
+    expect(detectAgents).toHaveBeenCalledTimes(2)
+    expect(store.getState().detectedAgentIds).toEqual(['codex'])
   })
 
   it('refreshes local agents inside the active WSL repo distro when no worktree is selected', async () => {
@@ -318,23 +376,30 @@ describe('createDetectedAgentsSlice WSL context', () => {
   })
 
   it('detects agents in the project override runtime instead of legacy agent location', async () => {
+    const repos = [makeRepo({ id: 'repo-1', path: 'C:\\repo' })]
+    const { setups } = projectHostSetupProjectionFromRepos(repos)
     const store = createTestStore({
       settings: {
         localWindowsRuntimeDefault: { kind: 'wsl', distro: 'Ubuntu' },
         localAgentRuntime: 'wsl',
         localAgentWslDistro: 'Ubuntu'
       } as AppState['settings'],
-      projects: [
+      endpointProjectHostSetups: setups.map((setup) => ({ ...setup, projectId: 'repo-1' })),
+      endpointProjects: [
         {
           id: 'repo-1',
+          displayName: 'repo-1',
+          badgeColor: 'blue',
+          createdAt: 1,
+          updatedAt: 1,
           sourceRepoIds: ['repo-1'],
           localWindowsRuntimePreference: { kind: 'windows-host' }
         }
       ],
-      repos: [makeRepo({ id: 'repo-1', path: 'C:\\repo' })],
+      repos,
       activeRepoId: 'repo-1',
       activeWorktreeId: null
-    } as Partial<AppState>)
+    })
 
     await expect(store.getState().ensureDetectedAgents()).resolves.toEqual(['claude'])
 
@@ -521,8 +586,7 @@ describe('createDetectedAgentsSlice remote detection', () => {
 
   it('re-runs remote detection after an empty result instead of pinning it', async () => {
     const store = createTestStore()
-    // An empty [] is truthy, so a prior "no agents found" must not be cached:
-    // a later install / PATH fix has to be picked up without a reconnect.
+    // Retry empty detections so later installs/PATH fixes appear without reconnect; [] truthiness must not cache misses.
     detectRemoteAgents.mockResolvedValueOnce([])
 
     await expect(store.getState().ensureRemoteDetectedAgents('ssh-1')).resolves.toEqual([])
@@ -566,9 +630,7 @@ describe('createDetectedAgentsSlice remote detection', () => {
 
   it('re-runs runtime detection after an empty result instead of pinning it', async () => {
     const store = createTestStore()
-    // An empty [] is truthy, so a prior "no agents found" must not be cached:
-    // a later install / PATH fix has to be picked up without a reconnect. This is
-    // the Orca-serve path (kind: 'runtime'), distinct from the SSH remote path.
+    // Runtime Orca-serve path must retry empty detection after install/PATH fixes too, independently of SSH.
     let detectCalls = 0
     runtimeEnvironmentCall.mockImplementation(({ method }: { method: string }) => {
       let result: unknown

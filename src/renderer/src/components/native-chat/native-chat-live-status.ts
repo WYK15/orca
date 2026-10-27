@@ -1,19 +1,17 @@
-// Pure merge of live hook turn-state into a NativeChatSession status override.
-// Kept separate from the React hook so the precedence rule (live 'working'
-// surfaces before the transcript flushes its explicit terminal record, then is
-// reconciled once that boundary lands) is unit-testable without IPC.
+// Reconcile live working state with provider turn boundaries so a dropped final hook cannot leave Stop stuck.
 
 import type { AgentStatusState } from '../../../../shared/agent-status-types'
-import { assembleNativeChatSession, type NativeChatSources } from './native-chat-session-assembler'
 import type {
   AgentType,
+  NativeChatMessage,
   NativeChatSession,
   NativeChatSessionStatus,
   NativeChatTurnLifecycle
 } from '../../../../shared/native-chat-types'
 
 export type NativeChatLiveMergeInput = {
-  sources: NativeChatSources
+  /** Already deduped, ordered, and transcript-normalized by the live assembler. */
+  messages: NativeChatMessage[]
   sessionId: string | null
   agent: AgentType
   /** Live hook state for the pane, or null when no hook entry exists. */
@@ -22,70 +20,78 @@ export type NativeChatLiveMergeInput = {
   stateStartedAt?: number | null
   /** Latest provider-authored turn boundary recovered from the transcript. */
   transcriptLifecycle?: NativeChatTurnLifecycle
+  /** Transcript tail before presentation normalization or canonical re-dedup. */
+  statusTailMessage?: NativeChatMessage
   /** Claude can finish its lead turn while background children remain active. */
   hookHasWorkingSubagents?: boolean
-  /** True before the initial snapshot resolves; forces 'loading'. */
+  /** Before initial snapshot resolution, loading overrides non-working status. */
   loading?: boolean
   /** Set when the initial snapshot failed; forces 'error'. */
   error?: string
 }
 
-/**
- * Decide the session status given the merged transcript/append messages and the
- * live hook state. The transcript is the source of truth for content; explicit
- * provider lifecycle records reconcile a dropped final hook.
- *
- * Precedence:
- *   - errors win outright; known sessions stay loading until transcript content resolves.
- *   - hook 'working' stays authoritative until the hook exits that state OR an
- *     explicit terminal marker for this turn lands.
- *   - design is hook-first: lifecycle is a terminal suppressor for dropped
- *     Stop hooks, not a full authority for active-turn reconstruction.
- */
+/** Errors win; working hooks override loading until their turn ends, with provider lifecycle settling dropped Stop hooks. */
 export function mergeNativeChatLiveSession(input: NativeChatLiveMergeInput): NativeChatSession {
   const {
-    sources,
+    messages,
     sessionId,
     agent,
     hookState,
     stateStartedAt,
     transcriptLifecycle,
+    statusTailMessage,
     hookHasWorkingSubagents,
     loading,
     error
   } = input
   if (error) {
-    return assembleNativeChatSession({ sources, sessionId, agent, status: 'error', error })
+    return { messages, status: 'error', sessionId, agent, error }
   }
 
   const status = liveStatusOverride(
+    agent,
     hookState,
-    sources,
+    statusTailMessage ?? messages.at(-1),
     stateStartedAt,
     transcriptLifecycle,
     hookHasWorkingSubagents ?? false
   )
-  // Why live work still wins: 'working' is what drives Stop-vs-Send, the typing
-  // indicator and the streaming preview, so forcing 'loading' over it renders an
-  // idle pane while the agent works. A known session with nothing to show yet is
-  // held on the loading surface by selectNativeChatViewState instead.
+  // Keep Stop/activity live while loading; view-state selection separately holds empty transcripts on their loading surface.
   if (loading && status !== 'working') {
-    return assembleNativeChatSession({ sources, sessionId, agent, status: 'loading' })
+    return { messages, status: 'loading', sessionId, agent }
   }
-  return assembleNativeChatSession({
-    sources,
+  return {
+    messages,
+    status: status ?? (messages.length === 0 ? 'empty' : 'ready'),
     sessionId,
-    agent,
-    ...(status ? { status } : {})
-  })
+    agent
+  }
+}
+
+/** blocked/waiting needs human input; a transcript terminal marker can clear waits whose interrupt emitted no hook. */
+export function nativeChatHookAwaitsInput(
+  hookState: AgentStatusState | null,
+  stateStartedAt: number | null | undefined,
+  transcriptLifecycle: NativeChatTurnLifecycle | undefined
+): boolean {
+  return (
+    (hookState === 'blocked' || hookState === 'waiting') &&
+    !lifecycleTerminatesCurrentTurn(transcriptLifecycle, stateStartedAt)
+  )
 }
 
 /** Slack for comparing transcript timestamps to hook receipt times across hosts. */
 export const LIFECYCLE_CLOCK_SKEW_SLACK_MS = 2_000
 
+/** omp retries its own agent_end hook, so trailing mid-run prose/tool rows cannot stand in for a lost end signal. */
+function hookDeliversTurnEnd(agent: AgentType): boolean {
+  return agent === 'omp'
+}
+
 function liveStatusOverride(
+  agent: AgentType,
   hookState: AgentStatusState | null,
-  sources: NativeChatSources,
+  statusTailMessage: NativeChatMessage | undefined,
   stateStartedAt: number | null | undefined,
   transcriptLifecycle: NativeChatTurnLifecycle | undefined,
   hookHasWorkingSubagents: boolean
@@ -96,28 +102,22 @@ function liveStatusOverride(
     return undefined
   }
   const terminatesCurrentTurn = lifecycleTerminatesCurrentTurn(transcriptLifecycle, stateStartedAt)
-  // Why: an explicit interruption ends the whole turn, children included, so it
-  // settles the session even while a stale child status still reads working.
+  // Explicit interruption ends the aggregate turn even if stale child status still reports work.
   if (terminatesCurrentTurn && transcriptLifecycle?.state === 'interrupted') {
     return undefined
   }
-  // Why: a lead completion does not end Claude's aggregate turn while a
-  // background child still runs; callers must already scope the roster to the
-  // current working epoch so prior-turn children cannot veto forever.
+  // Claude lead completion leaves current-epoch children working; callers must exclude older rosters.
   if (hookHasWorkingSubagents) {
     return 'working'
   }
   if (terminatesCurrentTurn) {
     return undefined
   }
-  // Why: prose recovery stays available whenever the latest lifecycle is not an
-  // explicit in-progress generation. That covers incapable hosts and capable
-  // hosts whose transcript never emitted a terminal marker for this window.
-  // Mid-turn (lifecycle === working) keeps prose off so partial assistant rows
-  // do not settle early on capable providers.
+  // Use prose recovery only without an explicit working lifecycle; partial live prose must not settle capable providers early.
   if (
     transcriptLifecycle?.state !== 'working' &&
-    trailingAssistantPostDates(sources, stateStartedAt)
+    !hookDeliversTurnEnd(agent) &&
+    trailingAssistantPostDates(statusTailMessage, stateStartedAt)
   ) {
     return undefined
   }
@@ -131,18 +131,14 @@ function lifecycleTerminatesCurrentTurn(
   if (lifecycle?.state !== 'completed' && lifecycle?.state !== 'interrupted') {
     return false
   }
-  // Why: omit/null timestamps are valid on the wire. Prefer the terminal marker
-  // over a stuck spinner — the latest lifecycle is already last-wins from the
-  // watcher, so a newer user generation would have replaced it with working.
+  // Missing timestamps are valid; latest lifecycle wins because a newer user generation would have replaced it with working.
   if (stateStartedAt == null || lifecycle.timestamp == null) {
     return true
   }
   if (lifecycle.timestamp >= stateStartedAt) {
     return true
   }
-  // Why: transcript clocks and hook receipt times can skew over SSH/runtime.
-  // Only apply slack to real epoch timestamps so small logical clocks used in
-  // tests (and any non-wall-clock ids) keep strict ordering.
+  // Apply clock slack only to real epoch timestamps; logical clocks retain strict ordering.
   if (lifecycle.timestamp > 1e11 && stateStartedAt > 1e11) {
     return lifecycle.timestamp + LIFECYCLE_CLOCK_SKEW_SLACK_MS >= stateStartedAt
   }
@@ -150,12 +146,15 @@ function lifecycleTerminatesCurrentTurn(
 }
 
 function trailingAssistantPostDates(
-  sources: NativeChatSources,
+  message: NativeChatMessage | undefined,
   stateStartedAt: number | null | undefined
 ): boolean {
   if (stateStartedAt == null) {
     return false
   }
-  const last = (sources.transcript ?? []).at(-1)
-  return last?.role === 'assistant' && last.timestamp != null && last.timestamp >= stateStartedAt
+  return (
+    message?.role === 'assistant' &&
+    message.timestamp != null &&
+    message.timestamp >= stateStartedAt
+  )
 }

@@ -1,8 +1,9 @@
-/* oxlint-disable react-doctor/no-adjust-state-on-prop-change -- Why: image surface size is measured with ResizeObserver and DOM refs, which are external layout systems outside render derivation. */
 import { Image as ImageIcon, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react'
-import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type JSX, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import ImageViewerPopup from './ImageViewerPopup'
+import { EditorCommandOwnerContext } from './editor-command-owner-context'
+import { listenForViewerZoomRequests } from './viewer-zoom-request'
 import PdfViewer from './PdfViewer'
 import {
   type ApplyImageViewerZoomChange,
@@ -29,13 +30,19 @@ type ImageViewerProps = {
   filePath: string
   mimeType?: string
   layout?: 'fill' | 'intrinsic'
+  // Persist zoom only with owner-qualified identity; diff/conflict callers must not use a path-only key.
+  preferenceKey?: string | null
+  // Omission disables PDF scroll memory because diff/conflict surfaces can share a path.
+  scrollCacheKey?: string | null
 }
 
 export default function ImageViewer({
   content,
   filePath,
   mimeType = FALLBACK_IMAGE_MIME_TYPE,
-  layout = 'fill'
+  layout = 'fill',
+  preferenceKey,
+  scrollCacheKey = null
 }: ImageViewerProps): JSX.Element {
   const [isPopupOpen, setIsPopupOpen] = useState(false)
   const [inlineZoom, setInlineZoom] = useState(1)
@@ -46,6 +53,7 @@ export default function ImageViewer({
   const [popupSurfaceSize, setPopupSurfaceSize] = useState<ImageViewerSurfaceSize | null>(null)
   const [imageDimensions, setImageDimensions] = useState<ImageViewerImageDimensions | null>(null)
   const [failedPreviewSrc, setFailedPreviewSrc] = useState<string | null>(null)
+  const isCommandOwner = useContext(EditorCommandOwnerContext)
 
   const filename = useMemo(() => filePath.split(/[/\\]/).pop() || filePath, [filePath])
   const cleanedContent = useMemo(() => content.replace(/\s/g, ''), [content])
@@ -144,8 +152,7 @@ export default function ImageViewer({
       inlineSurfaceRef.current = surface
       if (surface) {
         setInlineSurfaceSize(getElementSurfaceSize(surface))
-        // Why: Chromium exposes trackpad pinch as ctrl-wheel and requires a
-        // native non-passive listener to stop browser/app zoom.
+        // Chromium reports pinch as ctrl-wheel; a non-passive listener must cancel browser zoom.
         surface.addEventListener('wheel', handleInlineImageSurfaceWheel, { passive: false })
       } else {
         setInlineSurfaceSize(null)
@@ -209,8 +216,43 @@ export default function ImageViewer({
     return () => observer.disconnect()
   }, [isPopupOpen])
 
+  useEffect(() => {
+    // Why: PDFs own their zoom; combined diff images yield to editor text until a popup opens.
+    if (!isCommandOwner || isPdf || (isIntrinsicLayout && !isPopupOpen)) {
+      return
+    }
+    const applyZoomChange = isPopupOpen ? applyPopupZoomChange : applyInlineZoomChange
+    return listenForViewerZoomRequests(
+      (direction) =>
+        applyZoomChange((currentZoom) => {
+          if (direction === 'reset') {
+            return 1
+          }
+          return direction === 'in'
+            ? currentZoom * IMAGE_VIEWER_ZOOM_STEP
+            : currentZoom / IMAGE_VIEWER_ZOOM_STEP
+        }),
+      isPopupOpen ? popupSurfaceRef : inlineSurfaceRef,
+      isPopupOpen ? 'popup' : 'pane'
+    )
+  }, [
+    applyInlineZoomChange,
+    applyPopupZoomChange,
+    isCommandOwner,
+    isIntrinsicLayout,
+    isPdf,
+    isPopupOpen
+  ])
+
   if (isPdf) {
-    return <PdfViewer content={cleanedContent} filePath={filePath} />
+    return (
+      <PdfViewer
+        content={cleanedContent}
+        filePath={filePath}
+        preferenceKey={preferenceKey}
+        scrollCacheKey={scrollCacheKey}
+      />
+    )
   }
 
   if (imageError) {
@@ -285,15 +327,15 @@ export default function ImageViewer({
                     ? 'block h-auto max-h-none max-w-full'
                     : inlineImageLayoutSize
                       ? 'block h-full w-full'
-                      : 'block max-h-full max-w-full'
+                      : // Percentage maxima cannot constrain the w-max/h-max box before load; use viewport units.
+                        'block max-h-[100vh] max-w-[100vw]'
                 )}
                 onLoad={(event) => {
                   const img = event.currentTarget
                   setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight })
                   setFailedPreviewSrc(null)
                 }}
-                // Why: track the failed source identity, not a boolean, so a new
-                // image retries immediately without waiting for an Effect reset.
+                // Key failures by source so new images retry immediately without an effect reset.
                 onError={() => setFailedPreviewSrc(previewSrc)}
               />
             </div>

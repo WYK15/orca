@@ -1,9 +1,9 @@
-import { stripImagePromptMarker } from '../../../../shared/native-chat-image-transcript-markers'
+import { nativeChatContinuationSendText } from '../../../../shared/native-chat-continuation-send'
 import {
-  isImageRefBlock,
-  isTextBlock,
-  type NativeChatMessage
-} from '../../../../shared/native-chat-types'
+  normalizeNativeChatUserText,
+  normalizedNativeChatUserMessageText
+} from '../../../../shared/native-chat-image-transcript-markers'
+import { isImageRefBlock, type NativeChatMessage } from '../../../../shared/native-chat-types'
 
 export type NativeChatPendingOccurrence = {
   text: string
@@ -16,7 +16,7 @@ export type NativeChatPendingOccurrence = {
 }
 
 export function normalizeNativeChatPendingText(text: string): string {
-  return stripImagePromptMarker(text).trim().replace(/\s+/g, ' ')
+  return normalizeNativeChatUserText(text)
 }
 
 export function nativeChatPendingContentKey(
@@ -30,28 +30,44 @@ export function nativeChatPendingContentKey(
   return imagePaths.length > 0 ? `images:${JSON.stringify(imagePaths)}` : 'empty'
 }
 
-function nativeChatUserMessageContentKey(message: NativeChatMessage): string | null {
+function nativeChatUserMessageContentKey(
+  message: NativeChatMessage,
+  sentImagePaths?: readonly string[]
+): string | null {
   if (message.role !== 'user') {
     return null
   }
-  const text = message.blocks
-    .filter(isTextBlock)
-    .map((block) => block.text)
-    .join(' ')
+  let text = normalizedNativeChatUserMessageText(message) ?? ''
+  // Some CLIs retain pasted attachment paths as prompt text instead of image markers.
+  const paths = sentImagePaths?.filter(Boolean) ?? []
+  const normalizedPaths = paths.map(normalizeNativeChatPendingText)
+  for (const prefix of [normalizedPaths.join(' '), normalizedPaths.join('')]) {
+    if (prefix && (text === prefix || text.startsWith(`${prefix} `))) {
+      text = text.slice(prefix.length).trimStart()
+      if (!text) {
+        return nativeChatPendingContentKey({ text: '', imagePaths: paths })
+      }
+      break
+    }
+  }
+  if (text) {
+    return `text:${text}`
+  }
   const imagePaths = message.blocks
     .filter(isImageRefBlock)
     .map((block) => block.path)
     .filter((path): path is string => Boolean(path))
-  const key = nativeChatPendingContentKey({ text, imagePaths })
+  const key = nativeChatPendingContentKey({ text: '', imagePaths })
   return key === 'empty' ? null : key
 }
 
 export function matchingNativeChatUserContentCounts(
-  messages: readonly NativeChatMessage[]
+  messages: readonly NativeChatMessage[],
+  sentImagePaths?: readonly string[]
 ): Map<string, number> {
   const counts = new Map<string, number>()
   for (const message of messages) {
-    const key = nativeChatUserMessageContentKey(message)
+    const key = nativeChatUserMessageContentKey(message, sentImagePaths)
     if (key) {
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
@@ -60,13 +76,14 @@ export function matchingNativeChatUserContentCounts(
 }
 
 export function advancedNativeChatUserContentCounts(
-  messages: readonly NativeChatMessage[]
+  messages: readonly NativeChatMessage[],
+  sentImagePaths?: readonly string[]
 ): Map<string, number> {
   const advanced = new Map<string, number>()
   const waiting = new Map<string, number>()
   for (const message of messages) {
     if (message.role === 'user') {
-      const key = nativeChatUserMessageContentKey(message)
+      const key = nativeChatUserMessageContentKey(message, sentImagePaths)
       if (key) {
         waiting.set(key, (waiting.get(key) ?? 0) + 1)
       }
@@ -80,30 +97,19 @@ export function advancedNativeChatUserContentCounts(
   return advanced
 }
 
-function nativeChatUserMessageNormalizedText(message: NativeChatMessage): string | null {
-  if (message.role !== 'user') {
-    return null
-  }
-  const text = normalizeNativeChatPendingText(
-    message.blocks
-      .filter(isTextBlock)
-      .map((block) => block.text)
-      .join(' ')
-  )
-  return text.length > 0 ? text : null
-}
+export type NativeChatUserRow = { id: string; text: string }
 
-/** User texts that already have a later non-user turn (ready to prune echoes). */
-export function advancedNativeChatUserTexts(
+/** User rows that already have a later non-user turn (ready to prune echoes). */
+export function advancedNativeChatUserRows(
   messages: readonly NativeChatMessage[]
-): readonly string[] {
-  const advanced: string[] = []
-  const waiting: string[] = []
+): readonly NativeChatUserRow[] {
+  const advanced: NativeChatUserRow[] = []
+  const waiting: NativeChatUserRow[] = []
   for (const message of messages) {
     if (message.role === 'user') {
-      const text = nativeChatUserMessageNormalizedText(message)
+      const text = normalizedNativeChatUserMessageText(message)
       if (text) {
-        waiting.push(text)
+        waiting.push({ id: message.id, text })
       }
       continue
     }
@@ -113,25 +119,20 @@ export function advancedNativeChatUserTexts(
   return advanced
 }
 
-/** All user texts (for hiding optimistic echoes once the turn exists). */
-export function matchingNativeChatUserTexts(
+export function matchingNativeChatUserRows(
   messages: readonly NativeChatMessage[]
-): readonly string[] {
-  const texts: string[] = []
+): readonly NativeChatUserRow[] {
+  const rows: NativeChatUserRow[] = []
   for (const message of messages) {
-    const text = nativeChatUserMessageNormalizedText(message)
+    const text = normalizedNativeChatUserMessageText(message)
     if (text) {
-      texts.push(text)
+      rows.push({ id: message.id, text })
     }
   }
-  return texts
+  return rows
 }
 
-/**
- * How many leading pending texts concatenate exactly to `userText`.
- * Covers rapid-send glue ("joke"+"continue" → "jokecontinue") without matching
- * unrelated prefixes ("hi" ↛ "history").
- */
+/** Require the whole row with optional collapsed send-boundary spaces; normalized pieces make greedy matching exact. */
 export function countLeadingPendingTextsGluedToUserText(
   pendingTexts: readonly string[],
   userText: string
@@ -139,59 +140,108 @@ export function countLeadingPendingTextsGluedToUserText(
   if (pendingTexts.length === 0 || userText.length === 0) {
     return 0
   }
-  let combined = ''
+  let cursor = 0
   for (let index = 0; index < pendingTexts.length; index += 1) {
     const piece = pendingTexts[index]
     if (!piece) {
       return 0
     }
-    combined += piece
-    if (combined === userText) {
-      return index + 1
-    }
-    if (!userText.startsWith(combined)) {
+    if (userText.startsWith(piece, cursor)) {
+      cursor += piece.length
+    } else if (index > 0 && userText.startsWith(` ${piece}`, cursor)) {
+      cursor += piece.length + 1
+    } else {
       return 0
+    }
+    if (cursor === userText.length) {
+      return index + 1
     }
   }
   return 0
 }
 
-/**
- * Mark pending entries represented only by multi-send glue (2+ consecutive
- * optimistic texts concatenated into one transcript user row). Exact single
- * matches stay in the content-key/occurrence path so repeated prompts and
- * send boundaries keep their existing semantics.
- */
-export function selectPendingIndicesRepresentedByUserTexts(
+// Continuations can finish outside this queue, so only their prefix must be represented.
+function countLeadingPendingTextsRepresentedByUserText(
+  pieces: readonly { text: string; literal: string; continuation: boolean }[],
+  userText: string
+): number {
+  let cursor = 0
+  let opened = 0
+  for (let index = 0; index < pieces.length; index += 1) {
+    const piece = pieces[index]
+    if (!piece?.text) {
+      return opened
+    }
+    const at = index > 0 && userText[cursor] === ' ' ? cursor + 1 : cursor
+    const literal = piece.continuation && userText.startsWith(piece.literal, at)
+    const text = literal ? piece.literal : piece.text
+    if (!userText.startsWith(text, at)) {
+      return opened
+    }
+    cursor = at + text.length
+    if (
+      piece.continuation &&
+      !literal &&
+      (cursor === userText.length || userText[cursor] === ' ')
+    ) {
+      opened = index + 1
+    }
+    if (cursor === userText.length) {
+      return index > 0 ? index + 1 : opened
+    }
+  }
+  return opened
+}
+
+/** Carry per-send boundaries from the caller; this matcher owns no clock. */
+export type NativeChatGluedUserRow = {
+  text: string
+  /** A row may represent only sends issued before it existed. */
+  representablePendingIndices: ReadonlySet<number>
+}
+
+/** Match multi-send glue and continuations here; exact single sends retain content-key/occurrence semantics. */
+export function selectPendingIndicesRepresentedByUserRows(
   pending: readonly NativeChatPendingOccurrence[],
-  userTexts: readonly string[]
+  rows: readonly NativeChatGluedUserRow[]
 ): Set<number> {
   const represented = new Set<number>()
-  if (pending.length < 2 || userTexts.length === 0) {
+  const remaining = pending.map((entry, index) => {
+    const continuation = nativeChatContinuationSendText(entry.text)
+    return {
+      index,
+      literal: normalizeNativeChatPendingText(entry.text),
+      text: continuation ?? normalizeNativeChatPendingText(entry.text),
+      continuation: continuation !== null
+    }
+  })
+  if (rows.length === 0 || (pending.length < 2 && !remaining.some((entry) => entry.continuation))) {
     return represented
   }
-  const remaining = pending.map((entry, index) => ({
-    index,
-    text: normalizeNativeChatPendingText(entry.text)
-  }))
-  for (const userText of userTexts) {
-    const open = remaining.filter((entry) => !represented.has(entry.index) && entry.text.length > 0)
-    const gluedCount = countLeadingPendingTextsGluedToUserText(
-      open.map((entry) => entry.text),
-      userText
-    )
-    // Why: gluedCount === 1 is an exact match — leave it to occurrence counting.
-    if (gluedCount < 2) {
+  for (const row of rows) {
+    const open: typeof remaining = []
+    for (const entry of remaining) {
+      if (represented.has(entry.index) || entry.text.length === 0) {
+        continue
+      }
+      // A row predating a send ends the adjacent run; skipping it would glue across an invalid boundary.
+      if (!row.representablePendingIndices.has(entry.index)) {
+        break
+      }
+      open.push(entry)
+    }
+    const matched = countLeadingPendingTextsRepresentedByUserText(open, row.text)
+    if (matched === 0) {
       continue
     }
-    for (let i = 0; i < gluedCount; i += 1) {
+    for (let i = 0; i < matched; i += 1) {
       const entry = open[i]
       if (!entry) {
         continue
       }
       represented.add(entry.index)
       const at = remaining.findIndex((candidate) => candidate.index === entry.index)
-      if (at >= 0) {
+      if (at !== -1) {
         remaining.splice(at, 1)
       }
     }
@@ -216,8 +266,7 @@ export function assignNativeChatPendingOccurrence<T extends NativeChatPendingOcc
     ...matching.map((candidate, index) => candidate.matchingOccurrence ?? index + 1)
   )
   const first = matching[0]
-  // Why: pruning an earlier echo must not let a later identical send reuse the
-  // same transcript occurrence, even after the read pages out its boundary.
+  // Pruning earlier echoes must not let later identical sends reuse their transcript occurrence, even after paging.
   return {
     ...entry,
     matchingOccurrence: previousOccurrence + 1,
