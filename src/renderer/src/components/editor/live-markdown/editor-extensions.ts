@@ -18,6 +18,7 @@ import { markdownDocumentSyntax } from './markdown-document-syntax'
 import { markdownDocumentModel } from './markdown-document-model'
 import { tableGridSelection } from './table-grid-selection'
 import { markdownListDeletionNumbering } from './markdown-list-numbering'
+import { markdownListMarkerWidth } from './markdown-list-marker-width'
 
 export function markdownEditorExtensions(): Extension {
   return [
@@ -37,6 +38,8 @@ export function markdownEditorExtensions(): Extension {
       addKeymap: false
     }),
     markdownDocumentModel,
+    // Filters run in reverse order so child indentation sees the final numbering.
+    markdownListMarkerWidth,
     markdownListDeletionNumbering,
     revealedTableField,
     tableGridSelection,
