@@ -333,3 +333,32 @@ code-exit paragraphs, source mode and literal Enter inside code.
 Validation: 1814 tests in 212 files; renderer type check, lint, React audit and
 max-lines ratchet; the code-exit, container-editing, baseline and document-feature
 workflows passed in both Chrome and WebKit (eight targeted process runs).
+
+## Transition coverage audit, 2026-10-27
+
+The passing regression counts above cover their explicit cases. A subsequent
+exploratory audit found these additional paths missing from that coverage. Each
+was reproduced in Chrome and WebKit; the implementation issues remain open.
+
+| Priority | Missing sequence                                               | Observed result                                                                                                    |
+| -------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| High     | Insert an item before item 9 when item 9 contains a code block | Renumbering changes `9.` to `10.` without increasing the child indentation; the code block parses outside the list |
+| High     | List item → Shift+Enter → toolbar code-block insertion         | The inserted block lacks the list indentation and becomes a document-level block                                   |
+| High     | List continuation → paste an HTML `pre/code` fragment          | Body and closing-fence lines lack the list indentation, producing separate unclosed fences                         |
+| High     | Table inside a list → Tab from its last cell                   | The appended row lacks the list indentation and falls outside the original table                                   |
+| Medium   | Quoted list → Shift+Enter → `/`                                | The quote prefix prevents slash completion from appearing                                                          |
+| Medium   | Quoted list → Shift+Enter → type a code fence → Enter          | No closing fence is inserted; preconstructed closed-fence tests did not exercise this creation path                |
+
+Further combinations are still unverified end to end:
+
+- List/quote → image, display formula or table → leave the block → continue the
+  list, including insertion from typing, toolbar, slash completion and paste.
+- Delete a closing fence → restore it → navigate out; cut across different block
+  types; undo → switch source/live mode or file → type a new branch → redo.
+- Replace part of a marker, begin in the middle of a line, and use the pointer to
+  leave a block, rather than positioning the caret directly at its source end.
+- Actual macOS Chinese input-method confirmation with Enter/Space at Markdown
+  trigger boundaries. Browser composition checks do not exercise the OS candidate UI.
+
+These open findings were recorded without changing the editor implementation or
+rebuilding the test App during this audit.
