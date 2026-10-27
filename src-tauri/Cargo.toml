@@ -1,6 +1,6 @@
 [package]
 name = "orcaw-tauri"
-version = "1.4.165-wyk.22-tauri.5"
+version = "1.4.165-wyk.22-tauri.6"
 description = "Orcaw Tauri desktop migration"
 edition = "2021"
 

@@ -87,6 +87,10 @@ jobs:
           src/shared/fork-feature-policy.test.ts
           src/shared/personal-desktop-settings.test.ts
           src/renderer/src/components/settings/personal-desktop-settings.test.ts
+          src/renderer/src/components/settings/KeybindingsFileActions.test.tsx
+          src/renderer/src/components/terminal-pane/terminal-ime-quote-commit.test.ts
+          src/renderer/src/components/terminal-pane/terminal-ime-native-text-forwarder.test.ts
+          src/renderer/src/components/terminal-pane/terminal-ime-input-source.test.ts
           src/renderer/src/components/settings/desktop-appearance-updates.test.ts
           src/renderer/src/components/sidebar/sidebar-project-archive-actions.test.ts
           src/renderer/src/components/sidebar/personal-workspace-board.test.tsx

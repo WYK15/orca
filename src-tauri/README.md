@@ -153,11 +153,14 @@ comparison, not a published installer measurement or a memory-use guarantee.
 
 Scheduled automations, Orca plugin management, Linear/Jira, simulator entry
 points, first-use onboarding, SSH hosts, paired remote Orca servers,
-orchestration, experimental features, and the workspace board are excluded
+orchestration, experimental features, the workspace board, and the floating workspace are excluded
 from the personal Tauri build. Remote connection IPC and orchestration RPC
 are unavailable, and packages omit SSH relay payloads. Effective settings
 keep experimental features off and select the local runtime even when an old
 profile saved different preferences; original records remain on disk.
+Legacy floating workspace settings cannot restore its controls or shortcuts;
+stored files and drafts remain intact. Shortcut configuration opens in the
+default external application.
 Codex plugins keep their own management and execution inside Codex.
 Existing profile records are retained for compatibility.
 
