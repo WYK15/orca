@@ -158,16 +158,21 @@ export function isImeNativeTextKeydownCandidate(
   if (isSyntheticUnicodeTextKey(event)) {
     return true
   }
-  if (inputSourceFeatures.forwardHangulJamo && isHangulJamoKey(event.key)) {
+  return isImeNativeTextCommitCandidate(event.key, inputSourceFeatures)
+}
+
+export function isImeNativeTextCommitCandidate(
+  text: string,
+  inputSourceFeatures: MacNativeTextInputSourceFeatures
+): boolean {
+  if (inputSourceFeatures.forwardHangulJamo && isHangulJamoKey(text)) {
     return true
   }
-  if (isCjkDirectPunctuationKey(event.key)) {
+  if (isCjkDirectPunctuationKey(text)) {
     return true
   }
-  if (inputSourceFeatures.forwardAsciiPunctuation && isAsciiPunctuationKey(event.key)) {
+  if (inputSourceFeatures.forwardAsciiPunctuation && isAsciiPunctuationKey(text)) {
     return true
   }
-  return (
-    inputSourceFeatures.forwardShortTextReplacements && isAsciiShortTextReplacementKey(event.key)
-  )
+  return inputSourceFeatures.forwardShortTextReplacements && isAsciiShortTextReplacementKey(text)
 }

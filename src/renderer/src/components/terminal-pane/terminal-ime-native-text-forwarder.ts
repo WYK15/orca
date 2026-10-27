@@ -4,6 +4,7 @@ import {
   type MacNativeTextInputSourceFeatures
 } from './terminal-ime-input-source'
 import {
+  isImeNativeTextCommitCandidate,
   isImeNativeTextKeydownCandidate,
   isSinglePrintableTextKey,
   type ImeNativeTextKeyEvent
@@ -19,6 +20,8 @@ type ClaimedKeyPress = {
   key: string
   code?: string
 }
+
+const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'AltGraph', 'Meta', 'CapsLock'])
 
 export const XTERM_COMPOSITION_TRANSACTION_ACCEPTED_EVENT = 'xterm-composition-transaction-accepted'
 export const XTERM_COMPOSITION_TRANSACTION_SETTLED_EVENT = 'xterm-composition-transaction-settled'
@@ -73,6 +76,10 @@ export function installTerminalImeNativeTextForwarder(args: {
   let pendingForwardClearTimer: number | null = null
   let compositionTransactionPending = false
   let claimedPress: ClaimedKeyPress | null = null
+  let nativeTextKeydownPending = false
+  let nativeTextKeypressPending = false
+  let forwardingBeforeKeydown = false
+  let earlyCommitAwaitingKeydown = false
 
   const clearPendingForwardTimer = (): void => {
     if (pendingForwardClearTimer !== null) {
@@ -84,6 +91,7 @@ export function installTerminalImeNativeTextForwarder(args: {
   const disarmPendingForward = (): void => {
     clearPendingForwardTimer()
     pendingForward = false
+    forwardingBeforeKeydown = false
   }
 
   const schedulePendingForwardClear = (): void => {
@@ -113,12 +121,21 @@ export function installTerminalImeNativeTextForwarder(args: {
           args.getInputSourceFeatures?.() ?? DISABLED_MAC_NATIVE_TEXT_INPUT_SOURCE_FEATURES
         )
       ) {
+        if (!MODIFIER_KEYS.has(event.key)) {
+          earlyCommitAwaitingKeydown = false
+        }
         return false
+      }
+      claimedPress = { key: event.key, code: event.code }
+      if (earlyCommitAwaitingKeydown) {
+        earlyCommitAwaitingKeydown = false
+        disarmPendingForward()
+        return true
       }
       // Arm forwarding so the upcoming input event is sent to the PTY.
       clearPendingForwardTimer()
       pendingForward = true
-      claimedPress = { key: event.key, code: event.code }
+      forwardingBeforeKeydown = false
       return true
     }
     if (!claimedPress) {
@@ -146,6 +163,45 @@ export function installTerminalImeNativeTextForwarder(args: {
     return false
   }
 
+  const observeKeyboardEvent = (event: Event): void => {
+    if (!(event instanceof KeyboardEvent) || MODIFIER_KEYS.has(event.key)) {
+      return
+    }
+    if (event.type === 'keydown') {
+      nativeTextKeydownPending = true
+    } else if (event.type === 'keypress') {
+      nativeTextKeypressPending = true
+    } else if (event.type === 'keyup') {
+      nativeTextKeydownPending = false
+      nativeTextKeypressPending = false
+    }
+  }
+
+  const prepareEarlyNativeCommit = (event: Event): void => {
+    if (
+      !(event instanceof InputEvent) ||
+      event.defaultPrevented ||
+      event.inputType !== 'insertText' ||
+      !event.data ||
+      event.isComposing ||
+      args.isComposing() ||
+      compositionTransactionPending ||
+      pendingForward ||
+      nativeTextKeydownPending ||
+      nativeTextKeypressPending ||
+      !isImeNativeTextCommitCandidate(
+        event.data,
+        args.getInputSourceFeatures?.() ?? DISABLED_MAC_NATIVE_TEXT_INPUT_SOURCE_FEATURES
+      )
+    ) {
+      return
+    }
+    // macOS WebKit can commit IME punctuation before delivering its 229 keydown.
+    clearPendingForwardTimer()
+    pendingForward = true
+    forwardingBeforeKeydown = true
+  }
+
   const forwardCommittedText = (event: Event): void => {
     if (!(event instanceof InputEvent)) {
       return
@@ -162,8 +218,10 @@ export function installTerminalImeNativeTextForwarder(args: {
       disarmPendingForward()
       return
     }
+    const committedBeforeKeydown = forwardingBeforeKeydown
     disarmPendingForward()
     if (event.data) {
+      earlyCommitAwaitingKeydown = committedBeforeKeydown
       args.sendInput(event.data)
     }
     event.stopImmediatePropagation()
@@ -178,6 +236,9 @@ export function installTerminalImeNativeTextForwarder(args: {
     disarmPendingForward()
     compositionTransactionPending = false
     claimedPress = null
+    nativeTextKeydownPending = false
+    nativeTextKeypressPending = false
+    earlyCommitAwaitingKeydown = false
   }
 
   terminalElement.addEventListener(
@@ -191,6 +252,10 @@ export function installTerminalImeNativeTextForwarder(args: {
     true
   )
   terminalElement.addEventListener('input', forwardCommittedText, true)
+  terminalElement.addEventListener('beforeinput', prepareEarlyNativeCommit, true)
+  for (const type of ['keydown', 'keypress', 'keyup']) {
+    terminalElement.addEventListener(type, observeKeyboardEvent, true)
+  }
   terminalElement.addEventListener('blur', cancelPending, true)
 
   return {
@@ -208,6 +273,10 @@ export function installTerminalImeNativeTextForwarder(args: {
         true
       )
       terminalElement.removeEventListener('input', forwardCommittedText, true)
+      terminalElement.removeEventListener('beforeinput', prepareEarlyNativeCommit, true)
+      for (const type of ['keydown', 'keypress', 'keyup']) {
+        terminalElement.removeEventListener(type, observeKeyboardEvent, true)
+      }
       terminalElement.removeEventListener('blur', cancelPending, true)
     }
   }

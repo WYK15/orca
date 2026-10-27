@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMacNativeTextInputSourceTracker } from './terminal-ime-input-source'
 import { installTerminalImeNativeTextForwarder } from './terminal-ime-native-text-forwarder'
 import { installTerminalImeCompositionTracker } from './terminal-ime-composition-tracker'
+import { shouldSuppressTerminalImeKeyboardEvent } from './xterm-bypass-policy'
 
 const disposables: { dispose: () => void }[] = []
 
@@ -22,7 +23,7 @@ afterEach(() => {
   document.body.replaceChildren()
 })
 
-async function openTerminal(sourceId: string | null, kitty: boolean) {
+async function openTerminal(sourceId: string | null, kitty: boolean | number) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const terminal = new Terminal()
@@ -45,9 +46,23 @@ async function openTerminal(sourceId: string | null, kitty: boolean) {
     sendInput: (data) => terminal.input(data)
   })
   disposables.push(forwarder)
-  terminal.attachCustomKeyEventHandler((event) => !forwarder.claimKeyEvent(event))
+  terminal.attachCustomKeyEventHandler((event) => {
+    if (
+      shouldSuppressTerminalImeKeyboardEvent(event, {
+        compositionActive: composition.isActive(),
+        candidateKeyGuardActive: composition.isCandidateKeyGuardActive(),
+        pendingCandidateKeyReleaseActive: false,
+        isMac: true,
+        isLinux: false
+      })
+    ) {
+      return false
+    }
+    return !forwarder.claimKeyEvent(event)
+  })
   if (kitty) {
-    await new Promise<void>((resolve) => terminal.write('\x1b[>1u', resolve))
+    const flags = typeof kitty === 'number' ? kitty : 1
+    await new Promise<void>((resolve) => terminal.write(`\x1b[>${flags}u`, resolve))
   }
   return { textarea, emitted }
 }
@@ -80,6 +95,19 @@ function insert(textarea: HTMLTextAreaElement, text: string): void {
   )
 }
 
+function nativeInsert(textarea: HTMLTextAreaElement, text: string): void {
+  textarea.dispatchEvent(
+    new InputEvent('beforeinput', {
+      data: text,
+      inputType: 'insertText',
+      composed: true,
+      bubbles: true,
+      cancelable: true
+    })
+  )
+  insert(textarea, text)
+}
+
 async function commitChinese(textarea: HTMLTextAreaElement): Promise<void> {
   for (const type of ['compositionstart', 'compositionupdate', 'compositionend']) {
     const event = new CompositionEvent(type, { bubbles: true })
@@ -93,6 +121,92 @@ async function commitChinese(textarea: HTMLTextAreaElement): Promise<void> {
 }
 
 describe('terminal Chinese quote commits', () => {
+  it.each([false, 1, 31])(
+    'forwards observed macOS WebKit text-before-keydown quotes immediately (kitty=%s)',
+    async (kitty) => {
+      const { textarea, emitted } = await openTerminal(
+        'com.apple.inputmethod.SCIM.Shuangpin',
+        kitty
+      )
+      await commitChinese(textarea)
+      const shift = new KeyboardEvent('keydown', {
+        key: 'Shift',
+        code: 'ShiftLeft',
+        shiftKey: true,
+        bubbles: true
+      })
+      Object.defineProperty(shift, 'keyCode', { value: 16 })
+      textarea.dispatchEvent(shift)
+      const prefix = emitted.join('')
+
+      for (const [index, glyph] of ['“', '”'].entries()) {
+        nativeInsert(textarea, glyph)
+        expect(emitted.join('')).toBe(prefix + '“”'.slice(0, index + 1))
+        key(textarea, 'keydown', '"', 229)
+        key(textarea, 'keyup', '"')
+        expect(emitted.join('')).toBe(prefix + '“”'.slice(0, index + 1))
+      }
+    }
+  )
+
+  it('does not consume the following ordinary key after a text-before-keydown quote', async () => {
+    const { textarea, emitted } = await openTerminal('com.apple.inputmethod.SCIM.Shuangpin', false)
+    nativeInsert(textarea, '“')
+    key(textarea, 'keydown', '"', 229)
+    key(textarea, 'keyup', '"')
+    const down = new KeyboardEvent('keydown', {
+      key: 'a',
+      code: 'KeyA',
+      keyCode: 65,
+      bubbles: true,
+      cancelable: true
+    })
+    textarea.dispatchEvent(down)
+    if (!down.defaultPrevented) {
+      textarea.dispatchEvent(
+        new KeyboardEvent('keypress', {
+          key: 'a',
+          code: 'KeyA',
+          charCode: 97,
+          bubbles: true
+        })
+      )
+      nativeInsert(textarea, 'a')
+    }
+    expect(emitted.join('')).toBe('“a')
+  })
+
+  it('does not duplicate punctuation already sent by an unmatched keypress', async () => {
+    const { textarea, emitted } = await openTerminal('com.apple.inputmethod.SCIM.Shuangpin', false)
+    key(textarea, 'keypress', '“', 8220)
+    nativeInsert(textarea, '“')
+    key(textarea, 'keyup', '"')
+    expect(emitted.join('')).toBe('“')
+  })
+
+  it('leaves punctuation inside an active composition with the composition owner', async () => {
+    const { textarea, emitted } = await openTerminal('com.apple.inputmethod.SCIM.Shuangpin', true)
+    textarea.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }))
+    nativeInsert(textarea, '“')
+    expect(emitted).toEqual([])
+    const end = new CompositionEvent('compositionend', { bubbles: true })
+    Object.defineProperty(end, 'data', { value: '“' })
+    textarea.dispatchEvent(end)
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    expect(emitted.join('')).toBe('“')
+  })
+
+  it('forwards text-before-keydown quotes even while the source probe has no result', async () => {
+    const { textarea, emitted } = await openTerminal(null, true)
+    for (const glyph of ['“', '”']) {
+      nativeInsert(textarea, glyph)
+      key(textarea, 'keydown', '"', 229)
+      key(textarea, 'keyup', '"')
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    }
+    expect(emitted.join('')).toBe('“”')
+  })
+
   it.each([false, true])(
     'forwards the first quote immediately and the pair once (kitty=%s)',
     async (kitty) => {
