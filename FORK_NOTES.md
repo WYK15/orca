@@ -15,7 +15,11 @@ Remove an entry after an upstream sync contains its equivalent commits.
 - The personal Tauri build omits scheduled automations, Orca plugin management
   and its worker, Linear/Jira, simulator entry points, and first-use tours.
   It also excludes SSH hosts, paired Orca servers, Orca orchestration,
-  experimental features, and the workspace board. Remote connection IPC and
+  experimental features, the workspace board, and the floating workspace.
+  Floating workspace controls, settings, and shortcuts are unavailable even
+  with legacy enablement; stored files, drafts, and terminal records remain intact.
+  The shortcut configuration file opens with the default external application.
+  Remote connection IPC and
   orchestration RPC are unavailable; packages omit SSH relay payloads. Effective
   settings ignore legacy remote selection and experimental enablement while
   retaining their stored records. Local folder and Git workspaces remain usable.

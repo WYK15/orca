@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger
 } from '../ui/dropdown-menu'
 import { translate } from '@/i18n/i18n'
+import { FLOATING_WORKSPACE_ENABLED } from '../../../../shared/fork-feature-policy'
 
 function openFailureMessage(reason: string): string {
   switch (reason) {
@@ -69,6 +70,10 @@ export function KeybindingsFileActions(): React.JSX.Element {
 
   const editKeybindingsInOrca = async (): Promise<void> => {
     try {
+      if (!FLOATING_WORKSPACE_ENABLED) {
+        await openKeybindingsFile()
+        return
+      }
       const filePath = await prepareKeybindingsPath()
       if (!filePath) {
         toast.error(
@@ -160,11 +165,20 @@ export function KeybindingsFileActions(): React.JSX.Element {
         className="rounded-none border-0 shadow-none"
         onClick={() => void editKeybindingsInOrca()}
       >
-        <FileText className="size-3" />
-        {translate(
-          'auto.components.settings.KeybindingsFileActions.1c2be2b2c6',
-          'Edit File in Orca'
+        {FLOATING_WORKSPACE_ENABLED ? (
+          <FileText className="size-3" />
+        ) : (
+          <ExternalLink className="size-3" />
         )}
+        {FLOATING_WORKSPACE_ENABLED
+          ? translate(
+              'auto.components.settings.KeybindingsFileActions.1c2be2b2c6',
+              'Edit File in Orca'
+            )
+          : translate(
+              'auto.components.settings.KeybindingsFileActions.98f1a23e1c',
+              'Open with Default App'
+            )}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

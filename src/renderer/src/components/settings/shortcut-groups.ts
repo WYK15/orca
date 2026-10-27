@@ -8,6 +8,7 @@ import { normalizeDisabledTuiAgents } from '../../../../shared/tui-agent-selecti
 import type { TuiAgent } from '../../../../shared/types'
 import {
   SIMULATOR_ENABLED,
+  FLOATING_WORKSPACE_ENABLED,
   SPEECH_ENABLED,
   WORKSPACE_BOARD_ENABLED
 } from '../../../../shared/fork-feature-policy'
@@ -39,6 +40,9 @@ export function groupDefinitions(
   for (const definition of [...KEYBINDING_DEFINITIONS, ...additionalDefinitions]) {
     if (
       hiddenAgentActionIds.has(definition.id) ||
+      (!FLOATING_WORKSPACE_ENABLED &&
+        (definition.id.startsWith('floatingTerminal.') ||
+          definition.id.startsWith('floatingWorkspace.'))) ||
       (!WORKSPACE_BOARD_ENABLED && definition.id === 'workspace.openBoard') ||
       (!SIMULATOR_ENABLED && definition.id === 'tab.newSimulator') ||
       (!SPEECH_ENABLED && definition.id === 'voice.dictation')

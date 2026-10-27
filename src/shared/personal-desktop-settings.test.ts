@@ -19,13 +19,14 @@ describe('personal desktop settings', () => {
     expect(applyPersonalDesktopSettings(settings)).toBe(settings)
   })
 
-  it('ignores legacy remote and experimental enablement without modifying stored records', async () => {
+  it('ignores removed feature enablement without modifying stored records', async () => {
     vi.stubGlobal('ORCA_PERSONAL_DESKTOP_ENABLED', true)
     vi.resetModules()
     const { applyPersonalDesktopSettings } = await import('./personal-desktop-settings')
     const settings = {
       ...getDefaultSettings('/fixture'),
       activeRuntimeEnvironmentId: 'server',
+      floatingTerminalEnabled: true,
       experimentalPet: true,
       experimentalActivity: true,
       experimentalAgentDashboardPopout: true,
@@ -39,6 +40,8 @@ describe('personal desktop settings', () => {
     }
     const effective = applyPersonalDesktopSettings(settings)
     expect(effective.activeRuntimeEnvironmentId).toBeNull()
+    expect(effective.floatingTerminalEnabled).toBe(false)
+    expect(settings.floatingTerminalEnabled).toBe(true)
     expect(effective.openAgentTabsInChatByDefault).toBe(false)
     for (const [key, value] of Object.entries(effective)) {
       if (key.startsWith('experimental') && typeof value === 'boolean') {

@@ -1,6 +1,7 @@
 import {
   EMBEDDED_BROWSER_ENABLED,
   EXPERIMENTAL_FEATURES_ENABLED,
+  FLOATING_WORKSPACE_ENABLED,
   ISSUE_TRACKERS_ENABLED,
   ONBOARDING_ENABLED,
   ORCA_PLUGINS_ENABLED,
@@ -625,6 +626,7 @@ export function buildSettingsNavigationMetadata({
   ].filter(
     (section) =>
       (SPEECH_ENABLED || section.id !== 'voice') &&
+      (FLOATING_WORKSPACE_ENABLED || section.id !== 'floating-workspace') &&
       (WEB_CLIENT_ENABLED || section.id !== 'mobile') &&
       (EMBEDDED_BROWSER_ENABLED || section.id !== 'browser') &&
       (ORCA_PLUGINS_ENABLED || section.id !== 'plugins') &&

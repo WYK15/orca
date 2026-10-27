@@ -19,6 +19,7 @@ export function applyPersonalDesktopSettings(settings: GlobalSettings): GlobalSe
         .map(([key]) => [key, false])
     ),
     activeRuntimeEnvironmentId: null,
+    floatingTerminalEnabled: false,
     openAgentTabsInChatByDefault: false
   }
   effectiveSettings.set(settings, next)

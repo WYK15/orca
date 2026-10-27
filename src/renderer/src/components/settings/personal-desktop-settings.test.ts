@@ -46,7 +46,8 @@ describe('personal desktop settings', () => {
       'orchestration',
       'servers',
       'ssh',
-      'experimental'
+      'experimental',
+      'floating-workspace'
     ]) {
       expect(ids).not.toContain(id)
     }
@@ -62,7 +63,13 @@ describe('personal desktop settings', () => {
     expect(
       groupDefinitions([])
         .flatMap((group) => group.items)
-        .some((item) => item.id === 'tab.newSimulator' || item.id === 'workspace.openBoard')
+        .some(
+          (item) =>
+            item.id === 'tab.newSimulator' ||
+            item.id === 'workspace.openBoard' ||
+            item.id.startsWith('floatingTerminal.') ||
+            item.id.startsWith('floatingWorkspace.')
+        )
     ).toBe(false)
     const { getShortcutsPaneSearchEntries } = await import('./shortcuts-search')
     expect(
@@ -71,5 +78,22 @@ describe('personal desktop settings', () => {
     expect(getShortcutsPaneSearchEntries().some((entry) => /emulator/i.test(entry.title))).toBe(
       false
     )
+  })
+
+  it('ignores custom floating workspace shortcuts on every platform', async () => {
+    vi.stubGlobal('ORCA_PERSONAL_DESKTOP_ENABLED', true)
+    vi.resetModules()
+    const { getEffectiveKeybindingsForAction } = await import('../../../../shared/keybindings')
+    for (const platform of ['darwin', 'win32', 'linux'] as const) {
+      for (const action of [
+        'floatingTerminal.toggle',
+        'floatingWorkspace.maximize',
+        'floatingWorkspace.minimize'
+      ] as const) {
+        expect(
+          getEffectiveKeybindingsForAction(action, platform, { [action]: ['Ctrl+Alt+Q'] })
+        ).toEqual([])
+      }
+    }
   })
 })

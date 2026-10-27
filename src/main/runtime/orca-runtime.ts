@@ -1,5 +1,6 @@
 import {
   EMBEDDED_BROWSER_ENABLED,
+  FLOATING_WORKSPACE_ENABLED,
   ISSUE_TRACKERS_ENABLED,
   ORCHESTRATION_ENABLED,
   REMOTE_HOSTS_ENABLED,
@@ -4776,7 +4777,8 @@ export class OrcaRuntimeService {
       capabilities,
       hostPlatform: process.platform,
       terminalWindowsShell: this.store?.getSettings?.().terminalWindowsShell ?? null,
-      floatingWorkspaceEnabled: this.store?.getSettings?.().floatingTerminalEnabled !== false,
+      floatingWorkspaceEnabled:
+        FLOATING_WORKSPACE_ENABLED && this.store?.getSettings?.().floatingTerminalEnabled !== false,
       protocolVersion: RUNTIME_PROTOCOL_VERSION,
       minCompatibleMobileVersion: MIN_COMPATIBLE_RUNTIME_CLIENT_VERSION
     }

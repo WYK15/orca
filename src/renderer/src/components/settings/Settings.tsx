@@ -1,6 +1,7 @@
 import {
   EMBEDDED_BROWSER_ENABLED,
   EXPERIMENTAL_FEATURES_ENABLED,
+  FLOATING_WORKSPACE_ENABLED,
   ISSUE_TRACKERS_ENABLED,
   ONBOARDING_ENABLED,
   ORCA_PLUGINS_ENABLED,
@@ -1570,22 +1571,24 @@ function Settings(): React.JSX.Element {
                   </SettingsSection>
                 ) : null}
 
-                <SettingsSection
-                  id="floating-workspace"
-                  title={translate(
-                    'auto.components.settings.Settings.3eb22a3ada',
-                    'Floating Workspace'
-                  )}
-                  description={translate(
-                    'auto.components.settings.Settings.3d9adfe6a5',
-                    'Global terminal, browser, and markdown tabs.'
-                  )}
-                  searchEntries={getSectionSearchEntries('floating-workspace')}
-                >
-                  {isSectionMounted('floating-workspace') ? (
-                    <FloatingWorkspacePane settings={settings} updateSettings={updateSettings} />
-                  ) : null}
-                </SettingsSection>
+                {FLOATING_WORKSPACE_ENABLED && (
+                  <SettingsSection
+                    id="floating-workspace"
+                    title={translate(
+                      'auto.components.settings.Settings.3eb22a3ada',
+                      'Floating Workspace'
+                    )}
+                    description={translate(
+                      'auto.components.settings.Settings.3d9adfe6a5',
+                      'Global terminal, browser, and markdown tabs.'
+                    )}
+                    searchEntries={getSectionSearchEntries('floating-workspace')}
+                  >
+                    {isSectionMounted('floating-workspace') ? (
+                      <FloatingWorkspacePane settings={settings} updateSettings={updateSettings} />
+                    ) : null}
+                  </SettingsSection>
+                )}
 
                 <SettingsSection
                   id="appearance"

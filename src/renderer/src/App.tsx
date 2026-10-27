@@ -1,6 +1,7 @@
 import {
   AUTOMATIONS_ENABLED,
   EXPERIMENTAL_FEATURES_ENABLED,
+  FLOATING_WORKSPACE_ENABLED,
   ONBOARDING_ENABLED,
   REMOTE_HOSTS_ENABLED,
   SPEECH_ENABLED,
@@ -402,11 +403,13 @@ const SetupGuideTelemetryObserver = ONBOARDING_ENABLED
       }))
     )
   : () => null
-const FloatingTerminalPanel = lazy(() =>
-  import('./components/floating-terminal/FloatingTerminalPanel').then((module) => ({
-    default: module.FloatingTerminalPanel
-  }))
-)
+const FloatingTerminalPanel = FLOATING_WORKSPACE_ENABLED
+  ? lazy(() =>
+      import('./components/floating-terminal/FloatingTerminalPanel').then((module) => ({
+        default: module.FloatingTerminalPanel
+      }))
+    )
+  : () => null
 // Why: lazy so the WebP asset + overlay module aren't fetched unless the experimental flag is on.
 const PetOverlay = lazy(() => import('./components/pet/PetOverlay'))
 // Why: lazy so onboarding's step modules + assets aren't fetched for users past first-launch.
@@ -555,7 +558,9 @@ function App(): React.JSX.Element {
   const rightSidebarShortcutLabel = useShortcutLabel('sidebar.right.toggle')
   const historyBackShortcutLabel = useShortcutLabel('worktree.history.back')
   const historyForwardShortcutLabel = useShortcutLabel('worktree.history.forward')
-  const floatingTerminalEnabled = useAppStore((s) => s.settings?.floatingTerminalEnabled === true)
+  const floatingTerminalEnabled = useAppStore(
+    (s) => FLOATING_WORKSPACE_ENABLED && s.settings?.floatingTerminalEnabled === true
+  )
   const floatingTerminalTriggerLocation = useAppStore(
     (s) => s.settings?.floatingTerminalTriggerLocation ?? 'floating-button'
   )
@@ -2454,7 +2459,7 @@ function App(): React.JSX.Element {
                             </RecoverableRenderErrorBoundary>
                           </Suspense>
                         </div>
-                        {showFloatingTerminalButton ? (
+                        {FLOATING_WORKSPACE_ENABLED && showFloatingTerminalButton ? (
                           <FloatingTerminalToggleButton
                             open={floatingTerminalOpen}
                             onToggle={() => setFloatingTerminalOpenWithFocus((open) => !open)}
@@ -2485,7 +2490,7 @@ function App(): React.JSX.Element {
                 ) : null}
               </div>
             </RecoverableRenderErrorBoundary>
-            {shouldMountFloatingTerminalPanel ? (
+            {FLOATING_WORKSPACE_ENABLED && shouldMountFloatingTerminalPanel ? (
               <Suspense fallback={null}>
                 <RecoverableRenderErrorBoundary
                   boundaryId="overlay.floating-workspace"
