@@ -50,9 +50,11 @@ export function reorderMarkdownTable(
               from: row.from,
               to: row.to,
               insert:
-                index === 0
+                row.prefix +
+                (index === 0
                   ? rowSource(text, table.rows[order[index]], table.delimiter.cells.length)
                   : text.slice(table.rows[order[index]].from, table.rows[order[index]].to)
+                ).slice(table.rows[order[index]].prefix.length)
             }
           ]
     )

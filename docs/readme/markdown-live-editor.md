@@ -182,7 +182,7 @@ Run the browser workflows against a fresh temporary fixture server:
 node tests/tools/markdown-live-editor/run-browser-acceptance.mjs
 ```
 
-The runner executes all thirteen workflows sequentially in Chrome and WebKit. Each
+The runner executes all fourteen workflows sequentially in Chrome and WebKit. Each
 workflow has a deadline; logs and `results.json` are written to the printed
 artifact directory. The temporary server and owned test processes are cleaned up.
 Individual check names can be supplied as arguments for targeted regression work.
@@ -338,9 +338,10 @@ workflows passed in both Chrome and WebKit (eight targeted process runs).
 
 The passing regression counts above cover their explicit cases. A subsequent
 exploratory audit found these additional paths missing from that coverage. Each
-was reproduced in Chrome and WebKit; the implementation issues remain open.
+was reproduced in Chrome and WebKit. All six findings have since been fixed by
+the contextual insertion and marker-width changes described below.
 
-| Priority | Missing sequence                                               | Observed result                                                                                                    |
+| Priority | Missing sequence                                               | Observed result before the fix                                                                                     |
 | -------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | High     | Insert an item before item 9 when item 9 contains a code block | Renumbering changes `9.` to `10.` without increasing the child indentation; the code block parses outside the list |
 | High     | List item → Shift+Enter → toolbar code-block insertion         | The inserted block lacks the list indentation and becomes a document-level block                                   |
@@ -360,5 +361,32 @@ Further combinations are still unverified end to end:
 - Actual macOS Chinese input-method confirmation with Enter/Space at Markdown
   trigger boundaries. Browser composition checks do not exercise the OS candidate UI.
 
-These open findings were recorded without changing the editor implementation or
-rebuilding the test App during this audit.
+The audit initially recorded the findings without implementation changes. The
+follow-up fixes resolve those six findings; the other combinations above remain
+outside the verified scope.
+
+## Contextual insertion fixes, 2026-10-27
+
+The six audited paths now have fixed regressions:
+
+- Numbering growth and shrinkage resize the affected item's indented children.
+  The width filter runs after deletion renumbering, keeps nested code/list/table
+  ownership, and shares the original edit's undo transaction. Source mode and
+  external reloads remain literal; opening a document does not normalize it.
+- Toolbar blocks and rich HTML code paste retain the current list/quote prefix.
+  The caret and table-cell offsets account for the prefixes on inserted lines.
+  Pasted inline content retains its existing insertion behavior.
+- New table rows retain their container prefix. Header promotion, row reordering
+  and column edits also preserve that prefix without including it in cell text.
+- Quoted continuation lines accept slash completion, and typed quote/list fences
+  insert a matching closing fence with the same container prefix.
+
+Validation: 1829 unit/integration tests in 215 files; all fourteen browser workflows
+in Chrome and WebKit (28 successful process runs); renderer type check, changed-file
+lint, React audit and max-lines ratchet. Tests exercise the complete creation,
+typing, continuation and undo paths instead of starting with a prepared block.
+
+iOS/Windows manual copies and MConclusion.md retained exact source through mode
+changes, heading/table edits and undo, including deleting the iOS 1.3 section.
+Original-file hashes remained unchanged. The 2000-section synthetic document
+retained all headings and reversed consecutive edits exactly.

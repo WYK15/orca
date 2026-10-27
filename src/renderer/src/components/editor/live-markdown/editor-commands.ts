@@ -22,6 +22,8 @@ import { removeMarkdownListItemMarker } from './markdown-list-commands'
 import { insertQuotedCodeBreak } from './markdown-code-break'
 import { continueListAfterBreak, markdownListBreakPrefix } from './markdown-list-breaks'
 import { insertMarkdownSoftBreak } from './markdown-soft-break'
+import { prepareMarkdownBlockInsertion } from './markdown-block-insertion'
+import { markdownContainerPrefix } from './markdown-container-prefix'
 import {
   completeMarkdownTable,
   setMarkdownHeading,
@@ -105,17 +107,17 @@ export function insertMarkdownBlock(content: string, cursorOffset = content.leng
       return false
     }
     const { from, to } = view.state.selection.main
-    const prefix = from > 0 && !view.state.sliceDoc(0, from).endsWith('\n\n') ? '\n\n' : ''
-    const insert = `${prefix + content}\n\n`
+    const insertion = prepareMarkdownBlockInsertion(view.state, from, to, content)
     const table = content.startsWith('|') ? parseMarkdownTable(content, 0, content.length) : null
     const cell = table?.rows[1]?.cells[0]
     const cellRange = cell
-      ? { from: from + prefix.length + cell.from, to: from + prefix.length + cell.to }
+      ? { from: insertion.position(cell.from), to: insertion.position(cell.to) }
       : null
     view.dispatch({
-      changes: { from, to, insert },
-      selection: { anchor: cellRange?.from ?? from + prefix.length + cursorOffset },
+      changes: insertion.change,
+      selection: { anchor: cellRange?.from ?? insertion.position(cursorOffset) },
       effects: cellRange ? selectTableCell.of(cellRange) : [],
+      annotations: isolateHistory.of('full'),
       userEvent: 'input',
       scrollIntoView: true
     })
@@ -159,11 +161,19 @@ export const completeCodeFence: StateCommand = ({ state, dispatch }) => {
     return false
   }
   const line = state.doc.lineAt(state.selection.main.head)
-  const fence = line.text.match(/^(\s*)(`{3,}|~{3,})([\w+-]*)$/)
+  const block = markdownCodeBlockAt(state)
+  if (
+    block &&
+    (block.name !== 'FencedCode' || state.doc.lineAt(block.from).number !== line.number)
+  ) {
+    return false
+  }
+  const opening = block?.getChild('CodeMark')
+  const start = opening?.from ?? line.from + markdownContainerPrefix(state, line.from).length
+  const fence = state.sliceDoc(start, line.to).match(/^(`{3,}|~{3,})([\w+-]*)$/)
   if (!fence || state.selection.main.head !== line.to) {
     return false
   }
-  const block = markdownCodeBlockAt(state)
   if (
     block &&
     (block.from < line.from ||
@@ -172,14 +182,15 @@ export const completeCodeFence: StateCommand = ({ state, dispatch }) => {
     return false
   }
   const next = line.number < state.doc.lines ? state.doc.line(line.number + 1).text : ''
-  if (next.trim().startsWith(fence[2])) {
+  const indent = state.sliceDoc(line.from, start).replace(/[^\t >]/g, ' ')
+  if (next.slice(indent.length).startsWith(fence[1])) {
     return false
   }
-  const insert = `\n${fence[1]}\n${fence[1]}${fence[2]}`
+  const insert = `\n${indent}\n${indent}${fence[1]}`
   dispatch(
     state.update({
       changes: { from: line.to, insert },
-      selection: { anchor: line.to + 1 + fence[1].length },
+      selection: { anchor: line.to + 1 + indent.length },
       userEvent: 'input'
     })
   )

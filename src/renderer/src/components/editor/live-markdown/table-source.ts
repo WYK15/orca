@@ -13,6 +13,7 @@ export type MarkdownTableRow = {
   to: number
   cells: MarkdownTableCell[]
   trailingPipe: boolean
+  prefix: string
 }
 export type MarkdownTable = {
   from: number
@@ -20,10 +21,16 @@ export type MarkdownTable = {
   rows: MarkdownTableRow[]
   delimiter: MarkdownTableRow
   align: ('left' | 'center' | 'right' | null)[]
+  prefix: string
 }
 export type MarkdownSourceEdit = { from: number; to: number; insert: string }
 
 export function parseTableRow(text: string, from: number): MarkdownTableRow {
+  const prefix = text.match(/^[\t ]*(?:>[\t ]*)*/)?.[0] ?? ''
+  const rowFrom = from
+  const rowTo = from + text.length
+  text = text.slice(prefix.length)
+  from += prefix.length
   const delimiters: number[] = []
   for (let index = 0; index < text.length; index++) {
     if (text[index] !== '|') {
@@ -60,7 +67,7 @@ export function parseTableRow(text: string, from: number): MarkdownTableRow {
       text: text.slice(cellFrom - from, cellTo - from)
     }
   })
-  return { from, to: from + text.length, cells, trailingPipe }
+  return { from: rowFrom, to: rowTo, cells, trailingPipe, prefix }
 }
 
 export function parseMarkdownTable(text: string, from: number, to: number): MarkdownTable | null {
@@ -94,7 +101,9 @@ export function parseMarkdownTable(text: string, from: number, to: number): Mark
       row.cells.push({ from: at, to: at, rawFrom: at, rawTo: at, text: '', missing: true })
     }
   }
-  return { from, to, rows: contentRows, delimiter, align }
+  const lineFrom = text.lastIndexOf('\n', from - 1) + 1
+  const prefix = (text.slice(lineFrom, from) + rows[0].prefix).replace(/[^\t >]/g, ' ')
+  return { from, to, rows: contentRows, delimiter, align, prefix }
 }
 
 export function editTableCell(
@@ -185,20 +194,25 @@ export function editTableStructure(
   }
   if (action === 'row-before' || action === 'row-after') {
     const blank = `| ${Array.from({ length: width }, () => ' ').join(' | ')} |`
+    const prefix = selected.prefix || table.prefix
     if (row === 0 && action === 'row-before') {
       return [
-        { from: selected.from, to: selected.to, insert: blank },
+        { from: selected.from, to: selected.to, insert: selected.prefix + blank },
         {
           from: table.delimiter.to,
           to: table.delimiter.to,
-          insert: `\n${text.slice(selected.from, selected.to)}`
+          insert: `\n${prefix}${text.slice(selected.from + selected.prefix.length, selected.to)}`
         }
       ]
     }
     const at =
       row === 0 ? table.delimiter.to : action === 'row-before' ? selected.from : selected.to
     return [
-      { from: at, to: at, insert: row > 0 && action === 'row-before' ? `${blank}\n` : `\n${blank}` }
+      {
+        from: at,
+        to: at,
+        insert: row > 0 && action === 'row-before' ? `${prefix}${blank}\n` : `\n${prefix}${blank}`
+      }
     ]
   }
   if (action === 'delete-row') {
@@ -218,7 +232,11 @@ export function editTableStructure(
         }
       }
       return [
-        { from: selected.from, to: selected.to, insert: header },
+        {
+          from: selected.from,
+          to: selected.to,
+          insert: selected.prefix + header.slice(next.prefix.length)
+        },
         ...editTableStructure(text, table, 1, column, 'delete-row')
       ]
     }

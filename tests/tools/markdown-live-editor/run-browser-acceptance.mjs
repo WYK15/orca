@@ -14,6 +14,7 @@ const scripts = process.argv.slice(2).length
       'verify-list-editing',
       'verify-list-code-exit',
       'verify-container-editing',
+      'verify-contextual-insertion',
       'verify-document-features',
       'verify-table-grid',
       'verify-resources-and-export',

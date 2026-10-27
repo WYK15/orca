@@ -1,8 +1,10 @@
 import type { EditorView } from '@codemirror/view'
-import { syntaxTree } from '@codemirror/language'
+import { readMarkdownDocumentTree } from './markdown-document-model'
 import { markdownEditorMode } from './editor-context'
 import { markdownClipboardContent } from './markdown-clipboard-content'
 import { markdownLinkDefinitions } from './markdown-links'
+import { markdownBlockPrefix, prepareMarkdownBlockInsertion } from './markdown-block-insertion'
+import { isolateHistory } from '@codemirror/commands'
 
 const plainPasteUntil = new WeakMap<EditorView, number>()
 export function requestPlainMarkdownPaste(view: EditorView): void {
@@ -124,7 +126,7 @@ export function pasteClipboardMarkdown(event: ClipboardEvent, view: EditorView):
   if (!html) {
     return false
   }
-  let node = syntaxTree(view.state).resolveInner(view.state.selection.main.head, -1)
+  let node = readMarkdownDocumentTree(view.state).resolveInner(view.state.selection.main.head, -1)
   while (node.parent) {
     if (node.name === 'InlineCode' || node.name === 'FencedCode' || node.name === 'CodeBlock') {
       return false
@@ -136,7 +138,26 @@ export function pasteClipboardMarkdown(event: ClipboardEvent, view: EditorView):
     return false
   }
   event.preventDefault()
-  view.dispatch(view.state.replaceSelection(markdown), { userEvent: 'input.paste' })
+  const selection = view.state.selection.main
+  const prefix = markdownBlockPrefix(view.state, selection.from)
+  if (prefix && /<(?:pre|table|ol|ul|blockquote|h[1-6])(?:\s|>)/i.test(html)) {
+    const insertion = prepareMarkdownBlockInsertion(
+      view.state,
+      selection.from,
+      selection.to,
+      markdown
+    )
+    view.dispatch({
+      changes: insertion.change,
+      selection: { anchor: insertion.position(markdown.length) },
+      userEvent: 'input.paste',
+      annotations: isolateHistory.of('full')
+    })
+  } else {
+    view.dispatch(view.state.replaceSelection(markdown.replace(/\n/g, `\n${prefix}`)), {
+      userEvent: 'input.paste'
+    })
+  }
   return true
 }
 

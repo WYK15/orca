@@ -3,7 +3,8 @@ import {
   type CompletionContext,
   type CompletionResult
 } from '@codemirror/autocomplete'
-import { syntaxTree } from '@codemirror/language'
+import { readMarkdownDocumentTree } from './markdown-document-model'
+import { isolateHistory } from '@codemirror/commands'
 
 const blocks = [
   { label: '标题 1', detail: '#', apply: '# ' },
@@ -35,10 +36,10 @@ function completeMarkdownBlock(context: CompletionContext): CompletionResult | n
     return null
   }
   const line = context.state.doc.lineAt(match.from)
-  if (!/^\s*$/.test(context.state.sliceDoc(line.from, match.from))) {
+  if (!/^[\t >]*$/.test(context.state.sliceDoc(line.from, match.from))) {
     return null
   }
-  let node = syntaxTree(context.state).resolveInner(match.from, -1)
+  let node = readMarkdownDocumentTree(context.state).resolveInner(match.from, -1)
   while (node.parent) {
     if (['FencedCode', 'CodeBlock', 'FrontMatter', 'DisplayMath'].includes(node.name)) {
       return null
@@ -66,7 +67,8 @@ function completeMarkdownBlock(context: CompletionContext): CompletionResult | n
           view.dispatch({
             changes: { from, to, insert },
             selection: { anchor: from + cursor + precedingLines * indent.length },
-            userEvent: 'input'
+            userEvent: 'input',
+            annotations: isolateHistory.of('full')
           })
         }
       }))
