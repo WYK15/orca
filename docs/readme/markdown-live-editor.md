@@ -182,7 +182,7 @@ Run the browser workflows against a fresh temporary fixture server:
 node tests/tools/markdown-live-editor/run-browser-acceptance.mjs
 ```
 
-The runner executes all fifteen workflows sequentially in Chrome and WebKit. Each
+The runner executes all sixteen workflows sequentially in Chrome and WebKit. Each
 workflow has a deadline; logs and `results.json` are written to the printed
 artifact directory. The temporary server and owned test processes are cleaned up.
 Individual check names can be supplied as arguments for targeted regression work.
@@ -192,6 +192,11 @@ long table after several earlier tables at desktop and narrow widths. Unrelated
 tables retain their measured geometry when the selection moves. A long-report
 copy also retains its scroll offset after a cell click in live and reading views
 in both Chrome and WebKit.
+
+`verify-code-selection` checks real mouse-drag selections in plain and highlighted
+code blocks, live and reading modes, and both themes. Pixel comparisons verify
+visible selection backgrounds; clipboard checks retain literal markup, entities,
+HTML-like text, whitespace, and line breaks without modifying the source.
 
 Known validation limitation (2026-11-03): WebKit's existing table-interaction
 check times out selecting the row-insertion context-menu item. The same failure

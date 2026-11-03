@@ -1,6 +1,14 @@
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
 
+export function codeClipboardContent(source: string): { plain: string; html: string } {
+  const code = document.createElement('code')
+  code.textContent = source
+  const pre = document.createElement('pre')
+  pre.append(code)
+  return { plain: source, html: pre.outerHTML }
+}
+
 function renderedText(node: Node): string {
   if (node.nodeType === 3) {
     if (

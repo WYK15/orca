@@ -130,6 +130,11 @@
   font-family: var(--font-mono);
   padding-inline: 16px !important;
 }
+/* Opaque code backgrounds cover CodeMirror's selection layer. */
+.live-md-host .cm-content .live-md-code-line::selection,
+.live-md-host .cm-content .live-md-code-line ::selection {
+  background-color: color-mix(in srgb, var(--primary) 18%, transparent) !important;
+}
 .live-md-code-first {
   border-top-left-radius: var(--radius-md);
   border-top-right-radius: var(--radius-md);

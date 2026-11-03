@@ -1,7 +1,7 @@
 import type { EditorView } from '@codemirror/view'
 import { readMarkdownDocumentTree } from './markdown-document-model'
 import { markdownEditorMode } from './editor-context'
-import { markdownClipboardContent } from './markdown-clipboard-content'
+import { codeClipboardContent, markdownClipboardContent } from './markdown-clipboard-content'
 import { markdownLinkDefinitions } from './markdown-links'
 import { markdownBlockPrefix, prepareMarkdownBlockInsertion } from './markdown-block-insertion'
 import { isolateHistory } from '@codemirror/commands'
@@ -161,6 +161,23 @@ export function pasteClipboardMarkdown(event: ClipboardEvent, view: EditorView):
   return true
 }
 
+function selectionIsLiteralCode(view: EditorView): boolean {
+  const { from, to } = view.state.selection.main
+  let node = readMarkdownDocumentTree(view.state).resolveInner(from, 1)
+  while (node.parent) {
+    if (node.name === 'InlineCode') {
+      const marks = node.getChildren('CodeMark')
+      return from >= (marks[0]?.to ?? node.from) && to <= (marks.at(-1)?.from ?? node.to)
+    }
+    if (node.name === 'FencedCode' || node.name === 'CodeBlock') {
+      const content = node.getChildren('CodeText')
+      return from >= (content[0]?.from ?? node.from) && to <= (content.at(-1)?.to ?? node.to)
+    }
+    node = node.parent
+  }
+  return false
+}
+
 export function copyClipboardMarkdown(event: ClipboardEvent, view: EditorView): boolean {
   const selection = view.state.selection.main
   if (selection.empty || !event.clipboardData) {
@@ -170,7 +187,9 @@ export function copyClipboardMarkdown(event: ClipboardEvent, view: EditorView): 
   if (view.state.facet(markdownEditorMode) === 'source') {
     event.clipboardData.setData('text/plain', text)
   } else {
-    const content = markdownClipboardContent(text, markdownLinkDefinitions(view.state))
+    const content = selectionIsLiteralCode(view)
+      ? codeClipboardContent(text)
+      : markdownClipboardContent(text, markdownLinkDefinitions(view.state))
     event.clipboardData.setData('text/plain', content.plain)
     event.clipboardData.setData('text/html', content.html)
   }
