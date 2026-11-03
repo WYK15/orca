@@ -181,8 +181,8 @@ try {
   assert.equal(await page.locator('[data-source-selected="true"]').count(), 4)
   const fullCopy = await copy()
   assert.match(fullCopy.plain, /before/)
-  assert.match(fullCopy.plain, /word\tother/)
-  assert.doesNotMatch(fullCopy.plain, /\| ---/)
+  assert.equal(fullCopy.plain, across)
+  assert.match(fullCopy.html, /<table>/)
   await page.evaluate(() => {
     window.editor.contentDOM.dispatchEvent(
       new ClipboardEvent('cut', {
@@ -201,7 +201,7 @@ try {
   await doc('A **bold** word')
   await select(0, 15)
   const copied = await copy()
-  assert.equal(copied.plain, 'A bold word')
+  assert.equal(copied.plain, 'A **bold** word')
   assert.match(copied.html, /<strong>bold<\/strong>/)
   await page.evaluate(() =>
     Object.defineProperty(navigator, 'clipboard', {

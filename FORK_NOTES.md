@@ -90,6 +90,9 @@ This reader checks image content and size and grants no general filesystem acces
 remote documents keep their owning host route. The Electron editor and source recovery path
 remain available. Writing preferences persist separately in local WebView storage;
 self-contained HTML and native print/PDF export read complete source snapshots.
+Clipboard selection follows the requested Typora policy: complete formatted spans
+and full documents retain Markdown, partial spans retain rich formatting, and
+code-body fragments remain literal. Table-region copy continues to provide TSV.
 See [the editor design and validation notes](docs/readme/markdown-live-editor.md).
 
 The legacy rich editor rejects saves when it cannot preserve the original Markdown source

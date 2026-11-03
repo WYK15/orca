@@ -53,13 +53,14 @@ it('preserves a literal fragment in an indented code block', () => {
   expect(copy(`before\n\n    ${text}\n\nafter`, text).plain).toBe(text)
 })
 
-it('preserves a literal fragment inside inline code', () => {
+it('copies complete inline code as Markdown and keeps partial code literal', () => {
   const text = '*literal* &amp; <tag>'
-  expect(copy(`before \`${text}\` after`, text).plain).toBe(text)
+  expect(copy(`before \`${text}\` after`, text).plain).toBe(`\`${text}\``)
+  expect(copy(`before \`${text}\` after`, 'literal* &amp;').plain).toBe('literal* &amp;')
 })
 
 it('retains formatted copying for an entire fenced block and ordinary Markdown', () => {
   const block = '```text\n*literal* &amp; <tag>\n```'
-  expect(copy(block, block).plain).toBe('*literal* &amp; <tag>')
-  expect(copy('before **bold** after', '**bold**').plain).toBe('bold')
+  expect(copy(block, block).plain).toBe(block)
+  expect(copy('before **bold** after', '**bold**').plain).toBe('**bold**')
 })

@@ -11,7 +11,7 @@ import {
   requestPlainMarkdownPaste,
   consumePlainMarkdownPaste
 } from './clipboard-markdown'
-import { markdownClipboardContent } from './markdown-clipboard-content'
+import { markdownTextSelectionClipboard } from './markdown-selection-clipboard'
 import {
   findTableCell,
   selectCellTransaction,
@@ -265,8 +265,10 @@ export function useTableCellEditor(table: MarkdownTable, view: EditorView, readO
     if (element.selectionStart === element.selectionEnd) {
       return
     }
-    const content = markdownClipboardContent(
-      element.value.slice(element.selectionStart, element.selectionEnd)
+    const content = markdownTextSelectionClipboard(
+      element.value,
+      element.selectionStart,
+      element.selectionEnd
     )
     event.clipboardData.setData('text/plain', content.plain)
     event.clipboardData.setData('text/html', content.html)

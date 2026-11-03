@@ -19,6 +19,8 @@ const scripts = process.argv.slice(2).length
       'verify-table-grid',
       'verify-table-scroll-stability',
       'verify-code-selection',
+      'verify-text-selection',
+      'verify-keyboard-selection',
       'verify-resources-and-export',
       'verify-image-layout',
       'verify-media-lifecycle',
@@ -92,7 +94,12 @@ try {
       const started = Date.now()
       let timedOut = false
       running = spawn(process.execPath, [`tests/tools/markdown-live-editor/${script}.mjs`], {
-        env: { ...process.env, ORCA_MARKDOWN_CHECK_URL: url, ORCA_MARKDOWN_CHECK_BROWSER: browser },
+        env: {
+          ...process.env,
+          ORCA_MARKDOWN_CHECK_URL: url,
+          ORCA_MARKDOWN_CHECK_BROWSER: browser,
+          ORCA_MARKDOWN_CHECK_ARTIFACTS: directory
+        },
         stdio: ['ignore', fd, fd],
         detached: process.platform !== 'win32'
       })
@@ -103,7 +110,7 @@ try {
           stop(child)
           setTimeout(() => stop(child, true), 2000).unref()
         },
-        script === 'verify-table-scroll-stability' ? 120000 : 60000
+        ['verify-table-scroll-stability', 'verify-text-selection'].includes(script) ? 120000 : 60000
       )
       const code = await new Promise((resolve, reject) => {
         child.once('error', reject)

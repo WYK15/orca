@@ -100,19 +100,19 @@ Install that development browser with `pnpm exec playwright install webkit`.
 
 The writing interaction check runs the following workflows in Chrome and WebKit:
 
-| Workflow              | Checked behavior                                                                                                                   |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Headings              | Wait for content, reveal the prefix, convert the current paragraph, switch levels and restore plain text                           |
-| Inline formatting     | Toggle bold/italic/code, preserve nested styles, clear formatting and keep the selected text                                       |
-| History               | Undo formatting independently of preceding typing, including in table cells                                                        |
-| Lists                 | Indent/outdent an item together with its nested children                                                                           |
-| Table creation        | Enter after a typed pipe-delimited header creates the table and focuses a body cell                                                |
-| Table input           | Toolbar and keyboard commands use the actual cell selection; copy/cut retain shared history                                        |
-| Table paste           | TSV and HTML grids fill a rectangular range, expand the table and undo as one operation                                            |
-| Cross-block selection | Tables stay rendered while selected; copying/cutting and undo use the same source selection                                        |
-| Clipboard             | Ordinary copy supplies rendered text and HTML; explicit Markdown copy/source mode retain syntax; plain paste skips HTML conversion |
-| Links                 | Inline, reference and bare URLs resolve through the existing file owner; reference definitions stay hidden in reading mode         |
-| Typing                | Bracket pairing, closing-character skipping and paired deletion work without changing fence completion                             |
+| Workflow              | Checked behavior                                                                                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Headings              | Wait for content, reveal the prefix, convert the current paragraph, switch levels and restore plain text                                                                                    |
+| Inline formatting     | Toggle bold/italic/code, preserve nested styles, clear formatting and keep the selected text                                                                                                |
+| History               | Undo formatting independently of preceding typing, including in table cells                                                                                                                 |
+| Lists                 | Indent/outdent an item together with its nested children                                                                                                                                    |
+| Table creation        | Enter after a typed pipe-delimited header creates the table and focuses a body cell                                                                                                         |
+| Table input           | Toolbar and keyboard commands use the actual cell selection; copy/cut retain shared history                                                                                                 |
+| Table paste           | TSV and HTML grids fill a rectangular range, expand the table and undo as one operation                                                                                                     |
+| Cross-block selection | Tables stay rendered while selected; copying/cutting and undo use the same source selection                                                                                                 |
+| Clipboard             | Ordinary copy follows Typora's selection context and supplies rich HTML; complete formatted spans retain Markdown, partial spans retain text and rich formatting; source copy stays literal |
+| Links                 | Inline, reference and bare URLs resolve through the existing file owner; reference definitions stay hidden in reading mode                                                                  |
+| Typing                | Bracket pairing, closing-character skipping and paired deletion work without changing fence completion                                                                                      |
 
 ## Document feature acceptance
 
@@ -182,7 +182,7 @@ Run the browser workflows against a fresh temporary fixture server:
 node tests/tools/markdown-live-editor/run-browser-acceptance.mjs
 ```
 
-The runner executes all sixteen workflows sequentially in Chrome and WebKit. Each
+The runner executes all eighteen workflows sequentially in Chrome and WebKit. Each
 workflow has a deadline; logs and `results.json` are written to the printed
 artifact directory. The temporary server and owned test processes are cleaned up.
 Individual check names can be supplied as arguments for targeted regression work.
@@ -204,9 +204,38 @@ literal markup, entities, HTML-like text, whitespace, and line breaks without
 modifying the source. The ACE report's ten text blocks and seven inline-code list
 items in section 8.2 also passed these checks in both browsers and modes.
 
-Known validation limitation (2026-11-03): WebKit's existing table-interaction
-check times out selecting the row-insertion context-menu item. The same failure
-reproduces on unchanged `tauri.6`; it is not counted as a passing check here.
+`verify-text-selection` exercises 26 content cases in both directions and modes
+in each browser: 208 mouse-drag selections with pixel, text, rich-format, source,
+and link-navigation assertions. Coverage includes partial and complete emphasis,
+inline code, links/references, nested styles, lists, Chinese, emoji, paragraphs,
+blank code lines and wrapped code. Partial selections use the complete syntax
+tree instead of parsing an isolated, potentially unbalanced Markdown fragment.
+
+`verify-keyboard-selection` covers double-click word selection, Unicode keyboard
+expansion, full-document copy/delete/undo with tables and images, selected-image
+feedback without exposing source, partial table-cell copying, read-only behavior,
+selected-text contrast in both themes, and real-browser clipboard sanitization.
+Selection fills override CodeMirror's default focused theme with the app tokens.
+Images stay rendered during range
+selection; dragging over links never opens them. Copying full documents and
+complete formatted spans retains Markdown alongside rich HTML; partial spans keep
+their surrounding rich formatting without dangling markers. Code-body fragments
+remain literal. Explicit source copying remains unchanged.
+
+The installed Typora 1.14.10 was checked with a temporary document and 11
+successful native selection/copy probes. They cover Chinese, emoji, complete and
+partial emphasis/code, list text and link labels. The system clipboard was saved
+and restored. These checks establish the tested copy policy, not complete Typora
+feature parity.
+
+The previous WebKit table-menu failure was a test sequencing race: the following
+viewport change and right-click ran before the old menu's closing animation
+finished. Waiting for actual menu detachment allows the complete table-interaction
+workflow to pass without changing product menu behavior.
+
+The 2026-11-03 selection audit completed 281 unit tests and all 18 browser
+workflows in Chrome and WebKit (36 workflow/browser pairs). The 208-case drag
+matrix is saved as per-browser JSON in the acceptance runner's artifact directory.
 
 Additional workflows cover:
 

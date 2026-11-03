@@ -1,10 +1,10 @@
 import type { EditorView } from '@codemirror/view'
 import { readMarkdownDocumentTree } from './markdown-document-model'
 import { markdownEditorMode } from './editor-context'
-import { codeClipboardContent, markdownClipboardContent } from './markdown-clipboard-content'
-import { markdownLinkDefinitions } from './markdown-links'
+import { codeClipboardContent } from './markdown-clipboard-content'
 import { markdownBlockPrefix, prepareMarkdownBlockInsertion } from './markdown-block-insertion'
 import { isolateHistory } from '@codemirror/commands'
+import { markdownSelectionClipboard } from './markdown-selection-clipboard'
 
 const plainPasteUntil = new WeakMap<EditorView, number>()
 export function requestPlainMarkdownPaste(view: EditorView): void {
@@ -165,10 +165,6 @@ function selectionIsLiteralCode(view: EditorView): boolean {
   const { from, to } = view.state.selection.main
   let node = readMarkdownDocumentTree(view.state).resolveInner(from, 1)
   while (node.parent) {
-    if (node.name === 'InlineCode') {
-      const marks = node.getChildren('CodeMark')
-      return from >= (marks[0]?.to ?? node.from) && to <= (marks.at(-1)?.from ?? node.to)
-    }
     if (node.name === 'FencedCode' || node.name === 'CodeBlock') {
       const content = node.getChildren('CodeText')
       return from >= (content[0]?.from ?? node.from) && to <= (content.at(-1)?.to ?? node.to)
@@ -189,7 +185,7 @@ export function copyClipboardMarkdown(event: ClipboardEvent, view: EditorView): 
   } else {
     const content = selectionIsLiteralCode(view)
       ? codeClipboardContent(text)
-      : markdownClipboardContent(text, markdownLinkDefinitions(view.state))
+      : markdownSelectionClipboard(view.state)
     event.clipboardData.setData('text/plain', content.plain)
     event.clipboardData.setData('text/html', content.html)
   }
