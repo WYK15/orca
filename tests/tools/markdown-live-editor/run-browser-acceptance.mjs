@@ -17,6 +17,7 @@ const scripts = process.argv.slice(2).length
       'verify-contextual-insertion',
       'verify-document-features',
       'verify-table-grid',
+      'verify-table-scroll-stability',
       'verify-resources-and-export',
       'verify-image-layout',
       'verify-media-lifecycle',

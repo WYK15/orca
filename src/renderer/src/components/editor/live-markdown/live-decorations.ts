@@ -72,6 +72,7 @@ function buildDecorations(state: EditorState): DecorationSet {
           grid?.tableFrom !== from
         const table = parseMarkdownTable(text, from, to)
         if (table && !editingSource) {
+          const selectionTouchesTable = caret.from <= to && caret.to >= from
           ranges.push(
             Decoration.replace({
               widget: new MarkdownTableWidget(
@@ -80,8 +81,8 @@ function buildDecorations(state: EditorState): DecorationSet {
                 !state.readOnly,
                 state.facet(markdownEditorContext).version,
                 cell && cell.from >= from && cell.to <= to ? cell : null,
-                caret.head,
-                caret.anchor,
+                selectionTouchesTable ? caret.head : -1,
+                selectionTouchesTable ? caret.anchor : -1,
                 grid?.tableFrom === from ? grid : null
               ),
               block: true
