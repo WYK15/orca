@@ -196,9 +196,13 @@ table also passed all 60 cells in live and reading views at both widths in Chrom
 and WebKit (480 clicks, zero scroll displacement, unchanged source).
 
 `verify-code-selection` checks real mouse-drag selections in plain and highlighted
-code blocks, live and reading modes, and both themes. Pixel comparisons verify
-visible selection backgrounds; clipboard checks retain literal markup, entities,
-HTML-like text, whitespace, and line breaks without modifying the source.
+code blocks and inline code in lists, live and reading modes, and both themes.
+Pixel comparisons verify visible text selection while code-block side margins,
+trailing space, and the following paragraph retain their backgrounds. A selection
+extending into that paragraph must still highlight it. Clipboard checks retain
+literal markup, entities, HTML-like text, whitespace, and line breaks without
+modifying the source. The ACE report's ten text blocks and seven inline-code list
+items in section 8.2 also passed these checks in both browsers and modes.
 
 Known validation limitation (2026-11-03): WebKit's existing table-interaction
 check times out selecting the row-insertion context-menu item. The same failure

@@ -63,6 +63,10 @@
 .live-md-host .cm-focused .cm-selectionBackground {
   background: color-mix(in srgb, var(--primary) 18%, transparent);
 }
+/* Code already uses native selection; the extra layer can spill outside the block. */
+.live-md-host .cm-editor[data-code-selection='true'] .cm-selectionBackground {
+  visibility: hidden;
+}
 .live-md-toolbar {
   display: flex;
   align-items: center;
@@ -132,7 +136,9 @@
 }
 /* Opaque code backgrounds cover CodeMirror's selection layer. */
 .live-md-host .cm-content .live-md-code-line::selection,
-.live-md-host .cm-content .live-md-code-line ::selection {
+.live-md-host .cm-content .live-md-code-line ::selection,
+.live-md-host .cm-content .live-md-inline-code::selection,
+.live-md-host .cm-content .live-md-inline-code ::selection {
   background-color: color-mix(in srgb, var(--primary) 18%, transparent) !important;
 }
 .live-md-code-first {

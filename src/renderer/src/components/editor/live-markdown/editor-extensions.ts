@@ -7,7 +7,7 @@ import { languages } from '@codemirror/language-data'
 import { HighlightStyle, syntaxHighlighting, bracketMatching } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { liveMarkdownKeymap } from './editor-commands'
-import { revealedTableField } from './editor-context'
+import { markdownEditorMode, revealedTableField } from './editor-context'
 import { liveMarkdownDecorations } from './live-decorations'
 import { imageInsertionAnchors } from './image-insertion-anchors'
 import { tableCellSelection } from './table-cell-selection'
@@ -19,11 +19,25 @@ import { markdownDocumentModel } from './markdown-document-model'
 import { tableGridSelection } from './table-grid-selection'
 import { markdownListDeletionNumbering } from './markdown-list-numbering'
 import { markdownListMarkerWidth } from './markdown-list-marker-width'
+import { markdownCodeBlockAt } from './markdown-inline-format'
 
 export function markdownEditorExtensions(): Extension {
   return [
     history(),
     drawSelection(),
+    EditorView.editorAttributes.of(({ state }) => {
+      const selected = state.selection.main
+      const block = !selected.empty && markdownCodeBlockAt(state, selected.from)
+      return {
+        'data-code-selection': String(
+          state.facet(markdownEditorMode) !== 'source' &&
+            state.selection.ranges.length === 1 &&
+            !!block &&
+            ['FencedCode', 'CodeBlock'].includes(block.name) &&
+            selected.to <= block.to
+        )
+      }
+    }),
     highlightSpecialChars(),
     bracketMatching(),
     closeBrackets(),

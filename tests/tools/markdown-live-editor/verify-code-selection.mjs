@@ -55,7 +55,31 @@ try {
           width: geometry.firstEnd.right - geometry.start.left,
           height: geometry.start.bottom - geometry.start.top
         }
+        const tail = {
+          x: geometry.firstEnd.right + 12,
+          y: clip.y,
+          width: 120,
+          height: clip.height
+        }
+        const firstLine = await page.locator('.live-md-code-line').first().boundingBox()
+        const lastLine = await page.locator('.live-md-code-line').last().boundingBox()
+        assert.ok(firstLine && lastLine)
+        const side = {
+          x: firstLine.x + firstLine.width + 2,
+          y: clip.y,
+          width: 20,
+          height: clip.height
+        }
+        const below = {
+          x: firstLine.x,
+          y: lastLine.y + lastLine.height + 1,
+          width: 900,
+          height: 40
+        }
         const before = await page.screenshot({ clip })
+        const tailBefore = await page.screenshot({ clip: tail })
+        const sideBefore = await page.screenshot({ clip: side })
+        const belowBefore = await page.screenshot({ clip: below })
         await page.mouse.move(
           geometry.start.left + 0.1,
           (geometry.start.top + geometry.start.bottom) / 2
@@ -94,10 +118,80 @@ try {
           changedPixels(before, after) > 0.15,
           'Code selection must visibly change the background'
         )
+        assert.ok(
+          changedPixels(tailBefore, await page.screenshot({ clip: tail })) < 0.01,
+          'Selecting code must leave the background after the text unchanged'
+        )
+        assert.ok(
+          changedPixels(sideBefore, await page.screenshot({ clip: side })) < 0.01,
+          'Selecting code must not paint outside the code block'
+        )
+        assert.ok(
+          changedPixels(belowBefore, await page.screenshot({ clip: below })) < 0.01,
+          'Selecting and copying code must leave the region below the block unchanged'
+        )
+        await page.evaluate(() => {
+          const view = window.editor
+          const source = view.state.doc.toString()
+          view.dispatch({
+            selection: { anchor: source.indexOf('alpha'), head: source.indexOf('After') + 5 }
+          })
+        })
+        await page.waitForTimeout(100)
+        assert.ok(
+          changedPixels(belowBefore, await page.screenshot({ clip: below })) > 0.01,
+          'A selection extending into the following paragraph must still be highlighted'
+        )
         console.log(
-          `PASS: ${dark ? 'dark' : 'light'}/${mode}/${language} mouse selection is visible and copies literal code`
+          `PASS: ${dark ? 'dark' : 'light'}/${mode}/${language} code selection preserves outside backgrounds, copies literal text, and supports cross-block selection`
         )
       }
+
+      const label = 'sampleQueryStatus'
+      const selected = label.slice(2, -2)
+      const source = `# List\n\n- \`${label}\`\n- \`sampleBeginExchange\`\n- ordinary text`
+      await page.evaluate((value) => window.setDocument(value), source)
+      await page.evaluate(() => {
+        const view = window.editor
+        view.dispatch({ selection: { anchor: view.state.doc.toString().indexOf('Query') } })
+        view.focus()
+      })
+      await page.waitForTimeout(100)
+      const geometry = await page.evaluate((selected) => {
+        const view = window.editor
+        const from = view.state.doc.toString().indexOf(selected)
+        return { start: view.coordsAtPos(from), end: view.coordsAtPos(from + selected.length) }
+      }, selected)
+      const { start, end } = geometry
+      assert.ok(start && end)
+      const clip = {
+        x: start.left,
+        y: start.top,
+        width: end.left - start.left,
+        height: start.bottom - start.top
+      }
+      const before = await page.screenshot({ clip })
+      await page.mouse.move(start.left + 0.1, (start.top + start.bottom) / 2)
+      await page.mouse.down()
+      await page.mouse.move(end.left - 0.1, (end.top + end.bottom) / 2, { steps: 10 })
+      await page.mouse.up()
+      await page.waitForTimeout(100)
+      assert.ok(
+        changedPixels(before, await page.screenshot({ clip })) > 0.15,
+        'Inline code inside a list must have a visible selection background'
+      )
+      const copied = await page.evaluate(() => {
+        const clipboardData = new DataTransfer()
+        window.editor.contentDOM.dispatchEvent(
+          new ClipboardEvent('copy', { clipboardData, bubbles: true, cancelable: true })
+        )
+        return { plain: clipboardData.getData('text/plain'), source: window.raw }
+      })
+      assert.equal(copied.plain, selected)
+      assert.equal(copied.source, source)
+      console.log(
+        `PASS: ${dark ? 'dark' : 'light'}/${mode} list inline code has visible mouse selection and copies its text`
+      )
     }
   }
   assert.deepEqual(errors, [])
