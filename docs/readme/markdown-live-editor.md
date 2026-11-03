@@ -188,10 +188,12 @@ artifact directory. The temporary server and owned test processes are cleaned up
 Individual check names can be supplied as arguments for targeted regression work.
 
 `verify-table-scroll-stability` checks entering, editing, and undoing a cell in a
-long table after several earlier tables at desktop and narrow widths. Unrelated
-tables retain their measured geometry when the selection moves. A long-report
-copy also retains its scroll offset after a cell click in live and reading views
-in both Chrome and WebKit.
+long table after several earlier tables at desktop and narrow widths, then clicks
+every header and body cell. Measured heights survive selection changes, edits,
+and asynchronous React remounts. Scroll assertions start at pointer-down so
+Playwright's preparatory scrolling is excluded. A copy of the ACE report's 6.1
+table also passed all 60 cells in live and reading views at both widths in Chrome
+and WebKit (480 clicks, zero scroll displacement, unchanged source).
 
 `verify-code-selection` checks real mouse-drag selections in plain and highlighted
 code blocks, live and reading modes, and both themes. Pixel comparisons verify

@@ -18,12 +18,18 @@ import { markdownSourceLinks, markdownSourceImages } from './markdown-links'
 import { markdownRangeIsActive as active } from './markdown-caret-presentation'
 import { markdownListNumbers } from './markdown-list-numbering'
 
-function buildDecorations(state: EditorState): DecorationSet {
+function buildDecorations(state: EditorState, previous = Decoration.none): DecorationSet {
   const mode = state.facet(markdownEditorMode)
   if (mode === 'source') {
     return Decoration.none
   }
   const ranges: Range<Decoration>[] = []
+  const tableGeometry = new Map<number, MarkdownTableWidget['geometry']>()
+  previous.between(0, state.doc.length, (from, _to, decoration) => {
+    if (decoration.spec.widget instanceof MarkdownTableWidget) {
+      tableGeometry.set(from, decoration.spec.widget.geometry)
+    }
+  })
   const text = state.doc.toString()
   const links = new Map(markdownSourceLinks(state).map((link) => [link.from, link]))
   const images = new Map(markdownSourceImages(state).map((image) => [image.from, image]))
@@ -83,7 +89,8 @@ function buildDecorations(state: EditorState): DecorationSet {
                 cell && cell.from >= from && cell.to <= to ? cell : null,
                 selectionTouchesTable ? caret.head : -1,
                 selectionTouchesTable ? caret.anchor : -1,
-                grid?.tableFrom === from ? grid : null
+                grid?.tableFrom === from ? grid : null,
+                tableGeometry.get(from)
               ),
               block: true
             }).range(from, to)
@@ -274,7 +281,7 @@ export const liveMarkdownDecorations = StateField.define<DecorationSet>({
       transaction.reconfigured ||
       transaction.effects.length ||
       syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
-      ? buildDecorations(transaction.state)
+      ? buildDecorations(transaction.state, value.map(transaction.changes))
       : value
   },
   provide: (field) => EditorView.decorations.from(field)

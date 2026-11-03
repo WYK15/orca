@@ -86,3 +86,25 @@ it('refreshes every table touched by a cross-table selection', () => {
   )
   expect(after.map((table, index) => table.eq(before[index]))).toEqual([false, false, true])
 })
+
+it('keeps the measured height when the active table changes selection or source', () => {
+  let state = documentState()
+  const table = widgets(state)[1]
+  table.geometry.height = 1450.5
+  state = state.update(selectCellTransaction(state, table.table, { row: 1, column: 1 })).state
+  expect(widgets(state)[1].estimatedHeight).toBe(1450.5)
+
+  const cell = widgets(state)[1].table.rows[1].cells[1]
+  state = state.update({ changes: { from: cell.from, to: cell.to, insert: 'changed' } }).state
+  expect(widgets(state)[1].estimatedHeight).toBe(1450.5)
+})
+
+it('maps measured table geometry through edits before the table', () => {
+  const state = documentState()
+  const before = widgets(state)
+  before.forEach((table, index) => {
+    table.geometry.height = 500 + index * 100
+  })
+  const after = widgets(state.update({ changes: { from: 0, insert: 'Introduction\n\n' } }).state)
+  expect(after.map((table) => table.estimatedHeight)).toEqual([500, 600, 700])
+})

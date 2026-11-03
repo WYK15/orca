@@ -1,4 +1,5 @@
 import { createRoot, type Root } from 'react-dom/client'
+import { useLayoutEffect, type ComponentProps, type JSX } from 'react'
 import { WidgetType, type EditorView } from '@codemirror/view'
 import { LiveMarkdownTable } from './LiveMarkdownTable'
 import type { MarkdownTable } from './table-source'
@@ -6,7 +7,34 @@ import { revealTableSource } from './editor-context'
 import type { TableCellRange } from './table-cell-selection'
 import type { TableGridSelection } from './table-grid-selection'
 
-const roots = new WeakMap<HTMLElement, Root>()
+type TableGeometry = { height: number }
+const roots = new WeakMap<
+  HTMLElement,
+  { root: Root; observer: ResizeObserver; geometry: TableGeometry }
+>()
+
+function measureTable(dom: HTMLElement, view: EditorView): void {
+  const mounted = roots.get(dom)
+  if (!mounted || !dom.isConnected || !view.dom.isConnected) {
+    return
+  }
+  const height = dom.getBoundingClientRect().height / view.scaleY
+  if (height > 0) {
+    mounted.geometry.height = height
+  }
+  view.requestMeasure()
+}
+
+function MeasuredTable({
+  dom,
+  ...props
+}: ComponentProps<typeof LiveMarkdownTable> & { dom: HTMLElement }): JSX.Element {
+  useLayoutEffect(() => {
+    dom.style.minHeight = ''
+    measureTable(dom, props.view)
+  })
+  return <LiveMarkdownTable {...props} />
+}
 
 export class MarkdownTableWidget extends WidgetType {
   constructor(
@@ -17,9 +45,13 @@ export class MarkdownTableWidget extends WidgetType {
     readonly selectedCell: TableCellRange | null = null,
     readonly selectionHead = 0,
     readonly selectionAnchor = 0,
-    readonly grid: TableGridSelection | null = null
+    readonly grid: TableGridSelection | null = null,
+    readonly geometry: TableGeometry = { height: -1 }
   ) {
     super()
+  }
+  get estimatedHeight(): number {
+    return this.geometry.height
   }
   eq(other: MarkdownTableWidget): boolean {
     return (
@@ -36,22 +68,30 @@ export class MarkdownTableWidget extends WidgetType {
   }
   toDOM(view: EditorView): HTMLElement {
     const dom = document.createElement('div')
+    // React mounts asynchronously; keep the last height until its table is committed.
+    if (this.geometry.height > 0) {
+      dom.style.minHeight = `${this.geometry.height}px`
+    }
     const root = createRoot(dom)
-    roots.set(dom, root)
-    this.render(root, view)
+    const observer = new ResizeObserver(() => measureTable(dom, view))
+    roots.set(dom, { root, observer, geometry: this.geometry })
+    observer.observe(dom)
+    this.render(root, view, dom)
     return dom
   }
   updateDOM(dom: HTMLElement, view: EditorView): boolean {
-    const root = roots.get(dom)
-    if (!root) {
+    const mounted = roots.get(dom)
+    if (!mounted) {
       return false
     }
-    this.render(root, view)
+    mounted.geometry = this.geometry
+    this.render(mounted.root, view, dom)
     return true
   }
-  private render(root: Root, view: EditorView): void {
+  private render(root: Root, view: EditorView, dom: HTMLElement): void {
     root.render(
-      <LiveMarkdownTable
+      <MeasuredTable
+        dom={dom}
         table={this.table}
         view={view}
         readOnly={!this.canEdit}
@@ -64,16 +104,12 @@ export class MarkdownTableWidget extends WidgetType {
         }}
       />
     )
-    requestAnimationFrame(() => {
-      if (view.dom.isConnected) {
-        view.requestMeasure()
-      }
-    })
   }
   destroy(dom: HTMLElement): void {
-    const root = roots.get(dom)
+    const mounted = roots.get(dom)
     roots.delete(dom)
-    queueMicrotask(() => root?.unmount())
+    mounted?.observer.disconnect()
+    queueMicrotask(() => mounted?.root.unmount())
   }
   ignoreEvent(): boolean {
     return true

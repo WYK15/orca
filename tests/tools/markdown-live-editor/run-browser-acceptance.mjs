@@ -97,11 +97,14 @@ try {
         detached: process.platform !== 'win32'
       })
       const child = running
-      const deadline = setTimeout(() => {
-        timedOut = true
-        stop(child)
-        setTimeout(() => stop(child, true), 2000).unref()
-      }, 60000)
+      const deadline = setTimeout(
+        () => {
+          timedOut = true
+          stop(child)
+          setTimeout(() => stop(child, true), 2000).unref()
+        },
+        script === 'verify-table-scroll-stability' ? 120000 : 60000
+      )
       const code = await new Promise((resolve, reject) => {
         child.once('error', reject)
         child.once('close', (code) => resolve(code))
