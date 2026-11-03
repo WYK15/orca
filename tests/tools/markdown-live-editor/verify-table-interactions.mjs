@@ -71,6 +71,7 @@ try {
   assert.equal(await raw(), source)
   assert.equal(await page.getByRole('menu').count(), 1)
   await page.keyboard.press('Escape')
+  await page.getByRole('menu').waitFor({ state: 'detached' })
   await page.setViewportSize({ width: 1280, height: 900 })
   console.log(
     'PASS: a context menu near the viewport edge never edits a table on right-button release'

@@ -231,9 +231,19 @@ function buildDecorations(state: EditorState, previous = Decoration.none): Decor
             image.alt,
             from,
             mode !== 'preview',
-            state.facet(markdownEditorContext).version
+            state.facet(markdownEditorContext).version,
+            state.selection.ranges.some(
+              (range) => !range.empty && range.from < to && range.to > from
+            )
           )
-          if (!active(state, from, to)) {
+          const caret = state.selection.main
+          const editingSource =
+            mode !== 'preview' &&
+            !state.readOnly &&
+            caret.empty &&
+            caret.head > from &&
+            caret.head < to
+          if (!editingSource) {
             ranges.push(Decoration.replace({ widget }).range(from, to))
           } else {
             ranges.push(Decoration.widget({ widget, side: 1 }).range(to))

@@ -105,6 +105,10 @@ export function MarkdownFragment({ content, view }: { content: string; view: Edi
             href={href}
             onClick={(event) => {
               event.preventDefault()
+              if (!window.getSelection()?.isCollapsed) {
+                event.stopPropagation()
+                return
+              }
               const modifier = navigator.userAgent.includes('Mac') ? event.metaKey : event.ctrlKey
               if (view.state.readOnly || modifier) {
                 event.stopPropagation()

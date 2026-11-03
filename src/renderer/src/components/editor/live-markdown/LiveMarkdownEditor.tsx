@@ -169,6 +169,9 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
         if (!modifier && current.current.mode !== 'preview') {
           return false
         }
+        if (!editor.state.selection.main.empty) {
+          return false
+        }
         const position = editor.posAtCoords({ x: event.clientX, y: event.clientY })
         if (position === null) {
           return false

@@ -40,9 +40,11 @@ function ImageFigure({ view, widget }: { view: EditorView; widget: MarkdownImage
   const content = (
     <span
       className="live-md-image"
+      data-source-selected={widget.selected ? 'true' : undefined}
       onClick={(event) => {
         if (
           widget.allowEditing &&
+          window.getSelection()?.isCollapsed !== false &&
           !(event.target instanceof Element && event.target.closest('button'))
         ) {
           navigateMarkdownSource(view, widget.from + 2)
@@ -106,7 +108,8 @@ export class MarkdownImageWidget extends MarkdownReactWidget {
     readonly alt: string,
     readonly from: number,
     readonly allowEditing: boolean,
-    readonly mediaVersion = ''
+    readonly mediaVersion = '',
+    readonly selected = false
   ) {
     super()
   }
@@ -116,6 +119,7 @@ export class MarkdownImageWidget extends MarkdownReactWidget {
       this.alt === other.alt &&
       this.from === other.from &&
       this.allowEditing === other.allowEditing &&
+      this.selected === other.selected &&
       this.mediaVersion === other.mediaVersion
     )
   }

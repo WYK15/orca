@@ -59,8 +59,8 @@
 .live-md-host .cm-cursor {
   border-left-color: var(--foreground);
 }
-.live-md-host .cm-selectionBackground,
-.live-md-host .cm-focused .cm-selectionBackground {
+.live-md-host .cm-editor .cm-selectionLayer .cm-selectionBackground,
+.live-md-host .cm-editor.cm-focused .cm-scroller .cm-selectionLayer .cm-selectionBackground {
   background: color-mix(in srgb, var(--primary) 18%, transparent);
 }
 /* Code already uses native selection; the extra layer can spill outside the block. */
@@ -286,6 +286,10 @@ div.live-md-math {
   max-height: 70vh;
   object-fit: contain;
   border-radius: var(--radius-sm);
+}
+.live-md-image[data-source-selected='true'] img {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 .live-md-image-caption {
   font-size: 12px;
