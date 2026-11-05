@@ -25,9 +25,12 @@ function buildDecorations(state: EditorState, previous = Decoration.none): Decor
   }
   const ranges: Range<Decoration>[] = []
   const tableGeometry = new Map<number, MarkdownTableWidget['geometry']>()
+  const diagramGeometry = new Map<number, MarkdownDiagramWidget['geometry']>()
   previous.between(0, state.doc.length, (from, _to, decoration) => {
     if (decoration.spec.widget instanceof MarkdownTableWidget) {
       tableGeometry.set(from, decoration.spec.widget.geometry)
+    } else if (decoration.spec.widget instanceof MarkdownDiagramWidget) {
+      diagramGeometry.set(from, decoration.spec.widget.geometry)
     }
   })
   const text = state.doc.toString()
@@ -180,10 +183,11 @@ function buildDecorations(state: EditorState, previous = Decoration.none): Decor
           !active(state, from, to)
         ) {
           const body = source.replace(/^.*\n/, '').replace(/\n\s*`{3,}\s*$/, '')
+          const geometry = diagramGeometry.get(from)
           ranges.push(
             Decoration.replace({
               block: true,
-              widget: new MarkdownDiagramWidget(body, state.doc.line(first + 1).from)
+              widget: new MarkdownDiagramWidget(body, state.doc.line(first + 1).from, geometry)
             }).range(from, to)
           )
           return false

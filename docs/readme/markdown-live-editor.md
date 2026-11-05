@@ -182,7 +182,7 @@ Run the browser workflows against a fresh temporary fixture server:
 node tests/tools/markdown-live-editor/run-browser-acceptance.mjs
 ```
 
-The runner executes all eighteen workflows sequentially in Chrome and WebKit. Each
+The runner executes all nineteen workflows sequentially in Chrome and WebKit. Each
 workflow has a deadline; logs and `results.json` are written to the printed
 artifact directory. The temporary server and owned test processes are cleaned up.
 Individual check names can be supplied as arguments for targeted regression work.
@@ -194,6 +194,15 @@ and asynchronous React remounts. Scroll assertions start at pointer-down so
 Playwright's preparatory scrolling is excluded. A copy of the ACE report's 6.1
 table also passed all 60 cells in live and reading views at both widths in Chrome
 and WebKit (480 clicks, zero scroll displacement, unchanged source).
+
+`verify-diagram-scroll-stability` checks rapid wheel scrolling across Mermaid
+unmounts/remounts at desktop and narrow widths. It verifies actual viewport
+eviction and remounting, stable document height, source preservation, and release
+of retained height when a diagram renders an error. Set
+`ORCA_MARKDOWN_SCROLL_FIXTURE` to test an immutable copy of a local Markdown file.
+On 2026-11-05, the Shape report reproduced an 850px transient height collapse
+before the fix; its copy passed in Chrome and WebKit at 1280px and 900px after
+retaining measured geometry until the asynchronous SVG or error content is ready.
 
 `verify-code-selection` checks real mouse-drag selections in plain and highlighted
 code blocks and inline code in lists, live and reading modes, and both themes.
