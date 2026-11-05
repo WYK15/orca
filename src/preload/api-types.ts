@@ -2344,7 +2344,6 @@ export type PreloadApi = {
   /** Diagnostic file controls (telemetry-error-tracking.md §User controls). Main does the FS/network
    *  work and retains upload payloads so the renderer can't read or substitute arbitrary bytes. */
   diagnostics: {
-    recordMarkdownScrollTrace?: (trace: string) => Promise<void>
     getStatus: () => Promise<DiagnosticsStatusPayload>
     collectBundle: (lookbackMinutes?: number) => Promise<DiagnosticsBundlePayload>
     openBundlePreview: (bundleSubmissionId: string) => Promise<void>

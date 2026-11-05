@@ -1962,8 +1962,6 @@ const api = {
 
   // Why: bridges are deliberately loose — main type-narrows this untrusted renderer input (see telemetry-error-tracking.md).
   diagnostics: {
-    recordMarkdownScrollTrace: (trace: string): Promise<void> =>
-      ipcRenderer.invoke('diagnostics:recordMarkdownScrollTrace', trace),
     getStatus: (): Promise<unknown> => ipcRenderer.invoke('diagnostics:getStatus'),
     collectBundle: (lookbackMinutes?: number): Promise<unknown> =>
       ipcRenderer.invoke('diagnostics:collectBundle', lookbackMinutes),

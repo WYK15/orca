@@ -225,16 +225,6 @@ Use `ORCA_MARKDOWN_SCROLL_FIXTURE` for a local report. The negative control
 should fail on affected WebKit versions; Chrome/Playwright alone did not reproduce
 the same native regression.
 
-The Tauri build temporarily records scroll diagnostics to
-`logs/markdown-scroll.jsonl` in its application data directory. Reports include
-wheel direction, geometry, selection offsets, focus, editor lifecycle events,
-scroll requests and caller stacks, but no document text or document paths.
-Logging is passive and batches events; two rotating files are limited to 2 MiB
-each. `verify-scroll-diagnostics` checks collection, state replacement, explicit
-scroll requests, and text exclusion in both browser engines. Backend tests check
-concurrent writes, rotation, input bounds and file permissions. Remove this
-diagnostic instrumentation after confirming the native scroll fix in the app.
-
 `verify-code-selection` checks real mouse-drag selections in plain and highlighted
 code blocks and inline code in lists, live and reading modes, and both themes.
 Pixel comparisons verify visible text selection while code-block side margins,
