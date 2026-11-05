@@ -207,6 +207,24 @@ On 2026-11-05, the Shape report reproduced an 850px transient height collapse
 before the fix; its copy passed in Chrome and WebKit at 1280px and 900px after
 retaining measured geometry until the asynchronous SVG or error content is ready.
 
+The browser fixture uses the production `LiveMarkdownLayout`. Its CodeMirror
+scroller has no CSS query-container ancestor: WebKit can reset overflow scrolling
+during interleaved container-query layout as virtualized nodes are replaced.
+The narrow outline breakpoint is measured with ResizeObserver instead, preserving
+the 560px overlay behavior without container queries. `verify-layout-scroll-stability`
+checks downward wheel input and outline positioning while resizing the pane
+inside a wider window.
+
+On macOS, `node tests/tools/markdown-live-editor/run-native-scroll-check.mjs`
+opens an owned WKWebView, primes async widgets and replays trusted native wheel
+bursts with focus outside the editor. It restores the prior app and mouse position
+and writes measurements to the printed artifact directory. The check fails if no
+native wheel input is delivered, downward input moves backward, or source changes.
+Use `ORCA_MARKDOWN_SCROLL_FIXTURE` for a local report. The negative control
+`ORCA_MARKDOWN_NATIVE_QUERY_CONTAINER=1` restores the old query container and
+should fail on affected WebKit versions; Chrome/Playwright alone did not reproduce
+the same native regression.
+
 The Tauri build temporarily records scroll diagnostics to
 `logs/markdown-scroll.jsonl` in its application data directory. Reports include
 wheel direction, geometry, selection offsets, focus, editor lifecycle events,
@@ -215,7 +233,7 @@ Logging is passive and batches events; two rotating files are limited to 2 MiB
 each. `verify-scroll-diagnostics` checks collection, state replacement, explicit
 scroll requests, and text exclusion in both browser engines. Backend tests check
 concurrent writes, rotation, input bounds and file permissions. Remove this
-diagnostic instrumentation after identifying the remaining native scroll jump.
+diagnostic instrumentation after confirming the native scroll fix in the app.
 
 `verify-code-selection` checks real mouse-drag selections in plain and highlighted
 code blocks and inline code in lists, live and reading modes, and both themes.

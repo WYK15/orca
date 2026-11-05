@@ -12,6 +12,7 @@ import { EditorView } from '@codemirror/view'
 import { useAppStore } from '@/store'
 import { toast } from 'sonner'
 import LiveMarkdownEditor from './LiveMarkdownEditor'
+import { LiveMarkdownLayout } from './LiveMarkdownLayout'
 import {
   type MarkdownFileOwner,
   markdownWorkspacePath,
@@ -177,8 +178,7 @@ export default function OrcawMarkdownEditor(props: Props): React.JSX.Element {
     })
   }, [instance, props.revealLine, props.revealColumn, props.initialAnchor])
   return (
-    <div
-      className="rich-markdown-editor-layout"
+    <LiveMarkdownLayout
       data-native-file-drop-target={
         props.readOnly || props.viewMode === 'preview' ? 'editor' : 'markdown'
       }
@@ -242,6 +242,6 @@ export default function OrcawMarkdownEditor(props: Props): React.JSX.Element {
           }}
         />
       </div>
-    </div>
+    </LiveMarkdownLayout>
   )
 }

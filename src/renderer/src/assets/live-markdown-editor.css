@@ -1,3 +1,15 @@
+.rich-markdown-editor-layout.live-markdown-layout {
+  /* WebKit can reset virtualized scrolling during container-query layout. */
+  container-type: normal;
+}
+.live-markdown-layout[data-narrow='true'] .markdown-toc-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 30;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.18);
+}
 .live-markdown-editor {
   display: flex;
   flex-direction: column;

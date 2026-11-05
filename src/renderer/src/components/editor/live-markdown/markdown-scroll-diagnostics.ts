@@ -118,7 +118,11 @@ class MarkdownScrollDiagnostics {
       mutation.disconnect()
       resize.disconnect()
     })
-    this.record('mount', { agent: navigator.userAgent })
+    const layout = view.dom.closest('.live-markdown-layout')
+    this.record('mount', {
+      agent: navigator.userAgent,
+      layoutContainerType: layout ? getComputedStyle(layout).containerType : null
+    })
   }
 
   private listen(target: EventTarget, event: string, callback: EventListener): void {
@@ -168,7 +172,7 @@ class MarkdownScrollDiagnostics {
     }
     const trace = JSON.stringify({
       schema: 1,
-      build: 'markdown-scroll-trace-20261105-1',
+      build: 'markdown-scroll-trace-20261105-2',
       view: this.id,
       date: new Date().toISOString(),
       entries: this.entries.splice(0)

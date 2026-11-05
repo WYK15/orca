@@ -3,6 +3,7 @@ import type { EditorView } from '@codemirror/view'
 import type { MarkdownEditorMode } from '../../../src/renderer/src/components/editor/live-markdown/editor-context'
 import { createRoot } from 'react-dom/client'
 import LiveMarkdownEditor from '../../../src/renderer/src/components/editor/live-markdown/LiveMarkdownEditor'
+import { LiveMarkdownLayout } from '../../../src/renderer/src/components/editor/live-markdown/LiveMarkdownLayout'
 import { TooltipProvider } from '../../../src/renderer/src/components/ui/tooltip'
 import { Button } from '../../../src/renderer/src/components/ui/button'
 import './check.css'
@@ -25,6 +26,7 @@ function Check(): JSX.Element {
   const [mode, setMode] = useState<MarkdownEditorMode>('live')
   const [saved, setSaved] = useState('')
   const [mounted, setMounted] = useState(true)
+  const [outline, setOutline] = useState(false)
   harness.setDocument = setActiveSource
   harness.raw = activeSource
   return (
@@ -44,6 +46,9 @@ function Check(): JSX.Element {
             主题
           </Button>
           <span data-saved>{saved}</span>
+          <Button variant="ghost" size="sm" onClick={() => setOutline(!outline)}>
+            目录
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setMounted(!mounted)}>
             切换文档
           </Button>
@@ -57,23 +62,32 @@ function Check(): JSX.Element {
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
           {mounted && (
-            <LiveMarkdownEditor
-              fileId={documentId}
-              content={activeSource}
-              mode={mode}
-              scrollCacheKey={documentId}
-              onChange={setActiveSource}
-              onSave={async (text) => {
-                await fetch('/fixture', { method: 'POST', body: text })
-                setSaved('已保存')
-              }}
-              onModeChange={setMode}
-              onReady={(view) => (harness.editor = view)}
-              context={{
-                loadImage: async () => tinyImage,
-                openLink: (href) => (harness.lastLink = href)
-              }}
-            />
+            <LiveMarkdownLayout>
+              {outline && (
+                <aside className="markdown-toc-panel" aria-label="文档目录">
+                  目录
+                </aside>
+              )}
+              <div className="min-w-0 min-h-0 flex-1">
+                <LiveMarkdownEditor
+                  fileId={documentId}
+                  content={activeSource}
+                  mode={mode}
+                  scrollCacheKey={documentId}
+                  onChange={setActiveSource}
+                  onSave={async (text) => {
+                    await fetch('/fixture', { method: 'POST', body: text })
+                    setSaved('已保存')
+                  }}
+                  onModeChange={setMode}
+                  onReady={(view) => (harness.editor = view)}
+                  context={{
+                    loadImage: async () => tinyImage,
+                    openLink: (href) => (harness.lastLink = href)
+                  }}
+                />
+              </div>
+            </LiveMarkdownLayout>
           )}
         </div>
       </div>
