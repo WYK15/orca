@@ -196,9 +196,12 @@ table also passed all 60 cells in live and reading views at both widths in Chrom
 and WebKit (480 clicks, zero scroll displacement, unchanged source).
 
 `verify-diagram-scroll-stability` checks rapid wheel scrolling across Mermaid
-unmounts/remounts at desktop and narrow widths. It verifies actual viewport
-eviction and remounting, stable document height, source preservation, and release
-of retained height when a diagram renders an error. Set
+unmounts/remounts in live and reading modes at 1280px, 1082px, and 900px widths.
+It checks downward-only scrolling, actual viewport eviction and remounting,
+stable document height, source preservation, and immediate reuse of the detached
+SVG without another asynchronous render. Source edits and theme changes render
+fresh diagrams; errors release retained height, and concurrent editors never
+take each other's connected SVG. Set
 `ORCA_MARKDOWN_SCROLL_FIXTURE` to test an immutable copy of a local Markdown file.
 On 2026-11-05, the Shape report reproduced an 850px transient height collapse
 before the fix; its copy passed in Chrome and WebKit at 1280px and 900px after

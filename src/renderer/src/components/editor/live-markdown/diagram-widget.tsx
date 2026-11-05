@@ -3,9 +3,13 @@ import { WidgetType, type EditorView } from '@codemirror/view'
 import MermaidBlock from '../MermaidBlock'
 
 type DiagramGeometry = { height: number }
+const rendered = new WeakMap<
+  DiagramGeometry,
+  { source: string; dark: boolean; svg: SVGSVGElement }
+>()
 const roots = new WeakMap<
   HTMLElement,
-  { root: Root; resize: ResizeObserver; content: MutationObserver }
+  { root?: Root; resize: ResizeObserver; content: MutationObserver }
 >()
 export class MarkdownDiagramWidget extends WidgetType {
   readonly dark =
@@ -32,7 +36,17 @@ export class MarkdownDiagramWidget extends WidgetType {
     if (this.geometry.height > 0) {
       dom.style.minHeight = `${this.geometry.height}px`
     }
-    const root = createRoot(dom)
+    const cached = rendered.get(this.geometry)
+    let root: Root | undefined
+    if (cached?.source === this.source && cached.dark === this.dark && !cached.svg.isConnected) {
+      const block = document.createElement('div')
+      block.className = 'mermaid-block'
+      // Move the detached SVG so its IDs remain unique across mounted diagrams.
+      block.append(cached.svg)
+      dom.append(block)
+    } else {
+      root = createRoot(dom)
+    }
     const measure = (): void => {
       if (!view.dom.isConnected || !dom.isConnected) {
         return
@@ -43,6 +57,10 @@ export class MarkdownDiagramWidget extends WidgetType {
         if (height > 0) {
           this.geometry.height = height
         }
+        const svg = dom.querySelector<SVGSVGElement>('.mermaid-block > svg')
+        if (svg) {
+          rendered.set(this.geometry, { source: this.source, dark: this.dark, svg })
+        }
       }
       view.requestMeasure()
     }
@@ -51,7 +69,7 @@ export class MarkdownDiagramWidget extends WidgetType {
     roots.set(dom, { root, resize, content })
     resize.observe(dom)
     content.observe(dom, { childList: true, subtree: true })
-    root.render(<MermaidBlock content={this.source} isDark={this.dark} />)
+    root?.render(<MermaidBlock content={this.source} isDark={this.dark} />)
     dom.addEventListener('click', () => {
       if (view.state.readOnly) {
         return
@@ -66,7 +84,7 @@ export class MarkdownDiagramWidget extends WidgetType {
     roots.delete(dom)
     mounted?.resize.disconnect()
     mounted?.content.disconnect()
-    queueMicrotask(() => mounted?.root.unmount())
+    queueMicrotask(() => mounted?.root?.unmount())
   }
   ignoreEvent(): boolean {
     return true
