@@ -3979,6 +3979,9 @@ const api = {
     },
     readClipboardText: (options?: ReadClipboardTextOptions): Promise<string> =>
       ipcRenderer.invoke('clipboard:readText', options),
+    ...(Reflect.has(globalThis, '__TAURI_INTERNALS__')
+      ? { readClipboardFiles: (): Promise<string[]> => ipcRenderer.invoke('clipboard:readFiles') }
+      : {}),
     readSelectionClipboardText: (options?: ReadClipboardTextOptions): Promise<string> =>
       ipcRenderer.invoke('clipboard:readSelectionText', options),
     saveClipboardImageAsTempFile: (args?: {

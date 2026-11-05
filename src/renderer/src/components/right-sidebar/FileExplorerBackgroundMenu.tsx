@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { translate } from '@/i18n/i18n'
+import { FileExplorerPasteMenuItem } from './FileExplorerPasteMenuItem'
 
 function stopRightButtonMenuSelection(event: React.PointerEvent): void {
   if (event.button !== 2) {
@@ -69,6 +70,7 @@ export function FileExplorerBackgroundMenu({
             'New Folder'
           )}
         </DropdownMenuItem>
+        <FileExplorerPasteMenuItem directory={worktreePath} variant="dropdown" />
       </DropdownMenuContent>
     </DropdownMenu>
   )

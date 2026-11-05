@@ -1,4 +1,11 @@
 {
+  "fileExplorerClipboard": {
+    "pasting": "Pasting files…",
+    "empty": "The clipboard contains no files.",
+    "failed": "Could not paste {{count}} item(s).",
+    "skipped": "{{count}} item(s) were skipped.",
+    "error": "Could not paste files."
+  },
   "fileExplorer": {
     "defaultApp": {
       "open": "Open with Default App",

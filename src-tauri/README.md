@@ -135,6 +135,10 @@ flowchart LR
   creation, and rejecting file copies outside authorized workspaces. Image
   paste retains workspace authorization; Linux primary selection stays
   separate from the regular clipboard.
+  Explorer file paste reuses authorized imports for multiple files and folders,
+  deconflicts existing names, and rejects recursive folder copies. On macOS,
+  `node tests/tools/native-file-clipboard-check.mjs` checks real pasteboard file
+  URLs and restores the clipboard unless another application has changed it.
 - Earlier CI builds produced macOS ARM64 and Windows applications. The current
   manual workflow only builds macOS ARM64. The tauri.2 preview passed signing,
   notarization, stapling and the signed Node/native-module smoke test.

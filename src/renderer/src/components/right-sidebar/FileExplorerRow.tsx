@@ -24,6 +24,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { FileExplorerPasteMenuItem } from './FileExplorerPasteMenuItem'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -694,6 +695,7 @@ export function FileExplorerRow({
             {translate('auto.components.right.sidebar.FileExplorerRow.98a79948b3', 'Copy')}
           </ContextMenuItem>
         )}
+        <FileExplorerPasteMenuItem directory={targetDir} operationOwner={node.operationOwner} />
         <ContextMenuItem onSelect={() => onCopyPaths('absolute')}>
           <Copy />
           {selectionSize > 1

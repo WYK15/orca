@@ -14,6 +14,7 @@ import {
   shouldResetFileExplorerForVisibleWorktree
 } from './file-explorer-reset'
 import { FileExplorerBackgroundMenu } from './FileExplorerBackgroundMenu'
+import { FileExplorerPasteProvider } from './FileExplorerPasteProvider'
 import { FileExplorerNameFilter } from './FileExplorerNameFilter'
 import { FileExplorerQueryStrip } from './FileExplorerQueryStrip'
 import { FileExplorerToolbar } from './FileExplorerToolbar'
@@ -656,7 +657,16 @@ function FileExplorerFiles(): React.JSX.Element {
       : undefined
 
   return (
-    <>
+    <FileExplorerPasteProvider
+      worktreePath={visibleFilesWorktreePath}
+      activeWorktreeId={activeWorktreeId}
+      operationOwner={rootCache?.operationOwner}
+      enabled={isFilesViewActive && rightSidebarOpen}
+      containerRef={explorerShellRef}
+      selectedNode={selectedNode}
+      refreshDir={refreshDir}
+      setSelectedPath={setSingleSelectedPath}
+    >
       <div
         ref={setExplorerShellRef}
         data-orca-explorer-shell
@@ -832,7 +842,7 @@ function FileExplorerFiles(): React.JSX.Element {
         worktreePath={worktreePath}
         onStartNew={startNew}
       />
-    </>
+    </FileExplorerPasteProvider>
   )
 }
 

@@ -313,6 +313,22 @@ describe('fs:importExternalPaths', () => {
     })
   })
 
+  it.each([destDir, path.dirname(destDir)])(
+    'rejects copying a folder into itself or its child: %s',
+    async (sourcePath) => {
+      mockSourceDir(sourcePath, [])
+      const result = await handlers.get('fs:importExternalPaths')!(null, {
+        sourcePaths: [sourcePath],
+        destDir
+      })
+      expect(result).toMatchObject({
+        results: [{ status: 'failed', reason: 'Cannot copy a folder into itself or its subfolder' }]
+      })
+      expect(mkdirMock).not.toHaveBeenCalled()
+      expect(copyFileMock).not.toHaveBeenCalled()
+    }
+  )
+
   it('deconflicts top-level directory collisions', async () => {
     const sourcePath = '/tmp/dropped/assets'
     const existingDest = path.join(destDir, 'assets')

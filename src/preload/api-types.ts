@@ -3275,6 +3275,7 @@ export type PreloadApi = {
     onTerminalZoom: (callback: (direction: 'in' | 'out' | 'reset') => void) => () => void
     onSystemResumed: (callback: () => void) => () => void
     readClipboardText: (options?: ReadClipboardTextOptions) => Promise<string>
+    readClipboardFiles?: () => Promise<string[]>
     readSelectionClipboardText: (options?: ReadClipboardTextOptions) => Promise<string>
     saveClipboardImageAsTempFile: (args?: {
       connectionId?: string | null

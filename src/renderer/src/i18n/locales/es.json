@@ -1,4 +1,11 @@
 {
+  "fileExplorerClipboard": {
+    "pasting": "Pegando archivos…",
+    "empty": "El portapapeles no contiene archivos.",
+    "failed": "No se pudieron pegar {{count}} elementos.",
+    "skipped": "Se omitieron {{count}} elementos.",
+    "error": "No se pudieron pegar los archivos."
+  },
   "fileExplorer": {
     "defaultApp": {
       "open": "Abrir con la aplicación predeterminada",

@@ -1,4 +1,11 @@
 {
+  "fileExplorerClipboard": {
+    "pasting": "正在粘贴文件…",
+    "empty": "剪贴板中没有可粘贴的文件。",
+    "failed": "有 {{count}} 个项目无法粘贴。",
+    "skipped": "已跳过 {{count}} 个项目。",
+    "error": "无法粘贴文件。"
+  },
   "fileExplorer": {
     "defaultApp": {
       "open": "使用默认应用打开",

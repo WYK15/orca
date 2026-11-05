@@ -26,9 +26,13 @@ import {
 } from '../shared/clipboard-text'
 import { desktopPath, nativeCall } from './desktop-context'
 import { ipcMain } from './ipc-port'
+import { validateClipboardFilePaths } from '../shared/clipboard-file-paths'
 
 export function registerClipboardHandlers(store: Store): void {
   void cleanupExpiredRemoteClipboardFiles().catch(console.error)
+  ipcMain.handle('clipboard:readFiles', async () =>
+    validateClipboardFilePaths(await nativeCall('clipboard-read-files'))
+  )
   ipcMain.handle('desktop:clipboard-payload', async () => {
     const text = await nativeCall('clipboard-read')
     if (typeof text !== 'string') {

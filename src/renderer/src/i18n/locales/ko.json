@@ -1,4 +1,11 @@
 {
+  "fileExplorerClipboard": {
+    "pasting": "파일 붙여넣는 중…",
+    "empty": "클립보드에 파일이 없습니다.",
+    "failed": "{{count}}개 항목을 붙여넣지 못했습니다.",
+    "skipped": "{{count}}개 항목을 건너뛰었습니다.",
+    "error": "파일을 붙여넣지 못했습니다."
+  },
   "fileExplorer": {
     "defaultApp": {
       "open": "기본 앱으로 열기",

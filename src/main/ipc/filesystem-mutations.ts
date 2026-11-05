@@ -419,6 +419,28 @@ async function importOneSource(
 
   const isDir = sourceStat.isDirectory()
 
+  if (isDir) {
+    try {
+      const destination = relative(await realpath(resolvedSource), await realpath(destDir))
+      if (
+        !destination ||
+        (destination !== '..' && !destination.startsWith(`..${sep}`) && !isAbsolute(destination))
+      ) {
+        return {
+          sourcePath,
+          status: 'failed',
+          reason: 'Cannot copy a folder into itself or its subfolder'
+        }
+      }
+    } catch (error) {
+      return {
+        sourcePath,
+        status: 'failed',
+        reason: error instanceof Error ? error.message : String(error)
+      }
+    }
+  }
+
   // Why: for directories, pre-scan the entire tree for symlinks before
   // creating any destination files. This prevents partially imported
   // trees when a symlink is discovered halfway through recursive copy.

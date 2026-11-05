@@ -1,4 +1,11 @@
 {
+  "fileExplorerClipboard": {
+    "pasting": "ファイルを貼り付け中…",
+    "empty": "クリップボードにファイルがありません。",
+    "failed": "{{count}} 個の項目を貼り付けできませんでした。",
+    "skipped": "{{count}} 個の項目をスキップしました。",
+    "error": "ファイルを貼り付けできませんでした。"
+  },
   "fileExplorer": {
     "defaultApp": {
       "open": "既定のアプリで開く",

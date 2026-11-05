@@ -1,4 +1,5 @@
 import { registerTauriMarkdownImageReadTest } from './tauri-markdown-image-read-cases.mjs'
+import { registerTauriFileClipboardTests } from './tauri-file-clipboard-cases.mjs'
 import { registerTauriKeyboardInputSourceTest } from './tauri-keyboard-input-source-cases.mjs'
 import { registerTauriPersonalDesktopSettingsTest } from './tauri-personal-desktop-setting-cases.mjs'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -176,6 +177,7 @@ describe('standalone desktop backend', () => {
   })
 
   registerTauriMarkdownImageReadTest(() => ({ call, project, directory }))
+  registerTauriFileClipboardTests(() => ({ call, project, directory, nativeResponses }))
 
   it('reuses Git operations for registered repositories', async () => {
     await execute('git', ['init', project])

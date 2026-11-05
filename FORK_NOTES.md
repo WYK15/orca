@@ -36,6 +36,8 @@ Remove an entry after an upstream sync contains its equivalent commits.
   `com.wyk15.orcaw.tauri` data and reuses the existing renderer/preload contract.
   Persistent terminals use the existing daemon under bundled Node; native
   text/image/file clipboard operations use Rust with workspace authorization.
+  Explorer paste reads system file references through the native clipboard,
+  reuses routed imports and collision renaming, and supports menu/keyboard paste.
   The Tauri host keeps its credential key in the OS vault, uses authenticated
   encryption for existing storage callers, and reuses the translated application
   menu. Tauri checks and releases remain manual during the migration.

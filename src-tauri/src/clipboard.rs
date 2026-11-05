@@ -29,6 +29,19 @@ impl NativeClipboard {
                 Err(ClipboardError::ContentNotAvailable) => Ok(json!("")),
                 Err(error) => Err(error.to_string()),
             },
+            "clipboard-read-files" => match clipboard.get().file_list() {
+                Ok(paths) => paths
+                    .into_iter()
+                    .map(|path| {
+                        path.into_os_string()
+                            .into_string()
+                            .map_err(|_| "Invalid clipboard file path".to_string())
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+                    .map(|paths| json!(paths)),
+                Err(ClipboardError::ContentNotAvailable) => Ok(json!([])),
+                Err(error) => Err(error.to_string()),
+            },
             "clipboard-write" => {
                 clipboard.set_text(text()?).map_err(|e| e.to_string())?;
                 Ok(Value::Null)
@@ -167,6 +180,19 @@ fn encode_image(width: usize, height: usize, rgba: &[u8]) -> Result<String, Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "requires the native file clipboard fixture"]
+    fn reads_native_file_clipboard_fixture() {
+        let expected: Value =
+            serde_json::from_str(&std::env::var("ORCA_NATIVE_FILES_EXPECTED").unwrap()).unwrap();
+        assert_eq!(
+            NativeClipboard::default()
+                .dispatch("clipboard-read-files", &[])
+                .unwrap(),
+            expected
+        );
+    }
 
     #[test]
     fn preserves_png_pixels_and_rejects_invalid_images() {
