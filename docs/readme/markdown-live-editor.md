@@ -207,6 +207,16 @@ On 2026-11-05, the Shape report reproduced an 850px transient height collapse
 before the fix; its copy passed in Chrome and WebKit at 1280px and 900px after
 retaining measured geometry until the asynchronous SVG or error content is ready.
 
+The Tauri build temporarily records scroll diagnostics to
+`logs/markdown-scroll.jsonl` in its application data directory. Reports include
+wheel direction, geometry, selection offsets, focus, editor lifecycle events,
+scroll requests and caller stacks, but no document text or document paths.
+Logging is passive and batches events; two rotating files are limited to 2 MiB
+each. `verify-scroll-diagnostics` checks collection, state replacement, explicit
+scroll requests, and text exclusion in both browser engines. Backend tests check
+concurrent writes, rotation, input bounds and file permissions. Remove this
+diagnostic instrumentation after identifying the remaining native scroll jump.
+
 `verify-code-selection` checks real mouse-drag selections in plain and highlighted
 code blocks and inline code in lists, live and reading modes, and both themes.
 Pixel comparisons verify visible text selection while code-block side margins,

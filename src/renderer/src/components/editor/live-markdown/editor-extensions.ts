@@ -20,6 +20,7 @@ import { tableGridSelection } from './table-grid-selection'
 import { markdownListDeletionNumbering } from './markdown-list-numbering'
 import { markdownListMarkerWidth } from './markdown-list-marker-width'
 import { markdownCodeBlockAt } from './markdown-inline-format'
+import { markdownScrollDiagnostics } from './markdown-scroll-diagnostics'
 
 export function markdownEditorExtensions(): Extension {
   return [
@@ -60,6 +61,7 @@ export function markdownEditorExtensions(): Extension {
     tableCellSelection,
     markdownSlashCompletion,
     liveMarkdownDecorations,
+    markdownScrollDiagnostics,
     imageInsertionAnchors,
     Prec.high(keymap.of(liveMarkdownKeymap)),
     keymap.of([

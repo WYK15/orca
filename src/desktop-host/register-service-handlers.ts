@@ -32,6 +32,7 @@ import {
   validateMarkdownExport
 } from '../main/ipc/export-html-file'
 import { ipcMain } from './ipc-port'
+import { registerMarkdownScrollDiagnostics } from './markdown-scroll-diagnostics'
 
 export function registerServiceHandlers(
   store: Store,
@@ -41,6 +42,7 @@ export function registerServiceHandlers(
   const keys = new KeybindingService({ homePath: data })
   registerKeybindingHandlers(keys)
   registerHtmlFileExportHandlers()
+  registerMarkdownScrollDiagnostics()
   ipcMain.handle('export:print-html', async (_event, args: unknown) => {
     await nativeCall('print-html', validateMarkdownExport(args))
   })

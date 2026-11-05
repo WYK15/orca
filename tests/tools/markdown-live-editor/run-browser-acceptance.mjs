@@ -19,6 +19,7 @@ const scripts = process.argv.slice(2).length
       'verify-table-grid',
       'verify-table-scroll-stability',
       'verify-diagram-scroll-stability',
+      'verify-scroll-diagnostics',
       'verify-code-selection',
       'verify-text-selection',
       'verify-keyboard-selection',
