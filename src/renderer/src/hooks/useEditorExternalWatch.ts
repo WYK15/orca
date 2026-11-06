@@ -26,6 +26,10 @@ import type { OpenFile } from '@/store/slices/editor'
 import { readRuntimeFileContent, subscribeRuntimeFileChanges } from '@/runtime/runtime-file-client'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import {
+  getFolderExternalWatchRoot,
+  type FolderExternalWatchState
+} from './folder-external-watch-root'
+import {
   ORCA_WORKTREE_FILE_CHANGE_EVENT,
   type WorktreeFileChangeEventDetail
 } from './worktree-file-change-event'
@@ -95,7 +99,8 @@ export type EditorExternalWatchTargetState = Pick<
   | 'rightSidebarExplorerView'
   | 'gitStatusHugeByWorktree'
   | 'sshConnectionStates'
->
+> &
+  FolderExternalWatchState
 
 let cachedOpenFiles: AppState['openFiles'] | null = null
 let cachedWorktreesByRepo: AppState['worktreesByRepo'] | null = null
@@ -107,6 +112,10 @@ let cachedRightSidebarTab: AppState['rightSidebarTab'] | null = null
 let cachedRightSidebarExplorerView: AppState['rightSidebarExplorerView'] | null = null
 let cachedGitStatusHugeByWorktree: AppState['gitStatusHugeByWorktree'] | null = null
 let cachedSshConnectionStates: AppState['sshConnectionStates'] | null = null
+let cachedFolderWorkspaces: AppState['folderWorkspaces'] | undefined
+let cachedProjectGroups: AppState['projectGroups'] | undefined
+let cachedActiveWorkspaceExecutionHostId: AppState['activeWorkspaceExecutionHostId'] | undefined
+let cachedRestoredRuntimeHosts: AppState['restoredRuntimeHostIdByWorkspaceSessionKey'] | undefined
 let cachedWatchedTargetsSnapshot: WatchedTargetsSnapshot = { targets: [], targetsKey: '' }
 
 export function getWatchedTargetKey(target: WatchedTarget): string {
@@ -132,7 +141,11 @@ export function getEditorExternalWatchTargets(
     cachedRightSidebarTab === state.rightSidebarTab &&
     cachedRightSidebarExplorerView === state.rightSidebarExplorerView &&
     cachedGitStatusHugeByWorktree === state.gitStatusHugeByWorktree &&
-    cachedSshConnectionStates === state.sshConnectionStates
+    cachedSshConnectionStates === state.sshConnectionStates &&
+    cachedFolderWorkspaces === state.folderWorkspaces &&
+    cachedProjectGroups === state.projectGroups &&
+    cachedActiveWorkspaceExecutionHostId === state.activeWorkspaceExecutionHostId &&
+    cachedRestoredRuntimeHosts === state.restoredRuntimeHostIdByWorkspaceSessionKey
   ) {
     return cachedWatchedTargetsSnapshot
   }
@@ -183,18 +196,21 @@ export function getEditorExternalWatchTargets(
   const sortedWorktreeIds = Array.from(targetOwnersByWorktreeId.keys()).sort()
   for (const id of sortedWorktreeIds) {
     const wt = findWorktreeById(state.worktreesByRepo, id)
-    if (!wt) {
+    const repo = wt ? state.repos.find((r) => r.id === wt.repoId) : undefined
+    const root =
+      getFolderExternalWatchRoot(state, id) ??
+      (wt ? { path: wt.path, connectionId: repo?.connectionId ?? undefined } : null)
+    if (!root) {
       continue
     }
-    const repo = state.repos.find((r) => r.id === wt.repoId)
     const owners = Array.from(targetOwnersByWorktreeId.get(id) ?? []).sort((a, b) =>
       (a ?? '').localeCompare(b ?? '')
     )
     for (const owner of owners) {
       const target = {
         worktreeId: id,
-        worktreePath: wt.path,
-        connectionId: repo?.connectionId ?? undefined,
+        worktreePath: root.path,
+        connectionId: root.connectionId,
         runtimeEnvironmentId: owner
       }
       nextTargets.push(target)
@@ -213,6 +229,10 @@ export function getEditorExternalWatchTargets(
   cachedRightSidebarExplorerView = state.rightSidebarExplorerView
   cachedGitStatusHugeByWorktree = state.gitStatusHugeByWorktree
   cachedSshConnectionStates = state.sshConnectionStates
+  cachedFolderWorkspaces = state.folderWorkspaces
+  cachedProjectGroups = state.projectGroups
+  cachedActiveWorkspaceExecutionHostId = state.activeWorkspaceExecutionHostId
+  cachedRestoredRuntimeHosts = state.restoredRuntimeHostIdByWorkspaceSessionKey
 
   if (targetsKey === cachedWatchedTargetsSnapshot.targetsKey) {
     return cachedWatchedTargetsSnapshot
