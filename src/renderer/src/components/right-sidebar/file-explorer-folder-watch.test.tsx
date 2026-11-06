@@ -109,6 +109,30 @@ afterEach(() => {
 })
 
 describe('folder explorer external changes', () => {
+  it('reconciles files changed between the initial listing and native watch readiness', async () => {
+    let ready!: () => void
+    vi.mocked(window.api.fs.watchWorktree).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          ready = resolve
+        })
+    )
+    const view = renderHook(useFolderTree)
+    await waitFor(() => expect(view.result.current.rootCache?.children).toHaveLength(1))
+    disk.set('/project', [
+      ...disk.get('/project')!,
+      { name: 'during-startup.txt', isDirectory: false, isSymlink: false }
+    ])
+    await act(async () => {
+      ready()
+    })
+    await waitFor(() =>
+      expect(view.result.current.rootCache?.children.map((node) => node.name)).toContain(
+        'during-startup.txt'
+      )
+    )
+  })
+
   it('updates root and expanded child listings without switching projects', async () => {
     const view = renderHook(useFolderTree)
     await waitFor(() => expect(watches.has('/project')).toBe(true))

@@ -36,6 +36,7 @@ import {
 import { isGitRepoKind } from '../../../shared/repo-kind'
 import { markFileChangedOnDisk } from '@/components/editor/editor-changed-on-disk-mark'
 import { getDiskBaselineSignature } from '@/components/editor/diff-content-signature'
+import { WORKTREE_FILE_WATCH_READY_EVENT } from './worktree-file-watch-ready-event'
 
 // Why: atomic writes burst same-path events; one reload dispatch each fans out into N EditorPanel rebuilds that can wedge the renderer (issue #826), so debounce per (worktreeId+path).
 const EXTERNAL_RELOAD_DEBOUNCE_MS = 75
@@ -100,10 +101,12 @@ export type EditorExternalWatchTargetState = Pick<
   | 'gitStatusHugeByWorktree'
   | 'sshConnectionStates'
 > &
-  FolderExternalWatchState
+  FolderExternalWatchState &
+  Partial<Pick<AppState, 'detectedWorktreesByRepo' | 'getKnownWorktreeById'>>
 
 let cachedOpenFiles: AppState['openFiles'] | null = null
 let cachedWorktreesByRepo: AppState['worktreesByRepo'] | null = null
+let cachedDetectedWorktreesByRepo: AppState['detectedWorktreesByRepo'] | undefined
 let cachedRepos: AppState['repos'] | null = null
 let cachedActiveWorktreeId: string | null = null
 let cachedRuntimeEnvironmentId: string | undefined
@@ -134,6 +137,7 @@ export function getEditorExternalWatchTargets(
   if (
     cachedOpenFiles === state.openFiles &&
     cachedWorktreesByRepo === state.worktreesByRepo &&
+    cachedDetectedWorktreesByRepo === state.detectedWorktreesByRepo &&
     cachedRepos === state.repos &&
     cachedActiveWorktreeId === state.activeWorktreeId &&
     cachedRuntimeEnvironmentId === runtimeEnvironmentId &&
@@ -151,6 +155,15 @@ export function getEditorExternalWatchTargets(
   }
 
   const targetOwnersByWorktreeId = new Map<string, Set<string | null>>()
+  const findWatchWorktree = (id: string) =>
+    state.getKnownWorktreeById
+      ? state.getKnownWorktreeById(
+          id,
+          id === state.activeWorktreeId
+            ? (state.activeWorkspaceExecutionHostId ?? undefined)
+            : undefined
+        )
+      : findWorktreeById(state.worktreesByRepo, id)
   // Why: watcher ownership is scoped by worktree + runtime owner — the same path can be open locally and in a runtime workspace, and reads/saves already route per owner.
   for (const f of state.openFiles) {
     let owners = targetOwnersByWorktreeId.get(f.worktreeId)
@@ -162,9 +175,7 @@ export function getEditorExternalWatchTargets(
     owners.add(openFileRuntimeOwner(f))
   }
   const activeWorktreeId = state.activeWorktreeId
-  const activeWorktree = activeWorktreeId
-    ? findWorktreeById(state.worktreesByRepo, activeWorktreeId)
-    : undefined
+  const activeWorktree = activeWorktreeId ? findWatchWorktree(activeWorktreeId) : undefined
   const activeRepo = activeWorktree
     ? state.repos.find((repo) => repo.id === activeWorktree.repoId)
     : undefined
@@ -195,7 +206,7 @@ export function getEditorExternalWatchTargets(
   const parts: string[] = []
   const sortedWorktreeIds = Array.from(targetOwnersByWorktreeId.keys()).sort()
   for (const id of sortedWorktreeIds) {
-    const wt = findWorktreeById(state.worktreesByRepo, id)
+    const wt = findWatchWorktree(id)
     const repo = wt ? state.repos.find((r) => r.id === wt.repoId) : undefined
     const root =
       getFolderExternalWatchRoot(state, id) ??
@@ -221,6 +232,7 @@ export function getEditorExternalWatchTargets(
   const targetsKey = parts.join('|')
   cachedOpenFiles = state.openFiles
   cachedWorktreesByRepo = state.worktreesByRepo
+  cachedDetectedWorktreesByRepo = state.detectedWorktreesByRepo
   cachedRepos = state.repos
   cachedActiveWorktreeId = state.activeWorktreeId
   cachedRuntimeEnvironmentId = runtimeEnvironmentId
@@ -331,6 +343,17 @@ export function useEditorExternalWatch(): void {
         .watchWorktree({
           worktreePath: target.worktreePath,
           connectionId: target.connectionId
+        })
+        .then(() => {
+          if (
+            targetsRef.current.some(
+              (current) => getWatchedTargetKey(current) === getWatchedTargetKey(target)
+            )
+          ) {
+            window.dispatchEvent(
+              new CustomEvent(WORKTREE_FILE_WATCH_READY_EVENT, { detail: target })
+            )
+          }
         })
         .catch((err) => {
           // Why: remote SSH providers can disappear while tabs still reference the worktree; degrade to a diagnostic, not an uncaught renderer promise.

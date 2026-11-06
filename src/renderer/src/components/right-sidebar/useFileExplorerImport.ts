@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { extractIpcErrorMessage } from '@/lib/ipc-error'
 import { importExternalPathsToRuntime } from '@/runtime/runtime-file-client'
 import { translate } from '@/i18n/i18n'
+import { isPathInsideOrEqual } from '../../../../shared/cross-platform-path'
 import type { FileExplorerOperationOwner } from './file-explorer-types'
 import { captureFileExplorerOperationGuard } from './file-explorer-operation-owner'
 
@@ -24,55 +25,45 @@ type UseFileExplorerImportParams = {
  * React drop handler. The drop handler manages visual state; this hook
  * manages the import action.
  */
-export function useFileExplorerImport({
-  worktreePath,
-  activeWorktreeId,
-  refreshDir,
-  clearNativeDragState,
-  setSelectedPath,
-  operationOwner
-}: UseFileExplorerImportParams): void {
-  // Refs to avoid re-subscribing IPC listener on every render
-  const worktreePathRef = useRef(worktreePath)
-  worktreePathRef.current = worktreePath
-  const activeWorktreeIdRef = useRef(activeWorktreeId)
-  activeWorktreeIdRef.current = activeWorktreeId
-  const refreshDirRef = useRef(refreshDir)
-  refreshDirRef.current = refreshDir
-  const clearNativeDragStateRef = useRef(clearNativeDragState)
-  clearNativeDragStateRef.current = clearNativeDragState
-  const setSelectedPathRef = useRef(setSelectedPath)
-  setSelectedPathRef.current = setSelectedPath
-  const operationOwnerRef = useRef(operationOwner)
-  operationOwnerRef.current = operationOwner
+export function useFileExplorerImport(options: UseFileExplorerImportParams): void {
+  const current = useRef(options)
+  current.current = options
 
   useEffect(() => {
-    return window.api.ui.onFileDrop((data) => {
+    let disposed = false
+    const unsubscribe = window.api.ui.onFileDrop((data) => {
       if (data.target !== 'file-explorer') {
         return
       }
 
-      const wtId = activeWorktreeIdRef.current
-      if (!wtId || !worktreePathRef.current) {
-        // Why: the preload stops propagation of the native drop event, so
-        // React onDrop handlers never fire. We must clear the drag highlight
-        // ourselves even when we bail out, otherwise the explorer stays stuck
-        // in its drag-over visual state.
-        clearNativeDragStateRef.current()
+      const captured = current.current
+      const { activeWorktreeId: wtId, worktreePath } = captured
+      const { paths, destinationDir } = data
+      if (!wtId || !worktreePath || !isPathInsideOrEqual(worktreePath, destinationDir)) {
+        captured.clearNativeDragState()
         return
       }
 
-      const { paths, destinationDir } = data
+      const isCurrent = (): boolean =>
+        !disposed &&
+        current.current.activeWorktreeId === wtId &&
+        current.current.worktreePath === worktreePath
 
       void (async () => {
         try {
-          const operationGuard = captureFileExplorerOperationGuard(wtId, operationOwnerRef.current)
-          operationGuard.assertCurrent()
+          const operationGuard = captureFileExplorerOperationGuard(wtId, captured.operationOwner)
+          const assertCurrent = (): void => {
+            if (!isCurrent()) {
+              throw new Error('The active workspace changed')
+            }
+            operationGuard.assertCurrent()
+          }
+          assertCurrent()
           const { results } = await importExternalPathsToRuntime(
             {
               settings: operationGuard.route.settings,
               worktreeId: wtId,
-              worktreePath: worktreePathRef.current,
+              worktreePath,
               connectionId: operationGuard.route.connectionId,
               expectedExecutionHostId: operationGuard.route.expectedExecutionHostId,
               expectedSshTargetId: operationGuard.route.expectedSshTargetId,
@@ -80,11 +71,19 @@ export function useFileExplorerImport({
             },
             paths,
             destinationDir,
-            { assertCurrent: operationGuard.assertCurrent }
+            { assertCurrent }
           )
 
+          if (!isCurrent()) {
+            return
+          }
+          assertCurrent()
           // Refresh the destination directory once per gesture
-          await refreshDirRef.current(destinationDir)
+          await captured.refreshDir(destinationDir)
+          if (!isCurrent()) {
+            return
+          }
+          assertCurrent()
 
           // Why: only select (highlight) the first imported file — don't trigger
           // the full reveal machinery because watcher refreshes can otherwise
@@ -94,7 +93,7 @@ export function useFileExplorerImport({
           const failed = results.filter((r) => r.status === 'failed')
 
           if (imported.length > 0) {
-            setSelectedPathRef.current(imported[0].destPath)
+            captured.setSelectedPath(imported[0].destPath)
           }
 
           if (failed.length > 0) {
@@ -117,11 +116,19 @@ export function useFileExplorerImport({
             )
           }
         } catch (err) {
-          toast.error(extractIpcErrorMessage(err, 'Failed to import files.'))
+          if (isCurrent()) {
+            toast.error(extractIpcErrorMessage(err, 'Failed to import files.'))
+          }
         } finally {
-          clearNativeDragStateRef.current()
+          if (isCurrent()) {
+            captured.clearNativeDragState()
+          }
         }
       })()
     })
+    return () => {
+      disposed = true
+      unsubscribe()
+    }
   }, [])
 }

@@ -28,6 +28,7 @@ vi.mock('@/runtime/runtime-file-client', () => ({
 }))
 
 import { useFileExplorerWatch } from './useFileExplorerWatch'
+import { WORKTREE_FILE_WATCH_READY_EVENT } from '@/hooks/worktree-file-watch-ready-event'
 
 type WatchHandler = (payload: FsChangedPayload) => void
 
@@ -95,6 +96,60 @@ describe('useFileExplorerWatch pending refreshes', () => {
       events: [{ kind: 'create', absolutePath: '/repo/new.ts', isDirectory: false }]
     })
   }
+
+  it("resyncs after native watch startup and ignores another workspace's readiness", async () => {
+    renderWatch()
+    const ready = (worktreeId: string) =>
+      window.dispatchEvent(
+        new CustomEvent(WORKTREE_FILE_WATCH_READY_EVENT, {
+          detail: { worktreeId, worktreePath: '/repo', runtimeEnvironmentId: null }
+        })
+      )
+    act(() => {
+      ready('other')
+    })
+    await act(async () => vi.advanceTimersByTimeAsync(0))
+    expect(refreshTree).not.toHaveBeenCalled()
+    act(() => {
+      ready('wt-1')
+    })
+    await act(async () => vi.advanceTimersByTimeAsync(0))
+    expect(refreshTree).toHaveBeenCalledOnce()
+  })
+
+  it('resyncs on reopen even when no event was received while Files was hidden', async () => {
+    const hook = renderWatch()
+    hook.rerender({ visiblePath: null })
+    hook.rerender({ visiblePath: '/repo' })
+    await act(async () => vi.advanceTimersByTimeAsync(0))
+    expect(refreshTree).toHaveBeenCalledOnce()
+  })
+
+  it('ignores watch readiness from a different SSH owner with the same path', async () => {
+    ownerRef.current = { kind: 'ssh', connectionId: 'server' }
+    renderWatch()
+    const ready = (connectionId: string) =>
+      window.dispatchEvent(
+        new CustomEvent(WORKTREE_FILE_WATCH_READY_EVENT, {
+          detail: {
+            worktreeId: 'wt-1',
+            worktreePath: '/repo',
+            runtimeEnvironmentId: null,
+            connectionId
+          }
+        })
+      )
+    act(() => {
+      ready('another-server')
+    })
+    await act(async () => vi.advanceTimersByTimeAsync(0))
+    expect(refreshTree).not.toHaveBeenCalled()
+    act(() => {
+      ready('server')
+    })
+    await act(async () => vi.advanceTimersByTimeAsync(0))
+    expect(refreshTree).toHaveBeenCalledOnce()
+  })
 
   it('resyncs on reopen when hiding Files cancelled a received remote event', async () => {
     ownerRef.current = { kind: 'ssh', connectionId: 'ssh-1' }

@@ -57,3 +57,33 @@ test('refreshes the visible tree after external Windows file changes', async ({ 
     rmSync(renamedPath, { force: true })
   }
 })
+
+test('refreshes cached files after external changes while Explorer was hidden', async ({
+  orcaPage
+}) => {
+  await waitForSessionReady(orcaPage)
+  await waitForActiveWorktree(orcaPage)
+  await openFileExplorer(orcaPage)
+  const rows = orcaPage.locator('[data-file-explorer-row]')
+  await expect(rows.filter({ hasText: 'README.md' })).toBeVisible()
+  const root = await orcaPage.evaluate(() => {
+    const state = window.__store!.getState()
+    const worktree = state.getKnownWorktreeById(state.activeWorktreeId!)
+    if (!worktree) {
+      throw new Error('active worktree unavailable')
+    }
+    return worktree.path
+  })
+  const file = path.join(root, 'created-while-hidden.txt')
+  try {
+    await orcaPage.evaluate(() => window.__store!.getState().setRightSidebarOpen(false))
+    await expect(rows.filter({ hasText: 'README.md' })).not.toBeVisible()
+    writeFileSync(file, 'external change while hidden\n')
+    await openFileExplorer(orcaPage)
+    await expect(rows.filter({ hasText: 'created-while-hidden.txt' })).toBeVisible()
+    rmSync(file)
+    await expect(rows.filter({ hasText: 'created-while-hidden.txt' })).toHaveCount(0)
+  } finally {
+    rmSync(file, { force: true })
+  }
+})

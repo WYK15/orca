@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { extractIpcErrorMessage } from '@/lib/ipc-error'
 import { importExternalPathsToRuntime } from '@/runtime/runtime-file-client'
 import { translate } from '@/i18n/i18n'
+import { isPathInsideOrEqual } from '../../../../shared/cross-platform-path'
 import type { FileExplorerOperationOwner } from './file-explorer-types'
 import { captureFileExplorerOperationGuard } from './file-explorer-operation-owner'
 
@@ -37,7 +38,8 @@ export function useFileExplorerPaste(options: FileExplorerPasteOptions) {
         !captured.enabled ||
         pending.current ||
         !captured.worktreePath ||
-        !captured.activeWorktreeId
+        !captured.activeWorktreeId ||
+        !isPathInsideOrEqual(captured.worktreePath, destinationDir)
       ) {
         return
       }

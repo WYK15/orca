@@ -17,6 +17,7 @@ import {
 import { fileExplorerRefreshConcurrency } from './file-explorer-refresh-concurrency'
 import { createFileExplorerWatchRefreshScheduler } from './file-explorer-watch-refresh-scheduler'
 import { processFileExplorerFsPayload } from './file-explorer-watch-reconcile'
+import { subscribeFileExplorerWatchReadiness } from './file-explorer-watch-readiness'
 
 export {
   canonicalizeFileExplorerWatchPath,
@@ -71,11 +72,7 @@ export function getFileExplorerWatchRuntimeEnvironmentId(
       : null
 }
 
-/**
- * Reconciles File Explorer state on filesystem events for the active worktree.
- *
- * Why: `useEditorExternalWatch` owns the watch IPC lifecycle; this hook only subscribes to fs:changed for tree-cache reconciliation.
- */
+// The app-level editor watcher owns native subscriptions; this hook reconciles tree caches.
 export function useFileExplorerWatch({
   worktreePath,
   activeWorktreeId,
@@ -193,6 +190,13 @@ export function useFileExplorerWatch({
     // Declared before handleFsChanged so its `disposed` read can never hit the temporal dead zone.
     let disposed = false
 
+    const unsubscribeWatchReady = subscribeFileExplorerWatchReadiness({
+      worktreeId: currentWorktreeId,
+      worktreePath: currentWorktreePath,
+      runtimeEnvironmentId: activeRuntimeEnvironmentId ?? null,
+      onReady: scheduler.requestFullRefresh
+    })
+
     const handleFsChanged = (payload: FsChangedPayload): void => {
       if (disposed) {
         if (
@@ -260,15 +264,14 @@ export function useFileExplorerWatch({
 
     return () => {
       disposed = true
+      unsubscribeWatchReady()
       unsubscribeListener?.()
       if (activeResyncByWatchKey.get(currentWatchKey) === scheduler.requestFullRefresh) {
         activeResyncByWatchKey.delete(currentWatchKey)
       }
-      const hadDeferredEvents = deferredRef.current.length > 0
-      if (scheduler.cancel() || hadDeferredEvents) {
-        // The tree cache survives Files being hidden, so remember work canceled after receipt.
-        resyncWatchKeys.add(currentWatchKey)
-      }
+      scheduler.cancel()
+      // Changes made without a listener must invalidate the retained tree cache on reopen.
+      resyncWatchKeys.add(currentWatchKey)
       deferredRef.current = []
       processPayloadRef.current = null
     }

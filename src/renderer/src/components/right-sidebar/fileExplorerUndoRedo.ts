@@ -13,8 +13,11 @@ type ExplorerOp = {
 
 const past: ExplorerOp[] = []
 const future: ExplorerOp[] = []
+let applying = false
+let revision = 0
 
 export function commitFileExplorerOp(op: ExplorerOp): void {
+  revision += 1
   past.push(op)
   if (past.length > MAX_STEPS) {
     past.shift()
@@ -23,28 +26,46 @@ export function commitFileExplorerOp(op: ExplorerOp): void {
 }
 
 export function clearFileExplorerUndoHistory(): void {
+  revision += 1
   past.length = 0
   future.length = 0
 }
 
 export async function undoFileExplorer(): Promise<boolean> {
-  const op = past.pop()
-  if (!op) {
-    return false
-  }
-  await op.undo()
-  future.push(op)
-  return true
+  return applyHistoryStep(past, future, 'undo')
 }
 
 export async function redoFileExplorer(): Promise<boolean> {
-  const op = future.pop()
+  return applyHistoryStep(future, past, 'redo')
+}
+
+async function applyHistoryStep(
+  source: ExplorerOp[],
+  destination: ExplorerOp[],
+  direction: 'undo' | 'redo'
+): Promise<boolean> {
+  if (applying) {
+    return false
+  }
+  const op = source.at(-1)
   if (!op) {
     return false
   }
-  await op.redo()
-  past.push(op)
-  return true
+  applying = true
+  const capturedRevision = revision
+  try {
+    await op[direction]()
+    const index = source.lastIndexOf(op)
+    if (index !== -1) {
+      source.splice(index, 1)
+    }
+    if (revision === capturedRevision) {
+      destination.push(op)
+    }
+    return true
+  } finally {
+    applying = false
+  }
 }
 
 export function fileExplorerHasUndo(): boolean {

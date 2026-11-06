@@ -224,7 +224,7 @@ function normalizeEventPath(eventPath: string): string {
 }
 
 // ── Event coalescing ─────────────────────────────────────────────────
-// Why: keep the last event per path in a flush window; delete→create emits both (delete cleans the subtree, create refreshes the parent), create→delete is dropped (§4.4).
+// Preserve final deletes: a directory read may have observed a transient entry before the batch flushes.
 
 function coalesceEvents(
   raw: WatcherEvent[]
@@ -241,12 +241,6 @@ function coalesceEvents(
       // delete followed by create → emit both
       if (prev.type === 'delete' && evt.type === 'create') {
         deleteBeforeCreate.add(p)
-      }
-      // create followed by delete → net no-op, remove both
-      if (prev.type === 'create' && evt.type === 'delete') {
-        lastByPath.delete(p)
-        deleteBeforeCreate.delete(p)
-        continue
       }
     }
 

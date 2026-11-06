@@ -181,6 +181,14 @@ describe('file explorer file paste', () => {
     expect(mocks.import).not.toHaveBeenCalled()
   })
 
+  it('rejects a selected folder left over from the previous workspace', async () => {
+    const view = render(<Harness project="other" />)
+    paste(view.getByText('file row'))
+    await act(async () => {})
+    expect(mocks.read).not.toHaveBeenCalled()
+    expect(mocks.import).not.toHaveBeenCalled()
+  })
+
   it('ignores paste when the host has no file clipboard capability', () => {
     Object.assign(window, { api: { ui: {} } })
     const view = render(<Harness />)

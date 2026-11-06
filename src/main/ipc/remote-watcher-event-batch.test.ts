@@ -67,7 +67,7 @@ describe('createRemoteWatcherEventBatch', () => {
     ])
   })
 
-  it('drops both events for create then delete', () => {
+  it('keeps the final delete if a listing could have observed a transient creation', () => {
     const deliver = vi.fn()
     const batch = makeBatch(deliver)
 
@@ -77,7 +77,7 @@ describe('createRemoteWatcherEventBatch', () => {
     ])
     vi.advanceTimersByTime(150)
 
-    expect(deliver).not.toHaveBeenCalled()
+    expect(deliver).toHaveBeenCalledWith([{ kind: 'delete', absolutePath: `${ROOT}/tmp.ts` }])
   })
 
   it('keeps a replacement delete when a directory is recreated as a file', () => {

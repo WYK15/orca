@@ -17,8 +17,7 @@ export type RemoteWatcherEventBatch = {
   close: () => void
 }
 
-// Unlike local coalescing, a recreate keeps its delete through live updates so cached dirs are purged;
-// delete→create→delete also remains a net delete because the path predated the batch.
+// A recreate keeps its delete through live updates so cached directories are purged.
 function posixEventIdentity(absolutePath: string): string {
   const normalized = absolutePath.replace(/\/+/g, '/')
   return normalized === '/' ? normalized : normalized.replace(/\/+$/, '')
@@ -45,15 +44,6 @@ function coalesceRemoteEvents(raw: FsChangeEvent[], rootPath: string): FsChangeE
     if (prev) {
       if (prev.kind === 'delete' && event.kind === 'create') {
         deleteBeforeCreate.set(key, prev)
-      }
-      if (prev.kind === 'create' && event.kind === 'delete') {
-        // Why: cancel only a path created and removed entirely inside the window; an earlier delete means
-        // the file predates it, so the window nets out to a delete the renderer still has to act on.
-        const netNoOp = !deleteBeforeCreate.delete(key)
-        if (netNoOp) {
-          lastByKey.delete(key)
-          continue
-        }
       }
     }
 
