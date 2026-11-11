@@ -37,6 +37,7 @@ export type NativeFileDropPayload =
       paths: string[]
       target: typeof NATIVE_FILE_DROP_TARGET.fileExplorer
       destinationDir: string
+      sourceWorktreeId?: string
     }
   | { paths: string[]; target: typeof NATIVE_FILE_DROP_TARGET.projectSidebar }
   | NativeFileDropRejectedPayload
@@ -268,7 +269,13 @@ export function isNativeFileDropPayload(value: unknown): value is NativeFileDrop
     )
   }
   if (target === NATIVE_FILE_DROP_TARGET.fileExplorer) {
-    return typeof payload.destinationDir === 'string'
+    return (
+      typeof payload.destinationDir === 'string' &&
+      (payload.sourceWorktreeId === undefined ||
+        (typeof payload.sourceWorktreeId === 'string' &&
+          payload.sourceWorktreeId.length > 0 &&
+          payload.sourceWorktreeId.length <= 4096))
+    )
   }
 
   return (

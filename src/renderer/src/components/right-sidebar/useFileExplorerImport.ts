@@ -4,6 +4,7 @@ import { extractIpcErrorMessage } from '@/lib/ipc-error'
 import { importExternalPathsToRuntime } from '@/runtime/runtime-file-client'
 import { translate } from '@/i18n/i18n'
 import { isPathInsideOrEqual } from '../../../../shared/cross-platform-path'
+import { pruneFileDragPaths } from '../../../../shared/file-drag'
 import type { FileExplorerOperationOwner } from './file-explorer-types'
 import { captureFileExplorerOperationGuard } from './file-explorer-operation-owner'
 
@@ -14,6 +15,7 @@ type UseFileExplorerImportParams = {
   clearNativeDragState: () => void
   setSelectedPath: (path: string | null) => void
   operationOwner?: FileExplorerOperationOwner
+  onMoveDrop?: (sourcePath: string, destinationDir: string) => void
 }
 
 /**
@@ -59,6 +61,20 @@ export function useFileExplorerImport(options: UseFileExplorerImportParams): voi
             operationGuard.assertCurrent()
           }
           assertCurrent()
+          if (data.sourceWorktreeId) {
+            if (
+              data.sourceWorktreeId !== wtId ||
+              captured.operationOwner?.kind !== 'local' ||
+              !captured.onMoveDrop ||
+              !paths.every((path) => isPathInsideOrEqual(worktreePath, path))
+            ) {
+              throw new Error('The dragged files belong to a different workspace')
+            }
+            for (const path of pruneFileDragPaths(paths)) {
+              captured.onMoveDrop(path, destinationDir)
+            }
+            return
+          }
           const { results } = await importExternalPathsToRuntime(
             {
               settings: operationGuard.route.settings,

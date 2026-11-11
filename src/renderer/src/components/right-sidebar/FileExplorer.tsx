@@ -407,6 +407,7 @@ function FileExplorerFiles(): React.JSX.Element {
 
   useFileExplorerImport({
     worktreePath: visibleFilesWorktreePath,
+    onMoveDrop: handleMoveDrop,
     activeWorktreeId,
     refreshDir,
     clearNativeDragState,

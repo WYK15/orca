@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { preloadE2EConfig } from './e2e-config'
 import { glApi } from './gitlab'
+import type { NativeFileDragRequest, NativeFileDragResult } from '../shared/file-drag'
 import type { AppIdentity } from '../shared/app-identity'
 import type { DashboardSnapshot, DashboardRevealAgentArgs } from '../shared/dashboard-snapshot'
 import type {
@@ -3981,6 +3982,12 @@ const api = {
       ipcRenderer.invoke('clipboard:readText', options),
     ...(Reflect.has(globalThis, '__TAURI_INTERNALS__')
       ? { readClipboardFiles: (): Promise<string[]> => ipcRenderer.invoke('clipboard:readFiles') }
+      : {}),
+    ...(Reflect.has(globalThis, '__TAURI_INTERNALS__') && process.platform === 'darwin'
+      ? {
+          startFileDrag: (request: NativeFileDragRequest): Promise<NativeFileDragResult> =>
+            ipcRenderer.invoke('ui:startFileDrag', request)
+        }
       : {}),
     readSelectionClipboardText: (options?: ReadClipboardTextOptions): Promise<string> =>
       ipcRenderer.invoke('clipboard:readSelectionText', options),

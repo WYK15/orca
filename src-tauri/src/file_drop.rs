@@ -1,20 +1,60 @@
 use serde_json::{json, Value};
-use std::path::PathBuf;
+use std::{cell::Cell, path::PathBuf};
 use tauri::{DragDropEvent, Emitter, Window};
 
 const MAX_PATHS: usize = 256;
 const MAX_PATH_BYTES: usize = 256 * 1024;
 
+thread_local! {
+    static HOVERING_FILES: Cell<bool> = const { Cell::new(false) };
+}
+
 pub fn dispatch(window: &Window, event: &DragDropEvent) {
     if window.label() != "main" {
         return;
     }
+    // Wry's WKWebView backend forwards draggingLocation in view points, despite
+    // naming the event's coordinates PhysicalPosition. Other backends use pixels.
+    let scale = if cfg!(target_os = "macos") {
+        1.0
+    } else {
+        window.scale_factor().unwrap_or(1.0)
+    };
+    match event {
+        DragDropEvent::Enter { paths, position } => {
+            let accepted =
+                drop_payload(paths, 0.0, 0.0).is_some_and(|value| value.get("paths").is_some());
+            HOVERING_FILES.set(accepted);
+            if accepted {
+                emit_hover(window, position.x / scale, position.y / scale);
+            }
+        }
+        DragDropEvent::Over { position } => {
+            if HOVERING_FILES.get() {
+                emit_hover(window, position.x / scale, position.y / scale);
+            }
+        }
+        DragDropEvent::Leave => {
+            HOVERING_FILES.set(false);
+            let _ = window.emit_to("main", "desktop:file-drag-hover", Value::Null);
+        }
+        _ => {}
+    }
     if let DragDropEvent::Drop { paths, position } = event {
-        let scale = window.scale_factor().unwrap_or(1.0);
-        if let Some(payload) = drop_payload(paths, position.x / scale, position.y / scale) {
+        HOVERING_FILES.set(false);
+        if let Some(mut payload) = drop_payload(paths, position.x / scale, position.y / scale) {
+            #[cfg(target_os = "macos")]
+            if let Some((worktree_id, source_paths)) = crate::file_drag_source::origin_for(paths) {
+                payload["sourceWorktreeId"] = json!(worktree_id);
+                payload["paths"] = json!(source_paths);
+            }
             let _ = window.emit_to("main", "desktop:file-drop", payload);
         }
     }
+}
+
+fn emit_hover(window: &Window, x: f64, y: f64) {
+    let _ = window.emit_to("main", "desktop:file-drag-hover", json!({ "x": x, "y": y }));
 }
 
 fn drop_payload(paths: &[PathBuf], x: f64, y: f64) -> Option<Value> {

@@ -14,6 +14,7 @@ import { registerServiceHandlers } from './register-service-handlers'
 import { registerUnavailableCapabilities } from './register-unavailable-capabilities'
 import metadata from '../../package.json'
 import { registerClipboardHandlers } from './clipboard-handlers'
+import { registerFileDragHandlers } from './file-drag-handlers'
 import { registerApplicationMenu } from './register-application-menu'
 import { importOrcawProfile } from './orcaw-profile-import'
 
@@ -84,6 +85,7 @@ async function initialize(): Promise<void> {
   registerRendererShutdownCheckpointHandler(store)
   registerDesktopHandlers(store, workspace.firstWindowReady)
   registerClipboardHandlers(store)
+  registerFileDragHandlers(store)
   await registerApplicationMenu(store, () => services.keybindings.getOverrides())
   registerUnavailableCapabilities(metadata.version)
   renderer.emit('did-finish-load')

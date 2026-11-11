@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { FileExplorerPasteMenuItem } from './FileExplorerPasteMenuItem'
+import { startFileExplorerNativeDrag } from './file-explorer-native-drag'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -543,6 +544,17 @@ export function FileExplorerRow({
               selectedPaths.has(node.path) && selectedPaths.size > 1
                 ? [...selectedPaths]
                 : [node.path]
+            if (
+              startFileExplorerNativeDrag(
+                event,
+                paths,
+                activeWorktreeId,
+                node.operationOwner,
+                onDragSourceChange
+              )
+            ) {
+              return
+            }
             event.dataTransfer.setData(WORKSPACE_FILE_PATH_MIME, node.path)
             if (paths.length > 1) {
               event.dataTransfer.setData(WORKSPACE_FILE_PATHS_MIME, encodeWorkspaceFilePaths(paths))

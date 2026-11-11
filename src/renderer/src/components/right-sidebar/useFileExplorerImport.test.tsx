@@ -15,7 +15,7 @@ vi.mock('./file-explorer-operation-owner', () => ({
 }))
 vi.mock('sonner', () => ({ toast: { error: mocks.error } }))
 
-type Drop = { target: string; paths: string[]; destinationDir: string }
+type Drop = { target: string; paths: string[]; destinationDir: string; sourceWorktreeId?: string }
 let drop: (event: Drop) => void
 const owner = { kind: 'local' } as const
 const imported = { results: [{ status: 'imported', destPath: '/project/target/file.txt' }] }
@@ -32,7 +32,8 @@ function options(root: string | null = '/project') {
     operationOwner: owner,
     refreshDir: vi.fn(async () => {}),
     clearNativeDragState: vi.fn(),
-    setSelectedPath: vi.fn()
+    setSelectedPath: vi.fn(),
+    onMoveDrop: vi.fn()
   }
 }
 
@@ -57,6 +58,37 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('native explorer file imports', () => {
+  it('moves our own native files inside the explorer without importing duplicate copies', async () => {
+    const props = options()
+    renderHook(() => useFileExplorerImport(props))
+    act(() =>
+      drop({
+        ...event,
+        paths: ['/project/folder/child', '/project/file', '/project/folder'],
+        sourceWorktreeId: '/project'
+      })
+    )
+    await waitFor(() => expect(props.clearNativeDragState).toHaveBeenCalled())
+    expect(props.onMoveDrop.mock.calls).toEqual([
+      ['/project/file', '/project/target'],
+      ['/project/folder', '/project/target']
+    ])
+    expect(mocks.import).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { sourceWorktreeId: 'old-project', paths: ['/project/file'] },
+    { sourceWorktreeId: '/project', paths: ['/outside/file'] }
+  ])('rejects stale or mismatched native source provenance: %j', async (source) => {
+    const props = options()
+    renderHook(() => useFileExplorerImport(props))
+    act(() => drop({ ...event, ...source }))
+    await waitFor(() => expect(props.clearNativeDragState).toHaveBeenCalled())
+    expect(props.onMoveDrop).not.toHaveBeenCalled()
+    expect(mocks.import).not.toHaveBeenCalled()
+    expect(mocks.error).toHaveBeenCalledOnce()
+  })
+
   it('imports into the drop folder and refreshes and selects in the same workspace', async () => {
     const props = options()
     renderHook(() => useFileExplorerImport(props))

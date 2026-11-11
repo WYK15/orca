@@ -4,6 +4,10 @@ mod application_menu;
 mod backend;
 mod clipboard;
 mod credential_key;
+#[cfg(target_os = "macos")]
+mod file_drag;
+#[cfg(target_os = "macos")]
+mod file_drag_source;
 mod file_drop;
 mod keyboard_input_source;
 mod markdown_print;

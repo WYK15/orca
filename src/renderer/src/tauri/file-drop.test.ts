@@ -45,4 +45,14 @@ describe('Tauri native drop routing', () => {
     expect(resolveDesktopFileDrop({ paths: [false], x: 1, y: 2 })).toBeNull()
     expect(resolveDesktopFileDrop({ paths: ['/tmp/private'], x: Number.NaN, y: 2 })).toBeNull()
   })
+
+  it('preserves native source provenance only when dropping into the explorer', () => {
+    document.body.innerHTML =
+      '<div id="hit" data-native-file-drop-target="file-explorer" data-native-file-drop-dir="/repo"></div>'
+    vi.spyOn(document, 'elementFromPoint').mockReturnValue(document.getElementById('hit'))
+    const drop = { paths: ['/repo/file'], x: 1, y: 1, sourceWorktreeId: 'workspace' }
+    expect(resolveDesktopFileDrop(drop)).toMatchObject({ sourceWorktreeId: 'workspace' })
+    document.getElementById('hit')!.dataset.nativeFileDropTarget = 'composer'
+    expect(resolveDesktopFileDrop(drop)).toEqual({ paths: ['/repo/file'], target: 'composer' })
+  })
 })

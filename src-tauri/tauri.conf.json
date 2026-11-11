@@ -23,6 +23,7 @@
         "minWidth": 800,
         "minHeight": 500,
         "visible": true,
+        "acceptFirstMouse": true,
         "dragDropEnabled": false
       }
     ],

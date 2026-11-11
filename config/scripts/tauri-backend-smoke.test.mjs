@@ -1,5 +1,6 @@
 import { registerTauriMarkdownImageReadTest } from './tauri-markdown-image-read-cases.mjs'
 import { registerTauriFileClipboardTests } from './tauri-file-clipboard-cases.mjs'
+import { registerTauriFileDragTests } from './tauri-file-drag-cases.mjs'
 import { registerTauriFilesystemWatchTests } from './tauri-filesystem-watch-cases.mjs'
 import { registerTauriExplorerMutationTests } from './tauri-explorer-mutation-cases.mjs'
 import { registerTauriKeyboardInputSourceTest } from './tauri-keyboard-input-source-cases.mjs'
@@ -153,6 +154,7 @@ describe('standalone desktop backend', () => {
   })
 
   registerTauriKeyboardInputSourceTest(() => ({ call, nativeResponses }))
+  registerTauriFileDragTests(() => ({ call, directory, project, nativeResponses, nativeRequests }))
 
   it('saves standalone HTML and routes printing through the native port', async () => {
     const filePath = join(directory, 'export.html')

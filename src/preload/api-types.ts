@@ -1,4 +1,5 @@
 /* eslint-disable max-lines -- Why: the preload contract is intentionally centralized in one declaration file so renderer and preload stay in lockstep when IPC surfaces change. */
+import type { NativeFileDragRequest, NativeFileDragResult } from '../shared/file-drag'
 import type {
   CreateHostedReviewArgs,
   CreateHostedReviewResult,
@@ -3276,6 +3277,7 @@ export type PreloadApi = {
     onSystemResumed: (callback: () => void) => () => void
     readClipboardText: (options?: ReadClipboardTextOptions) => Promise<string>
     readClipboardFiles?: () => Promise<string[]>
+    startFileDrag?: (request: NativeFileDragRequest) => Promise<NativeFileDragResult>
     readSelectionClipboardText: (options?: ReadClipboardTextOptions) => Promise<string>
     saveClipboardImageAsTempFile: (args?: {
       connectionId?: string | null
