@@ -7,6 +7,7 @@
     "error": "无法粘贴文件。"
   },
   "fileExplorer": {
+    "refresh": "刷新",
     "defaultApp": {
       "open": "使用默认应用打开",
       "openFailed": "无法使用默认应用打开此文件。"

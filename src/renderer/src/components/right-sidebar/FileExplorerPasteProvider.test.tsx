@@ -72,6 +72,7 @@ function Harness({
         </div>
         {menu && (
           <FileExplorerBackgroundMenu
+            refresh={{ isRefreshing: false, showRefreshSpinner: false, handleRefresh: vi.fn() }}
             open
             onOpenChange={() => {}}
             point={{ x: 0, y: 0 }}

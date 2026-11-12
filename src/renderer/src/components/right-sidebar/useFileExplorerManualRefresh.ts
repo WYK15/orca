@@ -2,11 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 const REFRESH_SPINNER_DELAY_MS = 200
 
-export function useFileExplorerManualRefresh(refreshTree: () => Promise<unknown>): {
+export type FileExplorerManualRefresh = {
   isRefreshing: boolean
   showRefreshSpinner: boolean
   handleRefresh: () => void
-} {
+}
+
+export function useFileExplorerManualRefresh(
+  refreshTree: () => Promise<unknown>
+): FileExplorerManualRefresh {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showRefreshSpinner, setShowRefreshSpinner] = useState(false)
   const isRefreshingRef = useRef(false)

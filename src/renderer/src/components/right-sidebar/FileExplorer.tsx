@@ -794,6 +794,7 @@ function FileExplorerFiles(): React.JSX.Element {
                 onContextMenuSelect={preserveSelectionForContextMenu}
                 onCopyPaths={copyPathsForNode}
                 onStartNew={startNew}
+                refresh={manualRefresh}
                 onStartRename={handleStartRename}
                 onDuplicate={handleDuplicate}
                 onAddFolderAsProject={handleAddFolderAsProject}
@@ -842,6 +843,7 @@ function FileExplorerFiles(): React.JSX.Element {
         point={bgMenuPoint}
         worktreePath={worktreePath}
         onStartNew={startNew}
+        refresh={manualRefresh}
       />
     </FileExplorerPasteProvider>
   )

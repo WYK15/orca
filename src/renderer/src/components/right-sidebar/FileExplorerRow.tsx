@@ -19,6 +19,7 @@ import {
   Link,
   Loader2,
   Pencil,
+  RefreshCw,
   Search,
   SquareTerminal,
   Trash2
@@ -26,6 +27,7 @@ import {
 import { toast } from 'sonner'
 import { FileExplorerPasteMenuItem } from './FileExplorerPasteMenuItem'
 import { startFileExplorerNativeDrag } from './file-explorer-native-drag'
+import type { FileExplorerManualRefresh } from './useFileExplorerManualRefresh'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -280,6 +282,7 @@ type FileExplorerRowProps = {
   onContextMenuSelect: () => void
   onCopyPaths: (pathKind: 'absolute' | 'relative') => void
   onStartNew: (type: 'file' | 'folder', dir: string, depth: number) => void
+  refresh: FileExplorerManualRefresh
   onStartRename: (node: TreeNode) => void
   onDuplicate: (node: TreeNode) => void
   onAddFolderAsProject: () => void
@@ -451,6 +454,7 @@ export function FileExplorerRow({
   onContextMenuSelect,
   onCopyPaths,
   onStartNew,
+  refresh,
   onStartRename,
   onDuplicate,
   onAddFolderAsProject,
@@ -699,6 +703,10 @@ export function FileExplorerRow({
         <ContextMenuItem onSelect={() => onStartNew('folder', targetDir, targetDepth)}>
           <FolderPlus />
           {translate('auto.components.right.sidebar.FileExplorerRow.f61af83316', 'New Folder')}
+        </ContextMenuItem>
+        <ContextMenuItem disabled={refresh.isRefreshing} onSelect={refresh.handleRefresh}>
+          <RefreshCw className={refresh.isRefreshing ? 'animate-spin' : undefined} />
+          {translate('fileExplorer.refresh', 'Refresh')}
         </ContextMenuItem>
         <ContextMenuSeparator />
         {showCopyFileAction && (

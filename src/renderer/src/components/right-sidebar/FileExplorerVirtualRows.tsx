@@ -8,6 +8,7 @@ import { shouldShowIgnoredDecoration, STATUS_COLORS } from './status-display'
 import type { DirCache, TreeNode } from './file-explorer-types'
 import type { FileExplorerRowProjection } from './file-explorer-row-projection'
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { FileExplorerManualRefresh } from './useFileExplorerManualRefresh'
 
 type FileExplorerVirtualRowsProps = {
   virtualizer: Virtualizer<HTMLDivElement, Element>
@@ -35,6 +36,7 @@ type FileExplorerVirtualRowsProps = {
   onContextMenuSelect: (node: TreeNode) => void
   onCopyPaths: (node: TreeNode, pathKind: 'absolute' | 'relative') => void
   onStartNew: (type: 'file' | 'folder', parentPath: string, depth: number) => void
+  refresh: FileExplorerManualRefresh
   onStartRename: (node: TreeNode) => void
   onDuplicate: (node: TreeNode) => void
   onAddFolderAsProject: (node: TreeNode) => void
@@ -81,6 +83,7 @@ export function FileExplorerVirtualRows(props: FileExplorerVirtualRowsProps): Re
     onContextMenuSelect,
     onCopyPaths,
     onStartNew,
+    refresh,
     onStartRename,
     onDuplicate,
     onAddFolderAsProject,
@@ -189,6 +192,7 @@ export function FileExplorerVirtualRows(props: FileExplorerVirtualRowsProps): Re
               onContextMenuSelect={() => onContextMenuSelect(n)}
               onCopyPaths={(pathKind) => onCopyPaths(n, pathKind)}
               onStartNew={onStartNew}
+              refresh={refresh}
               onStartRename={onStartRename}
               onDuplicate={onDuplicate}
               onAddFolderAsProject={() => onAddFolderAsProject(n)}

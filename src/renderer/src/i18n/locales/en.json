@@ -7,6 +7,7 @@
     "error": "Could not paste files."
   },
   "fileExplorer": {
+    "refresh": "Refresh",
     "defaultApp": {
       "open": "Open with Default App",
       "openFailed": "Couldn't open the file with its default app."
