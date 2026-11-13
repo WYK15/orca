@@ -6,7 +6,7 @@ import ApplicationServices
 guard AXIsProcessTrusted() else { fatalError("Native drag test needs existing Accessibility access") }
 let binary = CommandLine.arguments[1]
 let originalApp = NSWorkspace.shared.frontmostApplication
-let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+let root = FileManager.default.temporaryDirectory.appendingPathComponent("orcaw-native-drag-" + UUID().uuidString)
 try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
 defer {
     try? FileManager.default.removeItem(at: root)
@@ -88,7 +88,9 @@ func check(_ names: [String], cancel: Bool = false, webview: Bool = false) throw
         fatalError("Native drag failed: \(String(data: error, encoding: .utf8) ?? "")")
     }
     let payload = try JSONSerialization.jsonObject(with: result) as! [String: Bool]
-    precondition(payload["copied"] == !cancel, "Unexpected drag result")
+    guard payload["copied"] == !cancel else {
+        throw NSError(domain: "Unexpected drag result", code: 1, userInfo: [NSLocalizedDescriptionKey: "Native drag was not accepted: \(names)"])
+    }
     let copyDeadline = Date().addingTimeInterval(4)
     while !cancel && Date() < copyDeadline {
         if names.allSatisfy({ name in
@@ -115,4 +117,5 @@ try check(["a folder"])
 try check(["one.txt", "two 中文.md", "nested folder"])
 try check(["cancel.txt", "cancel folder"], cancel: true)
 try check(["web 中文.md", "web folder"], webview: true)
+try check(["orca.yaml"], webview: true)
 try check(["web cancel.md"], cancel: true, webview: true)

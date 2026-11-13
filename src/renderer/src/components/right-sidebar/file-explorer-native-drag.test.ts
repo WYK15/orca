@@ -35,7 +35,7 @@ describe('native explorer drag gestures', () => {
     return { event, change, handled }
   }
 
-  it('starts one OS gesture for multiple files and clears the drag after cancellation', async () => {
+  it('waits for WebKit cancellation before starting one native gesture for multiple files', async () => {
     let finish!: (result: { outcome: 'cancelled' }) => void
     mocks.start.mockImplementation(
       () =>
@@ -48,6 +48,8 @@ describe('native explorer drag gestures', () => {
     const { event, change, handled } = gesture()
     expect(handled).toBe(true)
     expect(event.preventDefault).toHaveBeenCalledOnce()
+    expect(mocks.start).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(mocks.start).toHaveBeenCalledOnce())
     expect(mocks.start).toHaveBeenCalledWith({
       paths: ['/project/a', '/project/b'],
       worktreeId: 'one'
@@ -76,6 +78,15 @@ describe('native explorer drag gestures', () => {
     expect(mocks.error).toHaveBeenCalledOnce()
   })
 
+  it('rechecks ownership after WebKit cancellation before handing files to macOS', async () => {
+    gesture()
+    mocks.assert.mockImplementation(() => {
+      throw new Error('Workspace changed')
+    })
+    await vi.waitFor(() => expect(mocks.error).toHaveBeenCalledOnce())
+    expect(mocks.start).not.toHaveBeenCalled()
+  })
+
   it('does not clear another workspace selection when a gesture finishes late', async () => {
     let finish!: (value: { outcome: 'copied' }) => void
     mocks.start.mockImplementation(
@@ -85,6 +96,7 @@ describe('native explorer drag gestures', () => {
         })
     )
     const { change } = gesture()
+    await vi.waitFor(() => expect(mocks.start).toHaveBeenCalledOnce())
     mocks.active = 'two'
     finish({ outcome: 'copied' })
     await Promise.resolve()

@@ -25,9 +25,15 @@ export function startFileExplorerNativeDrag(
     document.dispatchEvent(new Event('dragend', { bubbles: true }))
   }
   try {
-    captureFileExplorerOperationGuard(worktreeId, owner).assertCurrent()
+    const guard = captureFileExplorerOperationGuard(worktreeId, owner)
+    guard.assertCurrent()
     onDragSourceChange(paths[0])
-    void start({ paths, worktreeId })
+    // WebKit must finish cancelling its drag before AppKit receives the file pasteboard.
+    void new Promise<void>((resolve) => setTimeout(resolve, 0))
+      .then(() => {
+        guard.assertCurrent()
+        return start({ paths, worktreeId })
+      })
       .catch((error) => toast.error(extractIpcErrorMessage(error, 'Failed to drag files.')))
       .finally(finish)
   } catch (error) {

@@ -132,7 +132,7 @@ mod probe {
                     const transfer=new DataTransfer(); transfer.items.add(new File([], 'file'));
                     const event=new DragEvent('dragover', {dataTransfer:transfer});
                     if(event.dataTransfer.types.includes('Files')) post('ready'); else post('unsupported');
-                    document.querySelector('button').ondragstart=event=>{event.preventDefault(); setTimeout(()=>post('start'),30)};
+                    document.querySelector('button').ondragstart=event=>{event.preventDefault(); setTimeout(()=>post('start'),0)};
                 </script>"#), None);
             }
         }

@@ -103,6 +103,9 @@ jobs:
           src/shared/native-file-drop.test.ts
           src/shared/native-markdown-drop.test.ts
           src/renderer/src/tauri/file-drop.test.ts
+          src/renderer/src/tauri/file-drag-hover.test.ts
+          src/renderer/src/components/right-sidebar/file-explorer-native-drag.test.ts
+          src/renderer/src/components/right-sidebar/useFileExplorerImport.test.tsx
           src/renderer/src/lib/sidebar-worktree-activation.test.ts
           src/renderer/src/components/sidebar/sleep-worktree-flow.test.ts
           src/renderer/src/components/sidebar/sleep-worktree-activation-race.test.ts
