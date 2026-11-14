@@ -1,10 +1,14 @@
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { validateTauriReleaseSource } from './tauri-release-source.mjs'
 
 const channel = process.env.RELEASE_CHANNEL ?? 'preview'
+const signing = process.env.RELEASE_SIGNING ?? 'developer-id'
+if (!['developer-id', 'unsigned'].includes(signing)) {
+  throw new Error('RELEASE_SIGNING must be developer-id or unsigned.')
+}
 if (!['preview', 'stable'].includes(channel)) {
   throw new Error('RELEASE_CHANNEL must be preview or stable.')
 }
@@ -56,6 +60,13 @@ if (release && (!release.isDraft || release.isPrerelease !== prerelease)) {
     'Refusing to overwrite an existing published release or a different-channel draft.'
   )
 }
+const title = `Orcaw Tauri ${metadata.version} (Mac ARM64${signing === 'unsigned' ? ' Unsigned' : ''}${prerelease ? ' Preview' : ''})`
+const signingNotice =
+  signing === 'unsigned'
+    ? '本次为自用未签名版本，未经过 Developer ID 签名和 Apple 公证。'
+    : '本次安装包经过 Developer ID 签名和 Apple 公证。'
+const notes = 'out/tauri-release-notes.md'
+writeFileSync(notes, `${signingNotice}\n\n${readFileSync('src-tauri/RELEASE_NOTES.md', 'utf8')}`)
 if (!release) {
   gh(
     'release',
@@ -66,10 +77,12 @@ if (!release) {
     prereleaseFlag,
     '--latest=false',
     '--title',
-    `Orcaw Tauri ${metadata.version} (Mac ARM64${prerelease ? ' Preview' : ''})`,
+    title,
     '--notes-file',
-    'src-tauri/RELEASE_NOTES.md'
+    notes
   )
+} else {
+  gh('release', 'edit', tag, '--title', title, '--notes-file', notes)
 }
 gh('release', 'upload', tag, ...expected.map((name) => join(directory, name)), '--clobber')
 const uploaded = JSON.parse(gh('release', 'view', tag, '--json', 'assets,isDraft'))

@@ -64,13 +64,19 @@ with `ref` set to that tag and `publish_release` enabled. `release_channel`
 defaults to `preview`; choose `stable` for a normal GitHub Release without the
 prerelease flag. The tag suffix identifies the Tauri distribution and revision;
 the workflow input controls GitHub release status. Ordinary checks remain
-unsigned and do not publish. Release builds use the existing Developer ID and
+unsigned and do not publish. Personal releases default to unsigned ZIP and DMG
+packages and do not use Apple credentials. Enable `sign_release` to opt into
+Developer ID signing and Apple notarization. Release titles and notes identify
+unsigned packages; first launch may need **Open Anyway** in macOS Privacy & Security.
+Signed release builds use the existing Developer ID and
 App Store Connect secrets. All bundled Mach-O binaries are signed, including
 Node, native dependencies and terminal helpers. Only Node receives the JIT
 entitlement. The signed runtime must pass a PTY/native-module smoke test.
 
-Both the application and DMG must pass Apple notarization and stapling before
-ZIP, DMG and SHA-256 files reach a draft release. The draft is published only
+For signed releases, both the application and DMG must pass Apple notarization
+and stapling before ZIP, DMG and SHA-256 files reach a draft release.
+Both release modes verify the bundled Node/native-module runtime and package checksums.
+The draft is published only
 when all expected assets are uploaded. The workflow validates the exact tag,
 commit, app identifier and version; a published release cannot be overwritten.
 

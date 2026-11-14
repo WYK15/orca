@@ -9,7 +9,12 @@ on:
         default: refactor/tauri-desktop
         type: string
       publish_release:
-        description: Sign, notarize and publish a Tauri release for an existing tag
+        description: Package and publish a Tauri release for an existing tag
+        required: false
+        default: false
+        type: boolean
+      sign_release:
+        description: Use Developer ID signing and Apple notarization
         required: false
         default: false
         type: boolean
@@ -127,14 +132,14 @@ jobs:
       - name: Test native image clipboard limits
         run: cargo test --manifest-path src-tauri/Cargo.toml --locked
       - name: Use HTTPS for Apple notarization tickets
-        if: inputs.publish_release
+        if: inputs.publish_release && inputs.sign_release
         shell: bash
         # GitHub-hosted macOS HTTP/3 can fail stapling: actions/runner-images#14924.
         run: |
           printf '%s\n' 'block return out quick proto udp from any to any port 443' | sudo pfctl -f -
           sudo pfctl -E
       - name: Sign, notarize and package release
-        if: inputs.publish_release
+        if: inputs.publish_release && inputs.sign_release
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
@@ -142,6 +147,9 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: node config/scripts/package-tauri-macos-release.mjs
+      - name: Package unsigned personal release
+        if: inputs.publish_release && !inputs.sign_release
+        run: node config/scripts/package-tauri-macos-unsigned.mjs
       - name: Archive macOS application with executable permissions
         if: runner.os == 'macOS' && !inputs.publish_release
         shell: bash
@@ -175,4 +183,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.check.outputs.release_tag }}
           RELEASE_CHANNEL: ${{ inputs.release_channel || 'preview' }}
+          RELEASE_SIGNING: ${{ inputs.sign_release && 'developer-id' || 'unsigned' }}
         run: node config/scripts/publish-tauri-release.mjs

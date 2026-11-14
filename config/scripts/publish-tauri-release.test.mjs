@@ -15,7 +15,8 @@ vi.mock('node:fs', () => ({
     }
     return fixture.files.get(path)
   },
-  readdirSync: () => fixture.names
+  readdirSync: () => fixture.names,
+  writeFileSync: (path, contents) => fixture.files.set(path, contents)
 }))
 vi.mock('node:child_process', () => ({
   execFileSync: (command, args) => {
@@ -52,9 +53,11 @@ beforeEach(() => {
   vi.stubEnv('RELEASE_TAG', `v${version}`)
   vi.stubEnv('GITHUB_REPOSITORY', 'owner/repo')
   vi.stubEnv('RELEASE_CHANNEL', 'preview')
+  vi.stubEnv('RELEASE_SIGNING', 'developer-id')
   fixture.files = new Map([
     ['package.json', JSON.stringify({ version })],
     ['src-tauri/tauri.conf.json', JSON.stringify({ version })],
+    ['src-tauri/RELEASE_NOTES.md', 'Release features\n'],
     [`${directory}/${zip}`, Buffer.from('signed zip')],
     [`${directory}/${dmg}`, Buffer.from('signed dmg')]
   ])
@@ -103,6 +106,24 @@ describe('Tauri release publication gate', () => {
   it('rejects an invalid channel before modifying a release', async () => {
     vi.stubEnv('RELEASE_CHANNEL', 'stabel')
     await expect(publish()).rejects.toThrow('RELEASE_CHANNEL')
+    expect(changedRelease()).toEqual([])
+  })
+  it('labels unsigned assets and replaces signed notes on an existing draft', async () => {
+    vi.stubEnv('RELEASE_SIGNING', 'unsigned')
+    fixture.existing = { isDraft: true, isPrerelease: true }
+    await publish()
+    expect(changedRelease().map((args) => args[2])).toEqual(['edit', 'upload', 'edit'])
+    expect(changedRelease()[0]).toEqual(
+      expect.arrayContaining(['--title', expect.stringContaining('Unsigned'), '--notes-file'])
+    )
+    expect(fixture.files.get('out/tauri-release-notes.md')).toContain(
+      '未经过 Developer ID 签名和 Apple 公证'
+    )
+    expect(fixture.files.get('out/tauri-release-notes.md')).toContain('Release features')
+  })
+  it('rejects an invalid signing mode before modifying a release', async () => {
+    vi.stubEnv('RELEASE_SIGNING', 'unsinged')
+    await expect(publish()).rejects.toThrow('RELEASE_SIGNING')
     expect(changedRelease()).toEqual([])
   })
   it.each(['preview', 'stable'])(

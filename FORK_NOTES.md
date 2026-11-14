@@ -42,9 +42,12 @@ Remove an entry after an upstream sync contains its equivalent commits.
   encryption for existing storage callers, and reuses the translated application
   menu. Tauri checks and releases remain manual during the migration.
   Tauri tags use `vX.Y.Z-wyk.N-tauri.N`, are excluded from Electron
-  release builds, and publish signed/notarized Mac ARM64 ZIP and DMG assets
+  release builds, and publish Mac ARM64 ZIP and DMG assets
   without replacing the Electron Latest release. The release channel defaults
   to preview; an explicit stable channel publishes a normal GitHub Release.
+  Personal Tauri releases default to unsigned packages; `sign_release` opts
+  into Developer ID signing and Apple notarization. Release titles and notes
+  identify unsigned packages; Electron signing is unchanged.
   Tauri can import the active Orcaw profile once, with native confirmation and
   a local backup. Project IDs are remapped when deduplicating existing projects;
   SSH/folder ownership and Tauri drafts are preserved. The applications retain
