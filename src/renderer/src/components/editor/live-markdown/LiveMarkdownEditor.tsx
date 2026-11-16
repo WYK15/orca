@@ -209,13 +209,12 @@ export default function LiveMarkdownEditor(props: LiveMarkdownEditorProps): Reac
       current.current.scrollCacheKey,
       current.current.content
     )
-    const editor = new EditorView({
-      state: cached?.state ?? createState(current.current.content),
-      parent: container.current
-    })
-    if (cached) {
-      editor.dispatch({ effects: StateEffect.reconfigure.of(extensions(current.current.content)) })
-    }
+    const state = cached
+      ? cached.state.update({
+          effects: StateEffect.reconfigure.of(extensions(current.current.content))
+        }).state
+      : createState(current.current.content)
+    const editor = new EditorView({ state, parent: container.current })
     viewRef.current = editor
     editor.scrollDOM.classList.add('scrollbar-editor')
     const themeObserver = new MutationObserver(() =>

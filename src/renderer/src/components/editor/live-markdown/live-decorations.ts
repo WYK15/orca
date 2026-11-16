@@ -1,6 +1,5 @@
 import { StateField, type EditorState, type Range } from '@codemirror/state'
 import { Decoration, EditorView, type DecorationSet } from '@codemirror/view'
-import { syntaxTree } from '@codemirror/language'
 import { markdownEditorMode, markdownEditorContext, revealedTableField } from './editor-context'
 import { ListMarkerWidget, TaskMarkerWidget, CodeLanguageWidget } from './inline-widgets'
 import { MarkdownImageWidget } from './markdown-image-widget'
@@ -17,6 +16,7 @@ import { tableGridSelection } from './table-grid-selection'
 import { markdownSourceLinks, markdownSourceImages } from './markdown-links'
 import { markdownRangeIsActive as active } from './markdown-caret-presentation'
 import { markdownListNumbers } from './markdown-list-numbering'
+import { readMarkdownDocumentTree } from './markdown-document-model'
 
 function buildDecorations(state: EditorState, previous = Decoration.none): DecorationSet {
   const mode = state.facet(markdownEditorMode)
@@ -54,7 +54,7 @@ function buildDecorations(state: EditorState, previous = Decoration.none): Decor
       ranges.push(Decoration.replace({}).range(from, to))
     }
   }
-  syntaxTree(state).iterate({
+  readMarkdownDocumentTree(state).iterate({
     enter(node) {
       const { from, to, name } = node
       const source = text.slice(from, to)
@@ -293,8 +293,7 @@ export const liveMarkdownDecorations = StateField.define<DecorationSet>({
     return transaction.docChanged ||
       transaction.selection ||
       transaction.reconfigured ||
-      transaction.effects.length ||
-      syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
+      transaction.effects.length
       ? buildDecorations(transaction.state, value.map(transaction.changes))
       : value
   },

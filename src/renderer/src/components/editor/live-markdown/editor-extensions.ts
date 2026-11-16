@@ -21,6 +21,14 @@ import { markdownListDeletionNumbering } from './markdown-list-numbering'
 import { markdownListMarkerWidth } from './markdown-list-marker-width'
 import { markdownCodeBlockAt } from './markdown-inline-format'
 
+// Recreating the language discards cached parse progress when restoring a tab.
+const markdownLanguageSupport = markdown({
+  base: markdownLanguage,
+  extensions: markdownDocumentSyntax,
+  codeLanguages: languages,
+  addKeymap: false
+})
+
 export function markdownEditorExtensions(): Extension {
   return [
     history(),
@@ -45,12 +53,7 @@ export function markdownEditorExtensions(): Extension {
       { closeBrackets: { brackets: ['(', '[', '{', '"', "'"], before: ')]}:;> ' } }
     ]),
     EditorView.lineWrapping,
-    markdown({
-      base: markdownLanguage,
-      extensions: markdownDocumentSyntax,
-      codeLanguages: languages,
-      addKeymap: false
-    }),
+    markdownLanguageSupport,
     markdownDocumentModel,
     // Filters run in reverse order so child indentation sees the final numbering.
     markdownListMarkerWidth,
