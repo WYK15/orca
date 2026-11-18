@@ -2,8 +2,6 @@ import type { Worktree, Repo, TerminalTab, WorktreeLineage } from '../../../../s
 import { buildWorktreeComparator, sortWorktreesSmart } from './smart-sort'
 import { getWorktreeIdsWithLiveAgent, isInactiveWorkspace } from '@/lib/worktree-activity-state'
 import { useAppStore } from '@/store'
-import { getArchivedSidebarRepoIds } from '../../../../shared/sidebar-project-archive'
-import { getProjectHostSetupProjectionFromState } from '@/store/project-host-setup-selector'
 import {
   getAllWorktreesFromState,
   getRepoMapFromState,
@@ -359,11 +357,6 @@ export function getVisibleWorktreeIds(): string[] {
   }
 
   const visibleIds = computeVisibleWorktreeIds(state.worktreesByRepo, sortedIds, {
-    archivedRepoIds: getArchivedSidebarRepoIds(
-      state.repos,
-      getProjectHostSetupProjectionFromState(state).projects,
-      state.settings
-    ),
     filterRepoIds: state.filterRepoIds,
     showSleepingWorkspaces: state.showSleepingWorkspaces,
     tabsByWorktree: state.tabsByWorktree,

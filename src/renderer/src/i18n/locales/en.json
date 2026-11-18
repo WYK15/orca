@@ -14891,6 +14891,15 @@
     }
   },
   "fork": {
+    "groups": {
+      "create": "New group",
+      "description": "Organize projects in a collapsible group.",
+      "createAction": "Create",
+      "createFailed": "Could not create the group.",
+      "moveTo": "Move to group",
+      "remove": "Remove from group",
+      "moveFailed": "Could not move the project."
+    },
     "appearance": {
       "current": "Current: {{value}}px · Default: {{defaultSize}}px",
       "compact": "Compact",

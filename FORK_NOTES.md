@@ -24,9 +24,10 @@ Remove an entry after an upstream sync contains its equivalent commits.
   settings ignore legacy remote selection and experimental enablement while
   retaining their stored records. Local folder and Git workspaces remain usable.
   Codex's own plugins remain managed by Codex. Legacy settings stay readable.
-  Sidebar projects support pinning, archiving, searchable bulk restore, and undo.
-  Archiving is a display preference keyed by source repo identity across project
-  host setups; it preserves files, workspace state, and running terminals.
+  Sidebar projects support pinning and named, collapsible project groups through
+  a visible creation control and project context menus. Legacy archived projects
+  migrate into a collapsed ordinary Archive group per host; independent archive
+  controls are removed. Organization preserves files, workspace state and terminals.
   Appearance settings persist independent icon size, sidebar/explorer text size,
   and list spacing. These preferences also survive profile import ID remapping.
   Workspace context menus omit status assignment, read/unread toggles, and sleep.

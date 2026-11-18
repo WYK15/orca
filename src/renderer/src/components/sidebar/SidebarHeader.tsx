@@ -7,6 +7,8 @@ import SidebarWorkspaceOptionsMenu from './SidebarWorkspaceOptionsMenu'
 import { useShortcutLabel } from '@/hooks/useShortcutLabel'
 import { openWorkspaceCreationComposerWithTourHandoff } from '../contextual-tours/workspace-creation-tour-handoff'
 import { translate } from '@/i18n/i18n'
+import { PERSONAL_DESKTOP_ENABLED } from '../../../../shared/fork-feature-policy'
+import { CreateSidebarProjectGroupButton } from './CreateSidebarProjectGroupButton'
 
 type SidebarHeaderProps = {
   onWorkspaceBoardMenuOpenChange: (open: boolean) => void
@@ -30,6 +32,7 @@ const SidebarHeader = React.memo(function SidebarHeader({
         >
           {sidebarTitle}
         </span>
+        {PERSONAL_DESKTOP_ENABLED && groupBy === 'repo' && <CreateSidebarProjectGroupButton />}
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
         <SidebarWorkspaceOptionsMenu

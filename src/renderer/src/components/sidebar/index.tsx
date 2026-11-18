@@ -7,11 +7,7 @@ import SidebarNav from './SidebarNav'
 import SetupScriptPromptCard from './SetupScriptPromptCard'
 import WorktreeList from './WorktreeList'
 import SidebarToolbar from './SidebarToolbar'
-import { ProjectArchivePanel } from './ProjectArchivePanel'
-import {
-  PERSONAL_DESKTOP_ENABLED,
-  WORKSPACE_BOARD_ENABLED
-} from '../../../../shared/fork-feature-policy'
+import { WORKSPACE_BOARD_ENABLED } from '../../../../shared/fork-feature-policy'
 import WorkspaceKanbanDrawer from './WorkspaceKanbanDrawer'
 import { AgentDashboardDrawer } from '@/components/dashboard/AgentDashboardDrawer'
 import type { VirtualizedScrollAnchor } from '@/hooks/useVirtualizedScrollAnchor'
@@ -155,7 +151,6 @@ function Sidebar({
             />
 
             <div className="relative shrink-0">
-              {PERSONAL_DESKTOP_ENABLED && <ProjectArchivePanel />}
               <SetupScriptPromptCard />
 
               {/* Fixed bottom toolbar */}

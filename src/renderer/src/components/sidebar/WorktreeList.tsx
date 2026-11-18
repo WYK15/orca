@@ -5,7 +5,6 @@ import {
   SidebarProjectOrganizationMenu,
   SidebarProjectPinnedIndicator
 } from './SidebarProjectOrganizationMenu'
-import { useSidebarProjectCatalog } from './use-sidebar-project-catalog'
 import { orderSidebarPinnedRepos } from '../../../../shared/sidebar-project-archive'
 import { toast } from 'sonner'
 import {
@@ -5203,12 +5202,6 @@ const WorktreeList = React.memo(function WorktreeList({
   onWorkspaceBoardDragPreviewCommit = NOOP_WORKSPACE_BOARD_DRAG_PREVIEW_CALLBACK,
   onWorkspaceBoardDragPreviewCancel = NOOP_WORKSPACE_BOARD_DRAG_PREVIEW_CALLBACK
 }: WorktreeListProps) {
-  const projectCatalog = useSidebarProjectCatalog()
-  const archivedRepoIds = useMemo(
-    () =>
-      new Set(projectCatalog.flatMap((entry) => (entry.archivedAt === null ? [] : entry.repoIds))),
-    [projectCatalog]
-  )
   // ── Granular selectors (each is a primitive or shallow-stable ref) ──
   const allWorktrees = useAllWorktrees()
   const repoMap = useRepoMap()
@@ -5509,7 +5502,6 @@ const WorktreeList = React.memo(function WorktreeList({
   const recomputedVisibleWorktrees = useMemo(() => {
     void agentStatusEpoch
     const ids = computeVisibleWorktreeIds(worktreesByRepo, sortedIds, {
-      archivedRepoIds,
       filterRepoIds,
       showSleepingWorkspaces,
       tabsByWorktree,
@@ -5536,7 +5528,6 @@ const WorktreeList = React.memo(function WorktreeList({
     })
     return ids.map((id) => worktreeMap.get(id)).filter((w): w is Worktree => w != null)
   }, [
-    archivedRepoIds,
     agentSendTargetWorktreeId,
     agentStatusEpoch,
     filterRepoIds,
@@ -5569,21 +5560,13 @@ const WorktreeList = React.memo(function WorktreeList({
   // Why: manual header order is bound to state.repos; Recent/Smart derive order from the sorted worktree stream.
   const repos = useAppStore((s) => s.repos)
   const projectHostSetupProjection = useProjectHostSetupProjection()
-  const projectGrouping = useMemo(() => {
-    const archivedProjectIds = new Set(
-      projectHostSetupProjection.projects
-        .filter((project) => project.sourceRepoIds.some((id) => archivedRepoIds.has(id)))
-        .map((project) => project.id)
-    )
-    return {
-      projects: projectHostSetupProjection.projects.filter(
-        (project) => !archivedProjectIds.has(project.id)
-      ),
-      projectHostSetups: projectHostSetupProjection.setups.filter(
-        (setup) => !archivedProjectIds.has(setup.projectId)
-      )
-    }
-  }, [projectHostSetupProjection, archivedRepoIds])
+  const projectGrouping = useMemo(
+    () => ({
+      projects: projectHostSetupProjection.projects,
+      projectHostSetups: projectHostSetupProjection.setups
+    }),
+    [projectHostSetupProjection]
+  )
   const projectGroups = useAppStore((s) => s.projectGroups ?? EMPTY_PROJECT_GROUPS)
   const folderWorkspaces = useAppStore((s) => s.folderWorkspaces)
   const effectiveCollapsedGroups = useMemo(() => {
@@ -5640,14 +5623,14 @@ const WorktreeList = React.memo(function WorktreeList({
   )
   const visibleReposForRows = useMemo(() => {
     if (!visibleHostIdSet) {
-      return repos.filter((repo) => !archivedRepoIds.has(repo.id))
+      return repos
     }
     return repos.filter((repo) => {
       const hostId =
         repo.connectionId || repo.executionHostId ? getRepoExecutionHostId(repo) : defaultHostId
-      return visibleHostIdSet.has(hostId) && !archivedRepoIds.has(repo.id)
+      return visibleHostIdSet.has(hostId)
     })
-  }, [defaultHostId, repos, visibleHostIdSet, archivedRepoIds])
+  }, [defaultHostId, repos, visibleHostIdSet])
   const visibleProjectGroupsForRows = useMemo(
     () => filterProjectGroupsForVisibleHosts(projectGroups, visibleHostIdSet, defaultHostId),
     [defaultHostId, projectGroups, visibleHostIdSet]

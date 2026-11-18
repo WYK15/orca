@@ -39,8 +39,9 @@ import {
 import { getAutomationLegacyRepoId } from '../shared/automation-run-identity'
 import { normalizeDesktopAppearance } from '../shared/desktop-appearance'
 import { applyPersonalDesktopSettings } from '../shared/personal-desktop-settings'
-import { REMOTE_HOSTS_ENABLED } from '../shared/fork-feature-policy'
+import { PERSONAL_DESKTOP_ENABLED, REMOTE_HOSTS_ENABLED } from '../shared/fork-feature-policy'
 import { normalizeSidebarProjectArchive } from '../shared/sidebar-project-archive'
+import { migrateSidebarProjectArchive } from '../shared/sidebar-project-archive-migration'
 import { normalizeAutomationPrecheck } from '../shared/automation-precheck'
 import type {
   PersistedState,
@@ -2824,7 +2825,19 @@ export class Store {
     }
     const loaded = this.load()
     const normalized = normalizePersistedPaneIdentityState(loaded)
-    this.state = normalized.state
+    const language = normalized.state.settings?.uiLanguage
+    const archiveMigration = PERSONAL_DESKTOP_ENABLED
+      ? migrateSidebarProjectArchive(
+          normalized.state,
+          (language === 'system'
+            ? Intl.DateTimeFormat().resolvedOptions().locale
+            : language
+          )?.startsWith('zh')
+            ? '归档'
+            : 'Archive'
+        )
+      : { state: normalized.state, changed: false }
+    this.state = archiveMigration.state
     // Why: activeView is a frequent, tiny preference; keeping it beside the
     // profile avoids serializing the multi-MB recovery store on navigation.
     this.activeViewPreference = new ActiveViewPreference(this.dataFile, this.state.ui?.activeView)
@@ -2843,7 +2856,12 @@ export class Store {
       this.state.legacyPaneKeyAliasEntries = entries
       this.scheduleSave()
     })
-    if (normalized.changed || this.loadNeedsSave || adaptedProjectGroups) {
+    if (
+      normalized.changed ||
+      this.loadNeedsSave ||
+      adaptedProjectGroups ||
+      archiveMigration.changed
+    ) {
       // Why: rewrite legacy pane:1 leaves so older renderer writes can't revive them; other migrations also set loadNeedsSave.
       this.scheduleSave()
     }

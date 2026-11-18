@@ -14697,6 +14697,15 @@
     }
   },
   "fork": {
+    "groups": {
+      "create": "新建分组",
+      "description": "将项目收进可折叠的分组。",
+      "createAction": "创建",
+      "createFailed": "无法创建分组。",
+      "moveTo": "移动到分组",
+      "remove": "移出分组",
+      "moveFailed": "无法移动项目。"
+    },
     "appearance": {
       "iconSize": "图标大小",
       "iconDescription": "主要图标与辅助图标按比例调整。",
