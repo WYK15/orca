@@ -103,6 +103,15 @@ describe('terminal path helpers', () => {
       expect(links[0]).toMatchObject({ pathText: 'foo.ts', line: 12, column: 3 })
     })
 
+    it('detects bare Unicode filenames within Chinese punctuation', () => {
+      expect(
+        extractTerminalFileLinks('查看《报告.md:12:3》，以及 re\u0301sume\u0301.md。')
+      ).toEqual([
+        expect.objectContaining({ pathText: '报告.md', line: 12, column: 3 }),
+        expect.objectContaining({ pathText: 're\u0301sume\u0301.md' })
+      ])
+    })
+
     it('keeps huge no-separator terminal tokens off the hover hot path', () => {
       const line = `${'b'.repeat(80 * 500)} package.json`
       const startedAt = performance.now()
@@ -306,12 +315,54 @@ describe('terminal path helpers', () => {
     })
   })
 
+  it('detects and resolves Unicode paths in terminal output and OSC links', () => {
+    const target = '报告/云闪付-10.3.8-20261122-095233.md'
+
+    expect(extractTerminalFileLinks(`查看报告 (${target})。`)).toEqual([
+      expect.objectContaining({ pathText: target, displayText: target })
+    ])
+    expect(resolveTerminalFileLinkText(target, '/repo')).toEqual({
+      absolutePath: `/repo/${target}`,
+      line: null,
+      column: null
+    })
+  })
+
   it('keeps line and column suffixes from exact OSC hyperlink text', () => {
     expect(resolveTerminalFileLinkText('docs/README.md:12:3', '/repo')).toEqual({
       absolutePath: '/repo/docs/README.md',
       line: 12,
       column: 3
     })
+  })
+
+  it.each([
+    ['/repo/src', '../报告.md:12:3', '/repo/报告.md'],
+    ['C:\\repo\\src', '..\\报告.md:12:3', 'C:/repo/报告.md'],
+    ['//server/share/repo/src', '../../报告.md:12:3', '//server/share/报告.md'],
+    ['/repo', '../../报告.md:12:3', '/报告.md'],
+    ['/', './docs/报告.md:12:3', '/docs/报告.md']
+  ])('resolves the path from cwd %s', (cwd, target, absolutePath) => {
+    expect(resolveTerminalFileLinkText(target, cwd)).toEqual({
+      absolutePath,
+      line: 12,
+      column: 3
+    })
+  })
+
+  it.each([
+    ['查看报告（报告/最终 版本.md:12:3）。', '报告/最终 版本.md', 12, 3],
+    [
+      '查看报告 (file:///repo/%E6%8A%A5%E5%91%8A%20%E6%9C%80%E7%BB%88.md#L12C3)。',
+      '/repo/报告 最终.md',
+      12,
+      3
+    ],
+    ['查看报告（file:///repo/%E6%8A%A5%E5%91%8A.md#L12C3）。', '/repo/报告.md', 12, 3]
+  ])('detects the complete path in %s', (output, pathText, line, column) => {
+    expect(extractTerminalFileLinks(output)).toEqual([
+      expect.objectContaining({ pathText, line, column })
+    ])
   })
 
   it('does not resolve partial text as an OSC hyperlink target', () => {

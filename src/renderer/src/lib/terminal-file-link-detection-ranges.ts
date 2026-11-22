@@ -2,7 +2,7 @@ import { parseExplicitFileLinkTarget } from './explicit-file-link-target'
 import type { ParsedTerminalFileLink } from './terminal-links'
 
 const LEADING_TRIM_CHARS = new Set(['(', '[', '{', '"', "'"])
-const TRAILING_TRIM_CHARS = new Set([')', ']', '}', '"', "'", ',', ';', '.'])
+const TRAILING_TRIM_CHARS = new Set(')]}"\',;.）】》」』，。！？；、”’')
 
 export type DetectedTerminalFileLinkRange = {
   startIndex: number

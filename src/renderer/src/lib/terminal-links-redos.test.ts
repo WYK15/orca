@@ -9,6 +9,7 @@ import { extractTerminalFileLinks, extractTerminalFileLinkCandidates } from './t
 describe('terminal-links ReDoS guard (#5970)', () => {
   const cases: [string, string][] = [
     ['separator + space padding', `a/${' '.repeat(30_000)}`],
+    ['separator followed by Unicode prose', `a/ ${'中'.repeat(30_000)}`],
     ['advertised url + space padding', `Web Interface http://127.0.0.1:4040${' '.repeat(30_000)}`]
   ]
 

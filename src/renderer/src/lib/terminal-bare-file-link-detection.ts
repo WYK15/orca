@@ -7,7 +7,7 @@ import type { ParsedTerminalFileLink } from './terminal-links'
 
 // Mirrors VSCode's terminal word separators, with `:` handled by the existing
 // line/column suffix parser instead of acting as a raw separator.
-const WORD_TOKEN_REGEX = /[^\s()[\]{}'",;<>|`]+/g
+const WORD_TOKEN_REGEX = /[^\s()[\]{}'",;<>|`，。！？；：、“”‘’（）【】《》「」『』]+/g
 
 const EXTENSIONLESS_FILENAMES = new Set([
   'Makefile',
@@ -23,7 +23,7 @@ const EXTENSIONLESS_FILENAMES = new Set([
   'CONTRIBUTING'
 ])
 
-const BARE_FILENAME_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9._+-]*$/
+const BARE_FILENAME_PATTERN = /^[\p{L}\p{N}_][\p{L}\p{M}\p{N}._+-]*$/u
 const MAX_BARE_FILENAME_TOKEN_LENGTH = 120
 
 function looksLikeFilename(token: string): boolean {
@@ -33,13 +33,7 @@ function looksLikeFilename(token: string): boolean {
   if (!BARE_FILENAME_PATTERN.test(token)) {
     return false
   }
-  if (/^\d+$/.test(token)) {
-    return false
-  }
-  if (token.includes('.')) {
-    return !/^\.+$/.test(token)
-  }
-  return EXTENSIONLESS_FILENAMES.has(token)
+  return token.includes('.') || EXTENSIONLESS_FILENAMES.has(token)
 }
 
 // Bare words are filesystem-validated by the provider, so reject obvious prose

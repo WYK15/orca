@@ -6,10 +6,17 @@ export type HardWrappedPathFragmentRow = {
   lineLength: number
 }
 
-const HARD_WRAPPED_PATH_FRAGMENT_PATTERN = /^[A-Za-z0-9._~@%+=:,/\\-]+$/
+const PATH_FRAGMENT_CHARS = String.raw`[\p{L}\p{M}\p{N}._~@%+=:,/\\-]`
+const PATH_FRAGMENT_PATTERN = new RegExp(`^${PATH_FRAGMENT_CHARS}+$`, 'u')
+const PATH_FRAGMENT_PREFIX = new RegExp(`^${PATH_FRAGMENT_CHARS}+`, 'u')
+const PATH_FRAGMENT_SUFFIX = new RegExp(`(?<!${PATH_FRAGMENT_CHARS})${PATH_FRAGMENT_CHARS}+$`, 'u')
+const PATH_START_AFTER_PROSE = new RegExp(
+  String.raw`(?:^|[\s•*>-])(?:/|\.{1,2}/|[\p{L}\p{M}\p{N}._-]+/)${PATH_FRAGMENT_CHARS}*$`,
+  'u'
+)
 
 export function isHardWrappedPathFragment(text: string): boolean {
-  return HARD_WRAPPED_PATH_FRAGMENT_PATTERN.test(text) && /[A-Za-z0-9]/.test(text)
+  return PATH_FRAGMENT_PATTERN.test(text) && /[\p{L}\p{N}]/u.test(text)
 }
 
 export function isIncompleteHardWrappedPathStart(text: string): boolean {
@@ -24,7 +31,7 @@ export function isHardWrappedPathContinuation(text: string): boolean {
 
 export function canStartHardWrappedPath(text: string): boolean {
   if (!isHardWrappedPathFragment(text)) {
-    return /(?:^|[\s•*>-])(?:\/|\.{1,2}\/|[A-Za-z0-9._-]+\/)[A-Za-z0-9._~@%+=:,/\\-]*$/.test(text)
+    return PATH_START_AFTER_PROSE.test(text)
   }
 
   return /(?:\/|\\)/.test(text)
@@ -45,10 +52,7 @@ function sliceHardWrappedPathFragmentRow(
 export function getHardWrappedPathSuffix(
   row: HardWrappedPathFragmentRow
 ): HardWrappedPathFragmentRow | null {
-  let startIndex = row.text.length
-  while (startIndex > 0 && HARD_WRAPPED_PATH_FRAGMENT_PATTERN.test(row.text[startIndex - 1])) {
-    startIndex--
-  }
+  const startIndex = PATH_FRAGMENT_SUFFIX.exec(row.text)?.index ?? row.text.length
   const suffix = sliceHardWrappedPathFragmentRow(row, startIndex, row.text.length)
   return isHardWrappedPathContinuation(suffix.text) ? suffix : null
 }
@@ -56,13 +60,7 @@ export function getHardWrappedPathSuffix(
 export function getHardWrappedPathPrefix(
   row: HardWrappedPathFragmentRow
 ): HardWrappedPathFragmentRow | null {
-  let endIndex = 0
-  while (
-    endIndex < row.text.length &&
-    HARD_WRAPPED_PATH_FRAGMENT_PATTERN.test(row.text[endIndex])
-  ) {
-    endIndex++
-  }
+  const endIndex = PATH_FRAGMENT_PREFIX.exec(row.text)?.[0].length ?? 0
   const prefix = sliceHardWrappedPathFragmentRow(row, 0, endIndex)
   return isHardWrappedPathContinuation(prefix.text) ? prefix : null
 }

@@ -124,23 +124,6 @@ export function joinAbsolutePath(basePath: string, relativePath: string): string
     return null
   }
 
-  return normalizeJoinedPath(normalizedBase, relativePath)
-}
-
-function normalizeJoinedPath(basePath: NormalizedAbsolutePath, relativePath: string): string {
-  const normalizedBaseSegments = normalizeSegments(basePath.normalized)
-  const relativeSegments = normalizeSegments(relativePath)
-  const joinedSegments = [...normalizedBaseSegments, ...relativeSegments]
-
-  if (basePath.rootKind === 'unc') {
-    const [server, share, ...rest] = joinedSegments
-    return rest.length > 0 ? `//${server}/${share}/${rest.join('/')}` : `//${server}/${share}`
-  }
-
-  if (basePath.rootKind === 'windows') {
-    const [drive, ...rest] = joinedSegments
-    return rest.length > 0 ? `${drive}/${rest.join('/')}` : drive
-  }
-
-  return `/${joinedSegments.join('/')}`.replace(/\/+$/, '') || '/'
+  const base = normalizedBase.normalized.replace(/\/$/, '')
+  return normalizeAbsolutePath(`${base}/${relativePath}`)?.normalized ?? null
 }

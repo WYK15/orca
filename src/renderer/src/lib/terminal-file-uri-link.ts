@@ -9,7 +9,7 @@ const MAX_FILE_URI_LENGTH = 2048
 // so a file:// prefix in a huge dumped token cannot block the renderer.
 const FILE_URI_REGEX = /\bfile:\/\/[^\s"`<>|]{1,2049}/gi
 
-const TRAILING_PROSE_CHARS = new Set(['.', ',', ';', ':', '!', '?', '>', '"', "'", '`'])
+const TRAILING_PROSE_CHARS = new Set('.,;:!?>"\'`）】》」』，。！？；、”’')
 
 function trimTrailingProse(uriText: string): string {
   let parentheses = 0

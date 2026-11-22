@@ -33,8 +33,9 @@ export type ResolvedTerminalFileLink = Pick<ParsedTerminalFileLink, 'line' | 'co
 // `:line` and `:col` suffixes (e.g. `src/foo.ts:12:3`, `./bin`, `/abs/path`).
 // Why: framework route files commonly use punctuation segments like
 // `app/(shop)/products/[id]/page.tsx`; keep those links whole.
+// The left boundary prevents retrying every suffix of a long word.
 const LOCAL_PATH_REGEX =
-  /(?:~[\\/]|[\\/]|\.{1,2}[\\/]|[A-Za-z]:[\\/]|[A-Za-z0-9._-]+[\\/])[A-Za-z0-9._~\-/%+@\\()[\]]*(?::\d+)?(?::\d+)?/g
+  /(?:~[\\/]|[\\/]|\.{1,2}[\\/]|[A-Za-z]:[\\/]|(?<![\p{L}\p{M}\p{N}._-])[\p{L}\p{M}\p{N}._-]+[\\/])[\p{L}\p{M}\p{N}._~\-/%+@\\()[\]]*(?::\d+)?(?::\d+)?/gu
 
 // Matches separator paths whose file or folder names include spaces. This runs
 // before LOCAL_PATH_REGEX so `/Users/A/Foo Bar/file.ts` is claimed as one link
@@ -43,15 +44,15 @@ const LOCAL_PATH_REGEX =
 // separator" inside the regex creates overlapping whitespace backtracking on
 // large ConPTY TUI lines. Keep the scan linear and filter candidates in code.
 const SPACED_PATH_WITH_SEPARATOR_REGEX =
-  /(?:~[\\/]|[\\/]|\.{1,2}[\\/]|[A-Za-z]:[\\/]|[A-Za-z0-9._-]+[\\/])[^()[\]{}'",;<>|`\r\n]+(?::\d+)?(?::\d+)?/g
+  /(?:~[\\/]|[\\/]|\.{1,2}[\\/]|[A-Za-z]:[\\/]|(?<![\p{L}\p{M}\p{N}._-])[\p{L}\p{M}\p{N}._-]+[\\/])[^()[\]{}'",;<>|`\r\n]+(?::\d+)?(?::\d+)?/gu
 // Why this shares the broad candidate shape: extension paths with prose after
 // them still need trimming, but the whitespace/extension test stays in code.
 const SPACED_PATH_WITH_EXTENSION_REGEX =
-  /(?:~[\\/]|[\\/]|\.{1,2}[\\/]|[A-Za-z]:[\\/]|[A-Za-z0-9._-]+[\\/])[^()[\]{}'",;<>|`\r\n]+(?::\d+)?(?::\d+)?/g
+  /(?:~[\\/]|[\\/]|\.{1,2}[\\/]|[A-Za-z]:[\\/]|(?<![\p{L}\p{M}\p{N}._-])[\p{L}\p{M}\p{N}._-]+[\\/])[^()[\]{}'",;<>|`\r\n]+(?::\d+)?(?::\d+)?/gu
 // Why this is also broad: the candidates path runs on hover, including huge
 // space-padded TUI lines, so reject line-ending spaced paths outside the regex.
 const LINE_ENDING_SPACED_PATH_REGEX =
-  /(?:~[\\/]|[\\/]|\.{1,2}[\\/]|[A-Za-z]:[\\/]|[A-Za-z0-9._-]+[\\/])[^()[\]{}'",;<>|`\r\n]+(?::\d+)?(?::\d+)?/g
+  /(?:~[\\/]|[\\/]|\.{1,2}[\\/]|[A-Za-z]:[\\/]|(?<![\p{L}\p{M}\p{N}._-])[\p{L}\p{M}\p{N}._-]+[\\/])[^()[\]{}'",;<>|`\r\n]+(?::\d+)?(?::\d+)?/gu
 const SPACED_LOCAL_PATH_REGEXES = [
   SPACED_PATH_WITH_SEPARATOR_REGEX,
   SPACED_PATH_WITH_EXTENSION_REGEX,

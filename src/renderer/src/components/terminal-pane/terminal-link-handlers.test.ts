@@ -1,6 +1,7 @@
 /* eslint-disable max-lines -- Why: terminal link routing has intertwined local,
 SSH, and runtime cases; keeping them in one suite prevents fixture drift. */
 import type { IDisposable, ILink } from '@xterm/xterm'
+import { Terminal as HeadlessTerminal } from '@xterm/headless'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PaneManager } from '@/lib/pane-manager/pane-manager'
 import {
@@ -1348,6 +1349,58 @@ describe('createFilePathLinkProvider range bounds', () => {
     expect(registration, 'bubble mouseup handler should be registered').toBeDefined()
     return registration![1] as (event: MouseEvent) => void
   }
+
+  it('opens a printed Markdown path with a Chinese filename on Cmd-click', async () => {
+    setPlatform('Macintosh')
+    const relativePath = 'reports/云闪付-10.3.8-20261122-095233.md'
+    const [link] = await collectLinks(`查看报告 (${relativePath})。`)
+    expect(link?.text).toBe(relativePath)
+
+    link.activate(
+      { metaKey: true, button: 0, preventDefault: vi.fn() } as unknown as MouseEvent,
+      link.text
+    )
+    await flushAsyncWork()
+
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: `/repo/${relativePath}`,
+        relativePath,
+        language: 'markdown'
+      }),
+      { forceContentReload: true }
+    )
+  })
+
+  it.each([
+    ['soft-wrapped', '报告/最终版本.md:12:3'],
+    ['hard-wrapped', '报告/\r\n最终版本.md:12:3']
+  ])('opens a %s Chinese path from its continuation row', async (_wrap, output) => {
+    setPlatform('Macintosh')
+    const terminal = new HeadlessTerminal({ cols: 16, rows: 4, allowProposedApi: true })
+    try {
+      await new Promise<void>((resolve) => terminal.write(output, resolve))
+      expect(
+        openFilePathLinkAtBufferPosition(terminal.buffer.active, { x: 2, y: 2 }, terminal.cols, {
+          startupCwd: '/repo',
+          worktreeId: 'wt-1',
+          worktreePath: '/repo'
+        })
+      ).toBe(true)
+      await flushAsyncWork()
+      await flushDoubleRaf()
+
+      expect(openFileMock).toHaveBeenCalledWith(
+        expect.objectContaining({ filePath: '/repo/报告/最终版本.md' }),
+        { forceContentReload: true }
+      )
+      expect(setPendingEditorRevealMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ line: 12, column: 3 })
+      )
+    } finally {
+      terminal.dispose()
+    }
+  })
 
   it('underlines only the filename itself, not the column padding from `ls`', async () => {
     // ls pads each column with trailing spaces. Regression: the provider used
